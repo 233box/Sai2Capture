@@ -1,0 +1,33 @@
+### C# ###
+bin/
+obj/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.nupkg
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+bld/
+[Bb]in/
+[Oo]bj/
+
+# Files built by Visual Studio
+*.tlog
+*.log
+*.vspscc
+*.vssscc
+*.buildstate
+*.cache
+*.res
+*.pdb
+*.lib
+
+# Visual Studio cache/options directory
+.vs/
