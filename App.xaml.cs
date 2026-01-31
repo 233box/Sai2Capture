@@ -23,6 +23,7 @@ namespace Sai2Capture
             services.AddSingleton<UtilityService>();
             services.AddSingleton<CaptureService>();
             services.AddSingleton<SettingsService>();
+            services.AddSingleton<LogService>();
 
             // 注册Dispatcher - 使用延迟初始化
             services.AddSingleton(provider =>

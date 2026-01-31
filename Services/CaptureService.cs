@@ -21,11 +21,15 @@ namespace Sai2Capture.Services
         private readonly SharedStateService _sharedState;
         private readonly WindowCaptureService _windowCaptureService;
         private readonly UtilityService _utilityService;
+        private readonly LogService _logService;
         private Thread? _captureThread;
         private Dispatcher? _dispatcher;
 
         /// <summary>
-        /// 捕获状态描述
+        /// 获取共享状态服务
+        /// 用于访问捕获状态信息
+        /// </summary>
+        public SharedStateService SharedState => _sharedState;
         /// 可能取值及其含义：
         /// "未开始" - 初始状态/空闲状态
         /// "开始捕获" - 启动捕获时的初始状态
@@ -44,14 +48,17 @@ namespace Sai2Capture.Services
         /// <param name="sharedState">共享状态服务</param>
         /// <param name="windowCaptureService">窗口捕获服务</param>
         /// <param name="utilityService">工具服务</param>
+        /// <param name="logService">日志服务</param>
         public CaptureService(
             SharedStateService sharedState,
             WindowCaptureService windowCaptureService,
-            UtilityService utilityService)
+            UtilityService utilityService,
+            LogService logService)
         {
             _sharedState = sharedState;
             _windowCaptureService = windowCaptureService;
             _utilityService = utilityService;
+            _logService = logService;
         }
         
         /// <summary>
@@ -62,6 +69,7 @@ namespace Sai2Capture.Services
         public void Initialize(Dispatcher dispatcher)
         {
             _dispatcher = dispatcher;
+            _logService.AddLog("捕获服务已初始化");
         }
 
         /// <summary>
@@ -85,30 +93,37 @@ namespace Sai2Capture.Services
                 // 如果已经在捕获中，直接返回
                 if (_sharedState.Running)
                 {
+                    _logService.AddLog("捕获已在运行中，忽略启动请求", LogLevel.Warning);
                     return;
                 }
 
                 if (string.IsNullOrEmpty(windowTitle))
                 {
+                    _logService.AddLog("窗口标题为空，无法启动捕获", LogLevel.Error);
                     throw new ArgumentException("窗口标题不能为空", nameof(windowTitle));
                 }
 
+                _logService.AddLog($"查找窗口: {windowTitle}");
                 _sharedState.Hwnd = _windowCaptureService.FindWindowByTitle(windowTitle);
                 _sharedState.Interval = interval;
 
                 // 首次启动时初始化
                 if (!_sharedState.FirstStart)
                 {
-                    _sharedState.OutputFolder = _utilityService.CreateOutputFolder();
+                    _logService.AddLog("首次启动，创建输出目录");
+                    _sharedState.OutputFolder = "output_frames";
                     _sharedState.VideoPath = _utilityService.GetUniqueVideoPath(
                         _sharedState.OutputFolder, 
                         "output", 
                         ".mp4");
+                    _logService.AddLog($"输出目录: {_sharedState.OutputFolder}");
+                    _logService.AddLog($"视频路径: {_sharedState.VideoPath}");
                     _sharedState.FirstStart = true;
                 }
 
                 _sharedState.Running = true;
                 Status = "开始捕获";
+                _logService.AddLog($"捕获线程启动 - 窗口句柄: {_sharedState.Hwnd}, 间隔: {interval}秒");
 
                 _captureThread = new Thread(CaptureLoop)
                 {
@@ -118,6 +133,7 @@ namespace Sai2Capture.Services
             }
             catch (Exception ex)
             {
+                _logService.AddLog($"启动捕获失败: {ex.Message}", LogLevel.Error);
                 System.Windows.MessageBox.Show(ex.Message, "错误", MessageBoxButton.OK, MessageBoxImage.Error);
                 Status = $"错误: {ex.Message}";
             }
@@ -132,31 +148,42 @@ namespace Sai2Capture.Services
         {
             _sharedState.Running = false;
             Status = "捕获已暂停";
+            _logService.AddLog($"捕获已暂停 - 已捕获 {_sharedState.FrameNumber} 帧", LogLevel.Warning);
         }
 
         /// <summary>
         /// 完全停止捕获过程
         /// 1. 停止捕获线程
         /// 2. 释放视频写入器资源
-        /// 3. 重置首次启动标志
+        /// 3. 重置所有状态到初始值
         /// 4. 更新状态信息
         /// </summary>
         public void StopCapture()
         {
             _sharedState.Running = false;
             
-            if (_sharedState.VideoWriter != null)
+            string? savedVideoPath = _sharedState.VideoPath;
+            bool hasVideo = _sharedState.VideoWriter != null;
+            int totalFrames = _sharedState.FrameNumber;
+            int savedFrames = _sharedState.SavedCount;
+            
+            if (hasVideo)
             {
-                _sharedState.VideoWriter.Release();
+                _logService.AddLog($"释放视频写入器 - 总帧数: {totalFrames}, 有效捕获: {savedFrames}");
+                _sharedState.VideoWriter?.Release();
                 _sharedState.VideoWriter = null;
-                Status = $"捕获停止，视频已保存: {_sharedState.VideoPath}";
+                Status = $"捕获停止，视频已保存: {savedVideoPath}";
+                _logService.AddLog($"视频已保存: {savedVideoPath}");
             }
             else
             {
                 Status = "捕获停止";
+                _logService.AddLog("捕获停止 - 未生成视频文件");
             }
 
-            _sharedState.FirstStart = false;
+            // 重置所有状态到初始值
+            _sharedState.ResetCaptureState();
+            _logService.AddLog("捕获状态已重置到初始值");
         }
 
         /// <summary>
@@ -174,6 +201,9 @@ namespace Sai2Capture.Services
         /// </remarks>
         private void CaptureLoop()
         {
+            _logService.AddLog("捕获循环开始");
+            int errorCount = 0;
+            
             try
             {
                 while (_sharedState.Running)
@@ -186,12 +216,23 @@ namespace Sai2Capture.Services
                         Status = $"已捕获帧 #{_sharedState.FrameNumber}";
                     });
 
+                    // 每100帧记录一次日志
+                    if (_sharedState.FrameNumber % 100 == 0)
+                    {
+                        _logService.AddLog($"捕获进度: {_sharedState.FrameNumber} 帧");
+                    }
+
                     _sharedState.FrameNumber++;
                     Thread.Sleep((int)(_sharedState.Interval * 1000));
                 }
+                
+                _logService.AddLog($"捕获循环结束 - 总帧数: {_sharedState.FrameNumber}");
             }
             catch (Exception ex)
             {
+                errorCount++;
+                _logService.AddLog($"捕获错误 (#{errorCount}): {ex.Message}", LogLevel.Error);
+                
                 _dispatcher?.Invoke(() =>
                 {
                     Status = $"捕获错误: {ex.Message}";

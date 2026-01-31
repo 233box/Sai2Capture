@@ -13,100 +13,152 @@
     Width="900"
     Closing="Window_Closing">
 
-    <Grid Margin="16">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+    <TabControl Margin="8">
+        <!-- 主页面标签页 -->
+        <TabItem Header="主页面">
+            <Grid Margin="16">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
 
-        <!-- Capture Settings Card -->
-        <ui:Card Grid.Row="0" Margin="0,0,0,16">
-            <StackPanel>
-                <TextBlock Text="窗口捕获设置" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                <!-- Capture Settings Card -->
+                <ui:Card Grid.Row="0" Margin="0,0,0,16">
+                    <StackPanel>
+                        <TextBlock Text="窗口捕获设置" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,12"/>
 
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
 
-                    <!-- 替换 ui:Label → TextBlock -->
-                    <TextBlock 
-                        Grid.Row="0" Grid.Column="0" 
-                        Text="窗口名称:" 
-                        Margin="0,0,12,12" 
-                        VerticalAlignment="Center"/>
-                    <ComboBox
-                        Grid.Row="0" Grid.Column="1"
-                        Grid.ColumnSpan="2"
-                        ItemsSource="{Binding WindowTitles}"
-                        Text="{Binding SelectedWindowTitle, UpdateSourceTrigger=PropertyChanged}"
-                        IsEditable="True"
-                        Margin="0,0,0,12" />
+                            <!-- 替换 ui:Label → TextBlock -->
+                            <TextBlock 
+                                Grid.Row="0" Grid.Column="0" 
+                                Text="窗口名称:" 
+                                Margin="0,0,12,12" 
+                                VerticalAlignment="Center"/>
+                            <ComboBox
+                                Grid.Row="0" Grid.Column="1"
+                                Grid.ColumnSpan="2"
+                                ItemsSource="{Binding WindowTitles}"
+                                Text="{Binding SelectedWindowTitle, UpdateSourceTrigger=PropertyChanged}"
+                                IsEditable="True"
+                                Margin="0,0,0,12" />
 
-                    <TextBlock 
-                        Grid.Row="1" Grid.Column="0" 
-                        Text="捕获间隔(秒):" 
-                        Margin="0,0,12,12" 
-                        VerticalAlignment="Center"/>
-                    <ui:NumberBox 
-                        Grid.Row="1" Grid.Column="1"
-                        Value="{Binding CaptureInterval}"
-                        Margin="0,0,0,12"
-                        Minimum="0.1" Maximum="10" SmallChange="0.1"/>
+                            <TextBlock 
+                                Grid.Row="1" Grid.Column="0" 
+                                Text="捕获间隔(秒):" 
+                                Margin="0,0,12,12" 
+                                VerticalAlignment="Center"/>
+                            <ui:NumberBox 
+                                Grid.Row="1" Grid.Column="1"
+                                Value="{Binding CaptureInterval}"
+                                Margin="0,0,0,12"
+                                Minimum="0.1" Maximum="10" SmallChange="0.1"/>
 
-                    <TextBlock 
-                        Grid.Row="2" Grid.Column="0" 
-                        Text="保存路径:" 
-                        Margin="0,0,12,0" 
-                        VerticalAlignment="Center"/>
-                    <ui:TextBox 
-                        Grid.Row="2" Grid.Column="1"
-                        Text="{Binding SavePath}" 
+                            <TextBlock 
+                                Grid.Row="2" Grid.Column="0" 
+                                Text="保存路径:" 
+                                Margin="0,0,12,0" 
+                                VerticalAlignment="Center"/>
+                            <ui:TextBox 
+                                Grid.Row="2" Grid.Column="1"
+                                Text="{Binding SavePath}" 
+                                Margin="0,0,12,0"/>
+                            <ui:Button
+                                Grid.Row="2" Grid.Column="2"
+                                Content="浏览"
+                                Command="{Binding BrowseSavePathCommand}"/>
+                        </Grid>
+                    </StackPanel>
+                </ui:Card>
+
+                <!-- Control Buttons -->
+                <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,16">
+                    <ui:Button 
+                        Appearance="Primary"
+                        Content="开始/继续" 
+                        Command="{Binding StartCaptureCommand}" 
                         Margin="0,0,12,0"/>
-                    <ui:Button
-                        Grid.Row="2" Grid.Column="2"
-                        Content="浏览"
-                        Command="{Binding BrowseSavePathCommand}"/>
-                </Grid>
-            </StackPanel>
-        </ui:Card>
+                    <ui:Button 
+                        Content="暂停" 
+                        Command="{Binding PauseCaptureCommand}" 
+                        Margin="0,0,12,0"/>
+                    <ui:Button 
+                        Content="停止录制" 
+                        Command="{Binding StopCaptureCommand}" 
+                        Margin="0,0,12,0"/>
+                    <ui:Button 
+                        Content="预览窗口" 
+                        Command="{Binding PreviewWindowCommand}"/>
+                </StackPanel>
 
-        <!-- Control Buttons -->
-        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,16">
-            <ui:Button 
-                Appearance="Primary"
-                Content="开始/继续" 
-                Command="{Binding StartCaptureCommand}" 
-                Margin="0,0,12,0"/>
-            <ui:Button 
-                Content="暂停" 
-                Command="{Binding PauseCaptureCommand}" 
-                Margin="0,0,12,0"/>
-            <ui:Button 
-                Content="停止录制" 
-                Command="{Binding StopCaptureCommand}" 
-                Margin="0,0,12,0"/>
-            <ui:Button 
-                Content="预览窗口" 
-                Command="{Binding PreviewWindowCommand}"/>
-        </StackPanel>
+                <!-- Status Display -->
+                <ui:Card Grid.Row="4" Margin="0">
+                    <TextBlock 
+                        Text="{Binding Status}" 
+                        FontWeight="SemiBold"
+                        HorizontalAlignment="Center"/>
+                </ui:Card>
+            </Grid>
+        </TabItem>
 
-        <!-- Status Display -->
-        <ui:Card Grid.Row="4" Margin="0">
-            <TextBlock 
-                Text="{Binding Status}" 
-                FontWeight="SemiBold"
-                HorizontalAlignment="Center"/>
-        </ui:Card>
-    </Grid>
+        <!-- 系统日志标签页 -->
+        <TabItem Header="系统日志">
+            <Grid Margin="16">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- 日志工具栏 -->
+                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,12">
+                    <ui:Button 
+                        Content="清空日志" 
+                        Command="{Binding ClearLogCommand}" 
+                        Margin="0,0,12,0"/>
+                    <ui:Button 
+                        Content="导出日志" 
+                        Command="{Binding ExportLogCommand}"/>
+                </StackPanel>
+
+                <!-- 日志显示区域 -->
+                <ui:Card Grid.Row="1" Margin="0,0,0,12">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                        <TextBox 
+                            Text="{Binding LogContent, Mode=OneWay}"
+                            IsReadOnly="True"
+                            TextWrapping="Wrap"
+                            FontFamily="Consolas"
+                            FontSize="12"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            VerticalScrollBarVisibility="Auto"
+                            HorizontalScrollBarVisibility="Auto"/>
+                    </ScrollViewer>
+                </ui:Card>
+
+                <!-- 日志统计信息 -->
+                <ui:Card Grid.Row="2">
+                    <TextBlock 
+                        Text="{Binding LogStatistics}" 
+                        FontSize="11"
+                        Foreground="Gray"
+                        HorizontalAlignment="Right"/>
+                </ui:Card>
+            </Grid>
+        </TabItem>
+    </TabControl>
 </Window>

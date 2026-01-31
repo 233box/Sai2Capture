@@ -113,5 +113,35 @@ namespace Sai2Capture.Services
         /// 用于用户界面中的窗口选择下拉框
         /// </summary>
         public List<string> WindowTitles { get; set; } = new List<string>();
+
+        /// <summary>
+        /// 重置所有捕获相关状态到初始值
+        /// 在停止录制后调用，准备下一次录制
+        /// </summary>
+        public void ResetCaptureState()
+        {
+            Running = false;
+            FrameNumber = 0;
+            SavedCount = 0;
+            FirstStart = false;
+            Hwnd = nint.Zero;
+            OutputFolder = "";
+            VideoPath = null;
+            
+            // 释放上一帧图像
+            if (LastImage != null)
+            {
+                LastImage.Dispose();
+                LastImage = null;
+            }
+            
+            // 释放视频写入器
+            if (VideoWriter != null)
+            {
+                VideoWriter.Release();
+                VideoWriter.Dispose();
+                VideoWriter = null;
+            }
+        }
     }
 }

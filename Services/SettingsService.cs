@@ -15,6 +15,7 @@ namespace Sai2Capture.Services
     {
         private const string SettingsFileName = "settings.json";
         private readonly SharedStateService _sharedState;
+        private readonly LogService _logService;
 
         /// <summary>
         /// 目标窗口名称
@@ -53,9 +54,20 @@ namespace Sai2Capture.Services
         /// 初始化设置服务
         /// </summary>
         /// <param name="sharedState">共享状态服务，用于配置同步</param>
-        public SettingsService(SharedStateService sharedState)
+        /// <param name="logService">日志服务</param>
+        public SettingsService(SharedStateService sharedState, LogService logService)
         {
             _sharedState = sharedState;
+            _logService = logService;
+        }
+
+        /// <summary>
+        /// 获取设置文件的绝对路径
+        /// </summary>
+        /// <returns>设置文件的完整路径</returns>
+        public string GetSettingsFilePath()
+        {
+            return Path.GetFullPath(SettingsFileName);
         }
 
         /// <summary>
@@ -72,6 +84,7 @@ namespace Sai2Capture.Services
             {
                 if (File.Exists(SettingsFileName))
                 {
+                    _logService.AddLog($"加载设置文件: {GetSettingsFilePath()}");
                     string json = File.ReadAllText(SettingsFileName);
                     var settings = JsonSerializer.Deserialize<SettingsModel>(json);
 
@@ -84,11 +97,18 @@ namespace Sai2Capture.Services
 
                         // 更新共享状态
                         _sharedState.Interval = CaptureInterval;
+                        
+                        _logService.AddLog($"设置加载成功 - 窗口: {WindowName}, 间隔: {CaptureInterval}秒, 缩放: {ZoomLevel}");
                     }
+                }
+                else
+                {
+                    _logService.AddLog("设置文件不存在，使用默认设置", LogLevel.Warning);
                 }
             }
             catch (Exception ex)
             {
+                _logService.AddLog($"加载设置失败: {ex.Message}", LogLevel.Error);
                 System.Windows.MessageBox.Show($"加载设置失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
@@ -114,9 +134,12 @@ namespace Sai2Capture.Services
 
                 string json = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
                 File.WriteAllText(SettingsFileName, json);
+                
+                _logService.AddLog($"设置已保存到: {GetSettingsFilePath()}");
             }
             catch (Exception ex)
             {
+                _logService.AddLog($"保存设置失败: {ex.Message}", LogLevel.Error);
                 System.Windows.MessageBox.Show($"保存设置失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
