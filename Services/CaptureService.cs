@@ -118,6 +118,18 @@ namespace Sai2Capture.Services
                     _logService.AddLog($"输出目录: {_sharedState.OutputFolder}");
                     _logService.AddLog($"视频路径: {_sharedState.VideoPath}");
                     
+                    // 初始化 WGC 捕获会话
+                    _logService.AddLog("初始化 WGC 捕获会话");
+                    var wgcInitialized = _windowCaptureService.InitializeWgcCaptureAsync(_sharedState.Hwnd).Result;
+                    if (wgcInitialized)
+                    {
+                        _logService.AddLog("WGC 捕获会话初始化成功，将使用 WGC API 进行截图");
+                    }
+                    else
+                    {
+                        _logService.AddLog("WGC 捕获会话初始化失败，将使用传统 PrintWindow API", LogLevel.Warning);
+                    }
+                    
                     // 创建视频写入器
                     InitializeVideoWriter();
                     
@@ -157,9 +169,10 @@ namespace Sai2Capture.Services
         /// <summary>
         /// 完全停止捕获过程
         /// 1. 停止捕获线程
-        /// 2. 释放视频写入器资源
-        /// 3. 重置所有状态到初始值
-        /// 4. 更新状态信息
+        /// 2. 停止 WGC 捕获会话
+        /// 3. 释放视频写入器资源
+        /// 4. 重置所有状态到初始值
+        /// 5. 更新状态信息
         /// </summary>
         public void StopCapture()
         {
@@ -169,6 +182,10 @@ namespace Sai2Capture.Services
             bool hasVideo = _sharedState.VideoWriter != null;
             int totalFrames = _sharedState.FrameNumber;
             int savedFrames = _sharedState.SavedCount;
+            
+            // 停止 WGC 捕获会话
+            _logService.AddLog("停止 WGC 捕获会话");
+            _windowCaptureService.StopWgcCapture();
             
             if (hasVideo)
             {
@@ -241,7 +258,7 @@ namespace Sai2Capture.Services
         /// <summary>
         /// 捕获循环核心实现
         /// 在独立后台线程中运行，持续：
-        /// 1. 通过窗口捕获服务获取窗口内容图像
+        /// 1. 通过窗口捕获服务获取窗口内容图像（使用 WGC API）
         /// 2. 保存有变化的帧到输出目录
         /// 3. 通过Dispatcher线程安全更新UI状态
         /// 4. 按指定间隔控制捕获频率
@@ -255,41 +272,70 @@ namespace Sai2Capture.Services
         {
             _logService.AddLog("捕获循环开始");
             int errorCount = 0;
+            int consecutiveErrors = 0;
+            const int maxConsecutiveErrors = 5;
             
             try
             {
                 while (_sharedState.Running)
                 {
-                    var image = _windowCaptureService.CaptureWindowContent(_sharedState.Hwnd);
-                    _windowCaptureService.SaveIfModified(image);
-
-                    _dispatcher?.Invoke(() =>
+                    try
                     {
-                        Status = $"已捕获帧 #{_sharedState.FrameNumber}";
-                    });
+                        var image = _windowCaptureService.CaptureWindowContent(_sharedState.Hwnd);
+                        _windowCaptureService.SaveIfModified(image);
 
-                    // 每100帧记录一次日志
-                    if (_sharedState.FrameNumber % 100 == 0)
-                    {
-                        _logService.AddLog($"捕获进度: {_sharedState.FrameNumber} 帧");
+                        // 重置连续错误计数
+                        consecutiveErrors = 0;
+
+                        _dispatcher?.Invoke(() =>
+                        {
+                            Status = $"已捕获帧 #{_sharedState.FrameNumber}";
+                        });
+
+                        // 每100帧记录一次日志
+                        if (_sharedState.FrameNumber % 10 == 0)
+                        {
+                            _logService.AddLog($"捕获进度: {_sharedState.FrameNumber} 帧, 已保存: {_sharedState.SavedCount} 帧");
+                        }
+
+                        _sharedState.FrameNumber++;
+                        Thread.Sleep((int)(_sharedState.Interval * 1000));
                     }
-
-                    _sharedState.FrameNumber++;
-                    Thread.Sleep((int)(_sharedState.Interval * 1000));
+                    catch (Exception ex)
+                    {
+                        errorCount++;
+                        consecutiveErrors++;
+                        _logService.AddLog($"捕获错误 (总计: {errorCount}, 连续: {consecutiveErrors}): {ex.Message}", LogLevel.Error);
+                        
+                        if (consecutiveErrors >= maxConsecutiveErrors)
+                        {
+                            _logService.AddLog($"连续错误次数达到 {maxConsecutiveErrors}，停止捕获", LogLevel.Error);
+                            _dispatcher?.Invoke(() =>
+                            {
+                                Status = $"捕获失败: 连续错误次数过多";
+                            });
+                            break;
+                        }
+                        
+                        _dispatcher?.Invoke(() =>
+                        {
+                            Status = $"捕获错误: {ex.Message}";
+                        });
+                        Thread.Sleep(1000);
+                    }
                 }
                 
-                _logService.AddLog($"捕获循环结束 - 总帧数: {_sharedState.FrameNumber}");
+                _logService.AddLog($"捕获循环结束 - 总帧数: {_sharedState.FrameNumber}, 已保存: {_sharedState.SavedCount} 帧, 错误次数: {errorCount}");
             }
             catch (Exception ex)
             {
-                errorCount++;
-                _logService.AddLog($"捕获错误 (#{errorCount}): {ex.Message}", LogLevel.Error);
+                _logService.AddLog($"捕获循环致命错误: {ex.Message}", LogLevel.Error);
+                _logService.AddLog($"异常堆栈: {ex.StackTrace}", LogLevel.Error);
                 
                 _dispatcher?.Invoke(() =>
                 {
-                    Status = $"捕获错误: {ex.Message}";
+                    Status = $"捕获致命错误: {ex.Message}";
                 });
-                Thread.Sleep(1000);
             }
         }
     }

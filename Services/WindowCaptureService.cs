@@ -14,10 +14,10 @@ namespace Sai2Capture.Services
     /// 封装Windows API和图像处理逻辑，
     /// 主要功能：
     /// 1. 枚举可见窗口及其标题
-    /// 2. 定位特定窗口并捕获其内容
+    /// 2. 定位特定窗口并捕获其内容（使用 WGC API）
     /// 3. 比较和保存修改的帧
     /// </summary>
-    public partial class WindowCaptureService : ObservableObject
+    public partial class WindowCaptureService : ObservableObject, IDisposable
     {
     // Windows API P/Invoke声明
         [DllImport("user32.dll")]
@@ -51,14 +51,20 @@ namespace Sai2Capture.Services
         }
 
         private readonly SharedStateService _sharedState;
+        private readonly LogService _logService;
+        private WgcCaptureService? _wgcCapture;
+        private bool _useWgcApi = true; // 默认使用 WGC API
 
         /// <summary>
         /// 初始化窗口捕获服务
         /// </summary>
         /// <param name="sharedState">共享状态服务</param>
-        public WindowCaptureService(SharedStateService sharedState)
+        /// <param name="logService">日志服务</param>
+        public WindowCaptureService(SharedStateService sharedState, LogService logService)
         {
             _sharedState = sharedState;
+            _logService = logService;
+            _logService.AddLog("窗口捕获服务已初始化");
         }
 
         /// <summary>
@@ -69,6 +75,7 @@ namespace Sai2Capture.Services
         /// <returns>可见窗口标题列表</returns>
         public List<string> EnumWindowTitles()
         {
+            _logService.AddLog("开始枚举窗口标题");
             List<string> windowTitles = new List<string>();
             EnumWindows((hWnd, _) =>
             {
@@ -86,6 +93,7 @@ namespace Sai2Capture.Services
             }, IntPtr.Zero);
 
             _sharedState.WindowTitles = windowTitles;
+            _logService.AddLog($"枚举完成，找到 {windowTitles.Count} 个可见窗口");
             return windowTitles;
         }
 
@@ -98,33 +106,104 @@ namespace Sai2Capture.Services
         /// <exception cref="Exception">窗口未找到时抛出异常</exception>
         public nint FindWindowByTitle(string windowTitle)
         {
+            _logService.AddLog($"查找窗口: '{windowTitle}'");
             nint hWnd = FindWindow(null, windowTitle);
             if (hWnd == IntPtr.Zero)
             {
+                _logService.AddLog($"未找到窗口: '{windowTitle}'", LogLevel.Error);
                 throw new Exception($"Window with title '{windowTitle}' not found");
             }
+            _logService.AddLog($"找到窗口句柄: 0x{hWnd:X}");
             return hWnd;
         }
 
         /// <summary>
+        /// 初始化 WGC 捕获会话
+        /// </summary>
+        /// <param name="hWnd">目标窗口句柄</param>
+        public async System.Threading.Tasks.Task<bool> InitializeWgcCaptureAsync(nint hWnd)
+        {
+            try
+            {
+                _logService.AddLog("尝试初始化 WGC 捕获会话");
+                
+                // 释放旧的捕获会话
+                if (_wgcCapture != null)
+                {
+                    _logService.AddLog("释放现有的 WGC 捕获会话");
+                    _wgcCapture.Dispose();
+                    _wgcCapture = null;
+                }
+
+                // 创建新的 WGC 捕获服务
+                _wgcCapture = new WgcCaptureService(_logService);
+                bool success = await _wgcCapture.InitializeCaptureAsync(hWnd);
+
+                if (success)
+                {
+                    _useWgcApi = true;
+                    _logService.AddLog("WGC 捕获会话初始化成功");
+                }
+                else
+                {
+                    _logService.AddLog("WGC 捕获会话初始化失败，将回退到 PrintWindow API", LogLevel.Warning);
+                    _useWgcApi = false;
+                    _wgcCapture?.Dispose();
+                    _wgcCapture = null;
+                }
+
+                return success;
+            }
+            catch (Exception ex)
+            {
+                _logService.AddLog($"初始化 WGC 捕获时发生异常: {ex.Message}", LogLevel.Error);
+                _useWgcApi = false;
+                _wgcCapture?.Dispose();
+                _wgcCapture = null;
+                return false;
+            }
+        }
+
+        /// <summary>
         /// 捕获指定窗口的内容并转换为OpenCV Mat对象
-        /// 1. 获取窗口尺寸
-        /// 2. 使用PrintWindow直接获取窗口内容
-        /// 3. 将Bitmap转换为Mat格式
-        /// 4. 转换颜色空间(BGRA到BGR)
+        /// 优先使用 WGC API，失败时回退到 PrintWindow API
         /// </summary>
         /// <param name="hWnd">目标窗口句柄</param>
         /// <returns>窗口内容的Mat图像</returns>
         /// <exception cref="Win32Exception">Windows API调用失败时抛出</exception>
         public Mat CaptureWindowContent(nint hWnd)
         {
+            // 尝试使用 WGC API
+            if (_useWgcApi && _wgcCapture != null)
+            {
+                var frame = _wgcCapture.GetLatestFrame();
+                if (frame != null)
+                {
+                    return frame;
+                }
+                
+                _logService.AddLog("WGC API 未返回帧，回退到 PrintWindow API", LogLevel.Warning);
+            }
+
+            // 回退到传统的 PrintWindow API
+            return CaptureWindowContentLegacy(hWnd);
+        }
+
+        /// <summary>
+        /// 使用传统 PrintWindow API 捕获窗口内容
+        /// </summary>
+        private Mat CaptureWindowContentLegacy(nint hWnd)
+        {
             if (!GetWindowRect(hWnd, out RECT windowRect))
             {
+                _logService.AddLog($"获取窗口矩形失败: {Marshal.GetLastWin32Error()}", LogLevel.Error);
                 throw new Win32Exception(Marshal.GetLastWin32Error());
             }
 
             int width = windowRect.Right - windowRect.Left;
             int height = windowRect.Bottom - windowRect.Top;
+
+            _logService.AddLog($"使用 PrintWindow API 捕获窗口 - 尺寸: {width}x{height}");
 
             using var bitmap = new System.Drawing.Bitmap(width, height);
             using (var graphics = Graphics.FromImage(bitmap))
@@ -134,6 +213,7 @@ namespace Sai2Capture.Services
                 {
                     if (!PrintWindow(hWnd, hdc, 0))
                     {
+                        _logService.AddLog($"PrintWindow 调用失败: {Marshal.GetLastWin32Error()}", LogLevel.Error);
                         throw new Win32Exception(Marshal.GetLastWin32Error());
                     }
                 }
@@ -170,10 +250,28 @@ namespace Sai2Capture.Services
         /// <param name="currentImage">当前捕获的帧</param>
         public void SaveIfModified(Mat currentImage)
         {
-            if (_sharedState.VideoWriter == null ||
-                _sharedState.FirstStart ||
-                !ImagesEqual(_sharedState.LastImage, currentImage))
+            bool shouldSave = false;
+            string reason = "";
+
+            if (_sharedState.VideoWriter == null)
             {
+                shouldSave = true;
+                reason = "视频写入器未初始化";
+            }
+            else if (_sharedState.FirstStart)
+            {
+                shouldSave = true;
+                reason = "首次启动捕获";
+            }
+            else if (!ImagesEqual(_sharedState.LastImage, currentImage))
+            {
+                shouldSave = true;
+                reason = "帧内容发生变化";
+            }
+
+            if (shouldSave)
+            {
+                _logService.AddLog($"保存帧 #{_sharedState.SavedCount + 1} - 原因: {reason}");
                 SaveFrame(currentImage);
             }
         }
@@ -207,6 +305,34 @@ namespace Sai2Capture.Services
             _sharedState.VideoWriter?.Write(frame);
             _sharedState.LastImage = frame.Clone();
             _sharedState.SavedCount++;
+        }
+
+        /// <summary>
+        /// 停止 WGC 捕获会话
+        /// </summary>
+        public void StopWgcCapture()
+        {
+            if (_wgcCapture != null)
+            {
+                _logService.AddLog("停止 WGC 捕获会话");
+                _wgcCapture.StopCapture();
+            }
+        }
+
+        /// <summary>
+        /// 释放资源
+        /// </summary>
+        public void Dispose()
+        {
+            _logService.AddLog("释放窗口捕获服务资源");
+            
+            if (_wgcCapture != null)
+            {
+                _wgcCapture.Dispose();
+                _wgcCapture = null;
+            }
+
+            GC.SuppressFinalize(this);
         }
     }
 }

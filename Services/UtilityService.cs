@@ -21,16 +21,20 @@ namespace Sai2Capture.Services
     {
         private readonly SharedStateService _sharedState;
         private readonly WindowCaptureService _windowCaptureService;
+        private readonly LogService _logService;
+        private System.Windows.Threading.DispatcherTimer? _previewTimer;
 
         /// <summary>
         /// 初始化实用工具服务
         /// </summary>
         /// <param name="sharedState">共享状态服务</param>
         /// <param name="windowCaptureService">窗口捕获服务</param>
-        public UtilityService(SharedStateService sharedState, WindowCaptureService windowCaptureService)
+        /// <param name="logService">日志服务</param>
+        public UtilityService(SharedStateService sharedState, WindowCaptureService windowCaptureService, LogService logService)
         {
             _sharedState = sharedState;
             _windowCaptureService = windowCaptureService;
+            _logService = logService;
         }
 
         /// <summary>
@@ -69,7 +73,7 @@ namespace Sai2Capture.Services
         /// <param name="windowTitle">要预览的窗口标题</param>
         /// <param name="previewWindow">预览窗口对象</param>
         /// <exception cref="Exception">窗口查找失败时显示错误消息</exception>
-        public void StartPreview(string windowTitle, System.Windows.Window previewWindow)
+        public async void StartPreview(string windowTitle, System.Windows.Window previewWindow)
         {
             if (string.IsNullOrEmpty(windowTitle))
             {
@@ -79,16 +83,58 @@ namespace Sai2Capture.Services
 
             try
             {
+                // 停止之前的定时器
+                StopPreview();
+
+                _logService.AddLog($"启动预览窗口: {windowTitle}");
                 nint hwnd = _windowCaptureService.FindWindowByTitle(windowTitle);
-                var timer = new System.Windows.Threading.DispatcherTimer();
-                timer.Interval = TimeSpan.FromMilliseconds(500);
-                timer.Tick += (sender, e) => UpdatePreview(hwnd, previewWindow);
-                timer.Start();
+                
+                // 初始化 WGC 捕获会话用于预览
+                _logService.AddLog("为预览初始化 WGC 捕获会话");
+                bool wgcInitialized = await _windowCaptureService.InitializeWgcCaptureAsync(hwnd);
+                
+                if (wgcInitialized)
+                {
+                    _logService.AddLog("预览将使用 WGC API 进行截图");
+                }
+                else
+                {
+                    _logService.AddLog("预览将使用传统 PrintWindow API", LogLevel.Warning);
+                }
+
+                _previewTimer = new System.Windows.Threading.DispatcherTimer();
+                _previewTimer.Interval = TimeSpan.FromMilliseconds(50);
+                _previewTimer.Tick += (sender, e) => UpdatePreview(hwnd, previewWindow);
+                _previewTimer.Start();
+
+                // 窗口关闭时停止定时器
+                previewWindow.Closed += (sender, e) => StopPreview();
+                
+                _logService.AddLog("预览已启动", LogLevel.Info);
             }
             catch (Exception ex)
             {
+                _logService.AddLog($"启动预览失败: {ex.Message}", LogLevel.Error);
                 System.Windows.MessageBox.Show($"找不到指定窗口: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        /// <summary>
+        /// 停止窗口预览
+        /// 清理定时器资源和 WGC 捕获会话
+        /// </summary>
+        public void StopPreview()
+        {
+            if (_previewTimer != null)
+            {
+                _previewTimer.Stop();
+                _previewTimer = null;
+                _logService.AddLog("预览定时器已停止");
+            }
+            
+            // 停止 WGC 捕获会话
+            _windowCaptureService.StopWgcCapture();
+            _logService.AddLog("预览 WGC 捕获会话已停止");
         }
 
         /// <summary>
@@ -149,10 +195,12 @@ namespace Sai2Capture.Services
                 {
                     imageControl.Source = bitmap;
                 }
+                
+                _logService.AddLog("预览窗口内容已更新", LogLevel.Info);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"预览更新失败: {ex.Message}");
+                _logService.AddLog($"预览更新失败: {ex.Message}", LogLevel.Error);
             }
         }
         /// <summary>
