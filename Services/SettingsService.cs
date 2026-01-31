@@ -42,15 +42,6 @@ namespace Sai2Capture.Services
         private string _zoomLevel = "125%";
 
         /// <summary>
-        /// 生成视频时长(秒)
-        /// 控制从图像序列创建视频的总长度
-        /// 必须大于0
-        /// 默认值：10秒
-        /// </summary>
-        [ObservableProperty]
-        private double _videoDuration = 10;
-
-        /// <summary>
         /// 保存路径
         /// 用于指定捕获图像的保存位置
         /// 默认值：空字符串
@@ -89,7 +80,6 @@ namespace Sai2Capture.Services
                         WindowName = settings.WindowName ?? WindowName;
                         CaptureInterval = settings.CaptureInterval;
                         ZoomLevel = settings.ZoomLevel ?? ZoomLevel;
-                        VideoDuration = settings.VideoDuration;
                         SavePath = settings.SavePath ?? SavePath;
 
                         // 更新共享状态
@@ -119,7 +109,6 @@ namespace Sai2Capture.Services
                     WindowName = WindowName,
                     CaptureInterval = CaptureInterval,
                     ZoomLevel = ZoomLevel,
-                    VideoDuration = VideoDuration,
                     SavePath = SavePath
                 };
 
@@ -153,11 +142,6 @@ namespace Sai2Capture.Services
             /// 界面缩放级别
             /// </summary>
             public string? ZoomLevel { get; set; }
-
-            /// <summary>
-            /// 生成视频时长(秒)
-            /// </summary>
-            public double VideoDuration { get; set; }
 
             /// <summary>
             /// 保存路径

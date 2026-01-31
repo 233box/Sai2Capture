@@ -18,11 +18,9 @@ namespace Sai2Capture.ViewModels
     /// </summary>
     public partial class MainViewModel : ObservableObject
     {
-        private readonly SharedStateService _sharedState;
         private readonly WindowCaptureService _windowCaptureService;
         private readonly UtilityService _utilityService;
         private readonly CaptureService _captureService;
-        private readonly VideoCreatorService _videoCreatorService;
         private readonly SettingsService _settingsService;
 
         /// <summary>
@@ -56,37 +54,24 @@ namespace Sai2Capture.ViewModels
         [ObservableProperty]
         public string _zoomLevel = "125%";
 
-        /// <summary>
-        /// 生成视频时长(秒)
-        /// 控制最终视频的长度
-        /// 必须大于0
-        /// 默认值：10秒
-        /// </summary>
-        [ObservableProperty]
-        public double _videoDuration = 10;
+
 
         /// <summary>
         /// 初始化主视图模型
         /// </summary>
-        /// <param name="sharedState">共享状态服务</param>
         /// <param name="windowCaptureService">窗口捕获服务</param>
         /// <param name="utilityService">实用工具服务</param>
         /// <param name="captureService">捕获服务</param>
-        /// <param name="videoCreatorService">视频创建服务</param>
         /// <param name="settingsService">设置服务</param>
         public MainViewModel(
-            SharedStateService sharedState,
             WindowCaptureService windowCaptureService,
             UtilityService utilityService,
             CaptureService captureService,
-            VideoCreatorService videoCreatorService,
             SettingsService settingsService)
         {
-            _sharedState = sharedState;
             _windowCaptureService = windowCaptureService;
             _utilityService = utilityService;
             _captureService = captureService;
-            _videoCreatorService = videoCreatorService;
             _settingsService = settingsService;
 
             InitializeServices();
@@ -108,7 +93,6 @@ namespace Sai2Capture.ViewModels
             SelectedWindowTitle = _settingsService.WindowName;
             CaptureInterval = _settingsService.CaptureInterval;
             ZoomLevel = _settingsService.ZoomLevel;
-            VideoDuration = _settingsService.VideoDuration;
             SavePath = _settingsService.SavePath;
         }
 
@@ -145,16 +129,6 @@ namespace Sai2Capture.ViewModels
             _captureService.StopCapture();
         }
 
-        /// <summary>
-        /// 生成视频命令
-        /// 调用视频创建服务，提示用户选择输出文件夹
-        /// 根据设定的视频时长创建最终视频文件
-        /// </summary>
-        [RelayCommand]
-        private void CreateVideo()
-        {
-            _videoCreatorService.SelectFolderAndCreateVideo(VideoDuration);
-        }
         
         private string _status = "准备就绪";
         /// <summary>
@@ -229,7 +203,6 @@ namespace Sai2Capture.ViewModels
             _settingsService.WindowName = SelectedWindowTitle ?? "导航器";
             _settingsService.CaptureInterval = CaptureInterval;
             _settingsService.ZoomLevel = ZoomLevel;
-            _settingsService.VideoDuration = VideoDuration;
             _settingsService.SavePath = SavePath;
             _settingsService.SaveSettings();
 

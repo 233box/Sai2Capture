@@ -22,7 +22,6 @@ namespace Sai2Capture
             services.AddSingleton<WindowCaptureService>();
             services.AddSingleton<UtilityService>();
             services.AddSingleton<CaptureService>();
-            services.AddTransient<VideoCreatorService>();
             services.AddSingleton<SettingsService>();
 
             // 注册Dispatcher - 使用延迟初始化

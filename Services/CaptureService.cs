@@ -66,7 +66,7 @@ namespace Sai2Capture.Services
 
         /// <summary>
         /// 开始捕获指定窗口的内容
-        /// 1. 停止任何正在运行的捕获
+        /// 1. 检查是否已在捕获中，如果是则直接返回
         /// 2. 查找目标窗口句柄
         /// 3. 首次运行时初始化输出目录
         /// 4. 启动捕获线程
@@ -82,11 +82,16 @@ namespace Sai2Capture.Services
         {
             try
             {
+                // 如果已经在捕获中，直接返回
+                if (_sharedState.Running)
+                {
+                    return;
+                }
+
                 if (string.IsNullOrEmpty(windowTitle))
                 {
                     throw new ArgumentException("窗口标题不能为空", nameof(windowTitle));
                 }
-                StopCapture(); // 确保停止任何正在运行的捕获
 
                 _sharedState.Hwnd = _windowCaptureService.FindWindowByTitle(windowTitle);
                 _sharedState.Interval = interval;
