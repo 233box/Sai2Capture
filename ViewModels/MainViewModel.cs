@@ -144,7 +144,15 @@ namespace Sai2Capture.ViewModels
         private void StartCapture()
         {
             AddLog($"开始捕获 - 窗口: {SelectedWindowTitle}, 间隔: {CaptureInterval}秒");
-            _captureStartTime = DateTime.Now;
+            AddLog($"_captureService.SharedState.IsInitialized = {_captureService.SharedState.IsInitialized}");
+            AddLog($"_captureService.SharedState.Running = {_captureService.SharedState.Running}");
+            
+            // 只在未录制时重置计数器
+            if (_captureService.SharedState.IsInitialized == false && _captureService.SharedState.Running == false)
+            {
+                _elapsedSeconds = 0;
+            }
+            
             _statusTimer.Start();
             _captureService.StartCapture(SelectedWindowTitle, true, CaptureInterval);
         }
@@ -179,11 +187,10 @@ namespace Sai2Capture.ViewModels
             AddLog("停止捕获");
             _statusTimer.Stop();
             _captureService.StopCapture();
-            _captureStartTime = DateTime.Now; // 重置开始时间
             Status = "未录制";
         }
 
-        private DateTime _captureStartTime;
+        private int _elapsedSeconds = 0;
         
         private string _status = "未录制";
         /// <summary>
@@ -206,19 +213,29 @@ namespace Sai2Capture.ViewModels
         /// <summary>
         /// 更新状态显示
         /// 根据捕获服务的运行状态显示不同的信息
+        /// 只在录制时计数器递增
         /// </summary>
         private void UpdateStatus(object? sender, EventArgs e)
         {
             var sharedState = _captureService.SharedState;
-            var elapsed = DateTime.Now - _captureStartTime;
-            var elapsedStr = $"{(int)elapsed.TotalMinutes:D2}:{elapsed.Seconds:D2}";
 
             if (sharedState.Running)
             {
+                // 只在录制时递增计数器（每秒递增一次）
+                _elapsedSeconds++;
+                var minutes = _elapsedSeconds / 10 / 60;
+                var seconds = (_elapsedSeconds / 10) % 60;
+                var elapsedStr = $"{minutes:D2}:{seconds:D2}";
+                
                 Status = $"正在录制（当前已经过：{elapsedStr}，有效捕获：{sharedState.SavedCount}）";
             }
             else if (sharedState.FrameNumber > 0)
             {
+                // 暂停时不递增计数器，只显示当前值
+                var minutes = _elapsedSeconds / 10 / 60;
+                var seconds = (_elapsedSeconds / 10) % 60;
+                var elapsedStr = $"{minutes:D2}:{seconds:D2}";
+                
                 Status = $"已暂停（当前已经过：{elapsedStr}，有效捕获：{sharedState.SavedCount}）";
             }
         }

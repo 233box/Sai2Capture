@@ -217,7 +217,7 @@ namespace Sai2Capture.Services
             int width = windowRect.Right - windowRect.Left;
             int height = windowRect.Bottom - windowRect.Top;
 
-            _logService.AddLog($"使用 PrintWindow API 捕获窗口 - 尺寸: {width}x{height}");
+            // _logService.AddLog($"使用 PrintWindow API 捕获窗口 - 尺寸: {width}x{height}");
 
             using var bitmap = new System.Drawing.Bitmap(width, height);
             using (var graphics = Graphics.FromImage(bitmap))
@@ -272,14 +272,11 @@ namespace Sai2Capture.Services
                 shouldSave = true;
                 reason = "视频写入器未初始化";
             }
-            else if (_sharedState.IsInitialized)
+            else if (_sharedState.LastImage == null)
             {
-                // IsInitialized=true 表示刚完成初始化，这是第一帧
+                // 没有上一帧，说明这是第一帧
                 shouldSave = true;
-                reason = "首次启动捕获";
-                // 保存第一帧后立即重置标志，后续帧将通过帧差异检测来决定是否保存
-                _sharedState.IsInitialized = false;
-                _logService.AddLog("第一帧已保存，IsInitialized 标志已重置为 false");
+                reason = "首次启动捕获（第一帧）";
             }
             else if (!ImagesEqual(_sharedState.LastImage, currentImage))
             {
