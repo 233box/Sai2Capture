@@ -136,32 +136,61 @@
                         Margin="0,0,12,0"/>
                     <ui:Button 
                         Content="导出日志" 
-                        Command="{Binding ExportLogCommand}"/>
+                        Command="{Binding ExportLogCommand}"
+                        Margin="0,0,12,0"/>
+                    <CheckBox 
+                        Content="自动滚动" 
+                        IsChecked="{Binding AutoScrollLog}"
+                        VerticalAlignment="Center"
+                        Margin="0,0,12,0"/>
+                    <TextBlock 
+                        Text="过滤级别:" 
+                        VerticalAlignment="Center"
+                        Margin="0,0,8,0"/>
+                    <ComboBox 
+                        SelectedItem="{Binding LogFilterLevel}"
+                        VerticalAlignment="Center"
+                        Width="100">
+                        <ComboBoxItem Content="全部"/>
+                        <ComboBoxItem Content="INFO"/>
+                        <ComboBoxItem Content="WARNING"/>
+                        <ComboBoxItem Content="ERROR"/>
+                    </ComboBox>
                 </StackPanel>
 
                 <!-- 日志显示区域 -->
                 <ui:Card Grid.Row="1" Margin="0,0,0,12">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                    <ScrollViewer 
+                        x:Name="LogScrollViewer"
+                        VerticalScrollBarVisibility="Auto" 
+                        HorizontalScrollBarVisibility="Auto">
                         <TextBox 
                             Text="{Binding LogContent, Mode=OneWay}"
                             IsReadOnly="True"
-                            TextWrapping="Wrap"
+                            TextWrapping="NoWrap"
                             FontFamily="Consolas"
-                            FontSize="12"
+                            FontSize="11"
                             Background="Transparent"
                             BorderThickness="0"
-                            VerticalScrollBarVisibility="Auto"
-                            HorizontalScrollBarVisibility="Auto"/>
+                            VerticalScrollBarVisibility="Disabled"
+                            HorizontalScrollBarVisibility="Disabled"
+                            Padding="8"/>
                     </ScrollViewer>
                 </ui:Card>
 
                 <!-- 日志统计信息 -->
                 <ui:Card Grid.Row="2">
-                    <TextBlock 
-                        Text="{Binding LogStatistics}" 
-                        FontSize="11"
-                        Foreground="Gray"
-                        HorizontalAlignment="Right"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <TextBlock 
+                            Text="{Binding LogStatistics}" 
+                            FontSize="11"
+                            Foreground="Gray"/>
+                        <TextBlock 
+                            Text=" | 提示: 取消勾选'自动滚动'可查看历史日志" 
+                            FontSize="11"
+                            Foreground="Gray"
+                            Margin="12,0,0,0"/>
+                    </StackPanel>
                 </ui:Card>
             </Grid>
         </TabItem>

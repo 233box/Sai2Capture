@@ -83,7 +83,7 @@ namespace Sai2Capture.Services
         /// 控制输出目录和视频文件的创建时机
         /// </summary>
         [ObservableProperty]
-        private bool _firstStart = false;
+        private bool _isInitialized = false;
 
         /// <summary>
         /// 已保存帧计数
@@ -123,7 +123,7 @@ namespace Sai2Capture.Services
             Running = false;
             FrameNumber = 0;
             SavedCount = 0;
-            FirstStart = false;
+            IsInitialized = false;
             Hwnd = nint.Zero;
             OutputFolder = "";
             VideoPath = null;
@@ -135,12 +135,22 @@ namespace Sai2Capture.Services
                 LastImage = null;
             }
             
-            // 释放视频写入器
+            // 释放视频写入器（如果还未释放）
             if (VideoWriter != null)
             {
-                VideoWriter.Release();
-                VideoWriter.Dispose();
-                VideoWriter = null;
+                try
+                {
+                    VideoWriter.Release();
+                    VideoWriter.Dispose();
+                }
+                catch
+                {
+                    // 忽略已释放对象的异常
+                }
+                finally
+                {
+                    VideoWriter = null;
+                }
             }
         }
     }

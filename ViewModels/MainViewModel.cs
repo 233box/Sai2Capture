@@ -26,6 +26,7 @@ namespace Sai2Capture.ViewModels
         private readonly LogService _logService;
         private readonly System.Windows.Threading.DispatcherTimer _statusTimer;
         private System.Windows.Window? _previewWindow;
+        private System.Windows.Controls.ScrollViewer? _logScrollViewer;
 
         /// <summary>
         /// 可用窗口标题列表
@@ -99,8 +100,11 @@ namespace Sai2Capture.ViewModels
         /// </summary>
         private void OnLogUpdated(object? sender, LogEventArgs e)
         {
-            LogContent = e.FullLog;
-            LogStatistics = $"日志行数: {e.LineCount} | 最后更新: {e.LastUpdate}";
+            // 确保在UI线程更新显示
+            System.Windows.Application.Current?.Dispatcher.Invoke(() =>
+            {
+                UpdateLogDisplay();
+            });
         }
 
         /// <summary>
@@ -372,6 +376,74 @@ namespace Sai2Capture.ViewModels
         /// </summary>
         [ObservableProperty]
         private string _logStatistics = "日志行数: 0";
+
+        /// <summary>
+        /// 自动滚动日志
+        /// </summary>
+        [ObservableProperty]
+        private bool _autoScrollLog = true;
+
+        /// <summary>
+        /// 日志过滤级别
+        /// </summary>
+        [ObservableProperty]
+        private string _logFilterLevel = "全部";
+
+        /// <summary>
+        /// 当日志过滤级别改变时更新显示
+        /// </summary>
+        partial void OnLogFilterLevelChanged(string value)
+        {
+            UpdateLogDisplay();
+        }
+
+        /// <summary>
+        /// 更新日志显示（应用过滤）
+        /// </summary>
+        private void UpdateLogDisplay()
+        {
+            LogLevel? filterLevel = LogFilterLevel switch
+            {
+                "INFO" => LogLevel.Info,
+                "WARNING" => LogLevel.Warning,
+                "ERROR" => LogLevel.Error,
+                _ => null
+            };
+
+            LogContent = _logService.GetFullLog(filterLevel);
+            var count = _logService.GetLineCount(filterLevel);
+            var totalCount = _logService.GetLineCount();
+            
+            if (filterLevel.HasValue)
+            {
+                LogStatistics = $"显示: {count} / 总计: {totalCount} / 1000 | 过滤: {LogFilterLevel}";
+            }
+            else
+            {
+                LogStatistics = $"日志行数: {totalCount} / 1000 | 最后更新: {DateTime.Now:yyyy-MM-dd HH:mm:ss}";
+            }
+
+            // 过滤后也自动滚动到底部（确保在UI线程执行）
+            if (AutoScrollLog && _logScrollViewer != null)
+            {
+                try
+                {
+                    _logScrollViewer.ScrollToEnd();
+                }
+                catch
+                {
+                    // 忽略滚动错误
+                }
+            }
+        }
+
+        /// <summary>
+        /// 设置日志滚动视图引用
+        /// </summary>
+        public void SetLogScrollViewer(System.Windows.Controls.ScrollViewer scrollViewer)
+        {
+            _logScrollViewer = scrollViewer;
+        }
 
         /// <summary>
         /// 浏览保存路径命令

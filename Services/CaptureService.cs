@@ -106,17 +106,34 @@ namespace Sai2Capture.Services
                 _sharedState.Hwnd = _windowCaptureService.FindWindowByTitle(windowTitle);
                 _sharedState.Interval = interval;
 
-                // 首次启动时初始化
-                if (!_sharedState.FirstStart)
+                // 首次启动时初始化（IsInitialized=false 表示还未初始化）
+                if (!_sharedState.IsInitialized)
                 {
                     _logService.AddLog("首次启动，创建输出目录和视频写入器");
-                    _sharedState.OutputFolder = "output_frames";
+                    
+                    // 使用绝对路径确保文件保存在正确的位置
+                    var baseDir = System.AppDomain.CurrentDomain.BaseDirectory;
+                    _logService.AddLog($"应用程序基础目录: {baseDir}");
+                    
+                    _sharedState.OutputFolder = System.IO.Path.Combine(baseDir, "output_frames");
+                    _logService.AddLog($"输出文件夹完整路径: {_sharedState.OutputFolder}");
+                    
+                    // 确保输出目录存在
+                    if (!System.IO.Directory.Exists(_sharedState.OutputFolder))
+                    {
+                        System.IO.Directory.CreateDirectory(_sharedState.OutputFolder);
+                        _logService.AddLog($"已创建输出目录: {_sharedState.OutputFolder}");
+                    }
+                    else
+                    {
+                        _logService.AddLog($"输出目录已存在: {_sharedState.OutputFolder}");
+                    }
+                    
                     _sharedState.VideoPath = _utilityService.GetUniqueVideoPath(
                         _sharedState.OutputFolder, 
                         "output", 
                         ".mp4");
-                    _logService.AddLog($"输出目录: {_sharedState.OutputFolder}");
-                    _logService.AddLog($"视频路径: {_sharedState.VideoPath}");
+                    _logService.AddLog($"视频完整路径: {_sharedState.VideoPath}");
                     
                     // 初始化 WGC 捕获会话
                     _logService.AddLog("初始化 WGC 捕获会话");
@@ -133,7 +150,10 @@ namespace Sai2Capture.Services
                     // 创建视频写入器
                     InitializeVideoWriter();
                     
-                    _sharedState.FirstStart = true;
+                    // 标记为已初始化，下次启动时跳过初始化步骤
+                    // 注意：IsInitialized=true 表示"已经完成首次启动的初始化"
+                    _sharedState.IsInitialized = true;
+                    _logService.AddLog("首次启动初始化完成，IsInitialized 标志已设置为 true");
                 }
 
                 _sharedState.Running = true;
@@ -190,10 +210,42 @@ namespace Sai2Capture.Services
             if (hasVideo)
             {
                 _logService.AddLog($"释放视频写入器 - 总帧数: {totalFrames}, 有效捕获: {savedFrames}");
-                _sharedState.VideoWriter?.Release();
-                _sharedState.VideoWriter = null;
-                Status = $"捕获停止，视频已保存: {savedVideoPath}";
-                _logService.AddLog($"视频已保存: {savedVideoPath}");
+                
+                // 确保 VideoWriter 正确关闭并刷新缓冲区
+                try
+                {
+                    if (_sharedState.VideoWriter != null)
+                    {
+                        _logService.AddLog("调用 VideoWriter.Release() 刷新缓冲区...");
+                        _sharedState.VideoWriter.Release();
+                        
+                        _logService.AddLog("调用 VideoWriter.Dispose() 释放资源...");
+                        _sharedState.VideoWriter.Dispose();
+                        _sharedState.VideoWriter = null;
+                        
+                        // 等待一小段时间确保文件写入完成
+                        System.Threading.Thread.Sleep(100);
+                        
+                        // 验证文件是否存在
+                        if (!string.IsNullOrEmpty(savedVideoPath) && System.IO.File.Exists(savedVideoPath))
+                        {
+                            var fileInfo = new System.IO.FileInfo(savedVideoPath);
+                            _logService.AddLog($"✓ 视频文件已成功保存: {savedVideoPath}");
+                            _logService.AddLog($"  文件大小: {fileInfo.Length / 1024.0:F2} KB");
+                            Status = $"捕获停止，视频已保存: {savedVideoPath}";
+                        }
+                        else
+                        {
+                            _logService.AddLog($"⚠ 警告: 视频文件不存在: {savedVideoPath}", LogLevel.Warning);
+                            Status = $"捕获停止，但视频文件未找到";
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logService.AddLog($"释放视频写入器时出错: {ex.Message}", LogLevel.Error);
+                    Status = $"捕获停止，但保存视频时出错";
+                }
             }
             else
             {
@@ -220,18 +272,44 @@ namespace Sai2Capture.Services
                     throw new Exception("视频路径未设置");
                 }
                 
+                _logService.AddLog($"准备创建视频写入器 - 路径: {_sharedState.VideoPath}");
+                
+                // 确保输出目录存在
+                var directory = System.IO.Path.GetDirectoryName(_sharedState.VideoPath);
+                if (!string.IsNullOrEmpty(directory) && !System.IO.Directory.Exists(directory))
+                {
+                    _logService.AddLog($"输出目录不存在，正在创建: {directory}");
+                    System.IO.Directory.CreateDirectory(directory);
+                }
+                
                 // 获取第一帧以确定视频尺寸
+                _logService.AddLog("捕获第一帧以确定视频尺寸...");
                 var firstFrame = _windowCaptureService.CaptureWindowContent(_sharedState.Hwnd);
+                
+                if (firstFrame == null || firstFrame.Empty())
+                {
+                    throw new Exception("无法捕获第一帧或帧为空");
+                }
+                
                 int width = firstFrame.Width;
                 int height = firstFrame.Height;
+                _logService.AddLog($"第一帧尺寸: {width}x{height}");
+                
+                if (width <= 0 || height <= 0)
+                {
+                    throw new Exception($"无效的帧尺寸: {width}x{height}");
+                }
                 
                 // 根据捕获间隔计算帧率: FPS = 1 / 间隔
                 // 例如: 间隔0.1秒 -> 10 FPS, 间隔0.5秒 -> 2 FPS
-                double fps = _sharedState.Interval > 0 ? 1.0 / _sharedState.Interval : 10.0;
+                double fps = 20;//_sharedState.Interval > 0 ? 1.0 / _sharedState.Interval : 10.0;
+                _logService.AddLog($"计算帧率: {fps:F2} FPS (间隔: {_sharedState.Interval}秒)");
                 
                 // 创建视频写入器
                 // 使用MP4V编码器
                 var fourcc = VideoWriter.FourCC('m', 'p', '4', 'v');
+                _logService.AddLog($"使用编码器: MP4V (FourCC: {fourcc})");
+                
                 _sharedState.VideoWriter = new VideoWriter(
                     _sharedState.VideoPath,
                     fourcc,
@@ -240,10 +318,16 @@ namespace Sai2Capture.Services
                 
                 if (!_sharedState.VideoWriter.IsOpened())
                 {
-                    throw new Exception("无法创建视频写入器");
+                    _logService.AddLog("VideoWriter.IsOpened() 返回 false", LogLevel.Error);
+                    _logService.AddLog("可能的原因:", LogLevel.Error);
+                    _logService.AddLog("1. 输出目录不存在或无写入权限", LogLevel.Error);
+                    _logService.AddLog("2. MP4V 编码器不可用", LogLevel.Error);
+                    _logService.AddLog("3. 视频尺寸无效", LogLevel.Error);
+                    _logService.AddLog($"4. 文件路径过长或包含非法字符: {_sharedState.VideoPath}", LogLevel.Error);
+                    throw new Exception("无法创建视频写入器 - VideoWriter 初始化失败");
                 }
                 
-                _logService.AddLog($"视频写入器已创建 - 尺寸: {width}x{height}, FPS: {fps:F2} (间隔: {_sharedState.Interval}秒)");
+                _logService.AddLog($"✓ 视频写入器已成功创建 - 尺寸: {width}x{height}, FPS: {fps:F2}");
                 
                 // 释放第一帧
                 firstFrame.Dispose();
@@ -251,6 +335,7 @@ namespace Sai2Capture.Services
             catch (Exception ex)
             {
                 _logService.AddLog($"创建视频写入器失败: {ex.Message}", LogLevel.Error);
+                _logService.AddLog($"异常堆栈: {ex.StackTrace}", LogLevel.Error);
                 throw;
             }
         }
@@ -272,8 +357,6 @@ namespace Sai2Capture.Services
         {
             _logService.AddLog("捕获循环开始");
             int errorCount = 0;
-            int consecutiveErrors = 0;
-            const int maxConsecutiveErrors = 5;
             
             try
             {
@@ -284,15 +367,12 @@ namespace Sai2Capture.Services
                         var image = _windowCaptureService.CaptureWindowContent(_sharedState.Hwnd);
                         _windowCaptureService.SaveIfModified(image);
 
-                        // 重置连续错误计数
-                        consecutiveErrors = 0;
-
                         _dispatcher?.Invoke(() =>
                         {
                             Status = $"已捕获帧 #{_sharedState.FrameNumber}";
                         });
 
-                        // 每100帧记录一次日志
+                        // 每10帧记录一次日志
                         if (_sharedState.FrameNumber % 10 == 0)
                         {
                             _logService.AddLog($"捕获进度: {_sharedState.FrameNumber} 帧, 已保存: {_sharedState.SavedCount} 帧");
@@ -304,18 +384,7 @@ namespace Sai2Capture.Services
                     catch (Exception ex)
                     {
                         errorCount++;
-                        consecutiveErrors++;
-                        _logService.AddLog($"捕获错误 (总计: {errorCount}, 连续: {consecutiveErrors}): {ex.Message}", LogLevel.Error);
-                        
-                        if (consecutiveErrors >= maxConsecutiveErrors)
-                        {
-                            _logService.AddLog($"连续错误次数达到 {maxConsecutiveErrors}，停止捕获", LogLevel.Error);
-                            _dispatcher?.Invoke(() =>
-                            {
-                                Status = $"捕获失败: 连续错误次数过多";
-                            });
-                            break;
-                        }
+                        _logService.AddLog($"捕获错误 (总计: {errorCount}): {ex.Message}", LogLevel.Error);
                         
                         _dispatcher?.Invoke(() =>
                         {

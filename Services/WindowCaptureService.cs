@@ -53,7 +53,7 @@ namespace Sai2Capture.Services
         private readonly SharedStateService _sharedState;
         private readonly LogService _logService;
         private WgcCaptureService? _wgcCapture;
-        private bool _useWgcApi = true; // 默认使用 WGC API
+        private bool _useWgcApi = false; // 默认使用 WGC API
 
         /// <summary>
         /// 初始化窗口捕获服务
@@ -123,6 +123,11 @@ namespace Sai2Capture.Services
         /// <param name="hWnd">目标窗口句柄</param>
         public async System.Threading.Tasks.Task<bool> InitializeWgcCaptureAsync(nint hWnd)
         {
+            if (_useWgcApi == false)
+            {
+                _logService.AddLog("WGC API 未启用，跳过初始化");
+                return false;
+            }
             try
             {
                 _logService.AddLog("尝试初始化 WGC 捕获会话");
@@ -253,7 +258,7 @@ namespace Sai2Capture.Services
         /// 检查并保存有变化的帧
         /// 在以下情况下保存帧：
         /// 1. 视频写入器未初始化
-        /// 2. 首次启动捕获
+        /// 2. 首次启动捕获（仅第一帧）
         /// 3. 当前帧与上一帧有差异
         /// </summary>
         /// <param name="currentImage">当前捕获的帧</param>
@@ -267,10 +272,14 @@ namespace Sai2Capture.Services
                 shouldSave = true;
                 reason = "视频写入器未初始化";
             }
-            else if (_sharedState.FirstStart)
+            else if (_sharedState.IsInitialized)
             {
+                // IsInitialized=true 表示刚完成初始化，这是第一帧
                 shouldSave = true;
                 reason = "首次启动捕获";
+                // 保存第一帧后立即重置标志，后续帧将通过帧差异检测来决定是否保存
+                _sharedState.IsInitialized = false;
+                _logService.AddLog("第一帧已保存，IsInitialized 标志已重置为 false");
             }
             else if (!ImagesEqual(_sharedState.LastImage, currentImage))
             {
@@ -296,10 +305,22 @@ namespace Sai2Capture.Services
         {
             if (img1 == null) return false;
             if (img1.Size() != img2.Size()) return false;
+            if (img1.Channels() != img2.Channels()) return false;
 
             using Mat diff = new Mat();
             Cv2.Absdiff(img1, img2, diff);
-            return Cv2.CountNonZero(diff) == 0;
+            
+            // 对于多通道图像，需要先转换为灰度图再计数非零像素
+            if (diff.Channels() > 1)
+            {
+                using Mat gray = new Mat();
+                Cv2.CvtColor(diff, gray, ColorConversionCodes.BGR2GRAY);
+                return Cv2.CountNonZero(gray) == 0;
+            }
+            else
+            {
+                return Cv2.CountNonZero(diff) == 0;
+            }
         }
 
         /// <summary>
@@ -311,9 +332,16 @@ namespace Sai2Capture.Services
         /// <param name="frame">要保存的帧</param>
         private void SaveFrame(Mat frame)
         {
-            _sharedState.VideoWriter?.Write(frame);
-            _sharedState.LastImage = frame.Clone();
-            _sharedState.SavedCount++;
+            if (_sharedState.VideoWriter != null && _sharedState.VideoWriter.IsOpened())
+            {
+                _sharedState.VideoWriter.Write(frame);
+                _sharedState.LastImage = frame.Clone();
+                _sharedState.SavedCount++;
+            }
+            else
+            {
+                _logService.AddLog("警告: VideoWriter 未打开，无法保存帧", LogLevel.Warning);
+            }
         }
 
         /// <summary>
