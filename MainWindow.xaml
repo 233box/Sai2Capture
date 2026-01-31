@@ -50,11 +50,16 @@
                                 VerticalAlignment="Center"/>
                             <ComboBox
                                 Grid.Row="0" Grid.Column="1"
-                                Grid.ColumnSpan="2"
                                 ItemsSource="{Binding WindowTitles}"
                                 Text="{Binding SelectedWindowTitle, UpdateSourceTrigger=PropertyChanged}"
                                 IsEditable="True"
-                                Margin="0,0,0,12" />
+                                Margin="0,0,12,12" />
+                            <ui:Button
+                                Grid.Row="0" Grid.Column="2"
+                                Content="刷新"
+                                Command="{Binding RefreshWindowListCommand}"
+                                Margin="0,0,0,12"
+                                ToolTip="刷新窗口列表"/>
 
                             <TextBlock 
                                 Grid.Row="1" Grid.Column="0" 

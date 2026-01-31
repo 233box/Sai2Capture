@@ -1,6 +1,7 @@
 using OpenCvSharp;
 using System;
 using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.WindowsRuntime;
 using System.Threading.Tasks;
 using Windows.Graphics.Capture;
 using Windows.Graphics.DirectX;
@@ -8,6 +9,7 @@ using Windows.Graphics.DirectX.Direct3D11;
 using SharpDX.Direct3D11;
 using SharpDX.DXGI;
 using WinRT;
+using WinRT.Interop;
 
 namespace Sai2Capture.Services
 {
@@ -64,16 +66,16 @@ namespace Sai2Capture.Services
                 _device = CreateDirect3DDeviceFromSharpDXDevice(_d3dDevice);
                 if (_device == null)
                 {
-                    _logService.AddLog($"无法创建 IDirect3DDevice: {1}", LogLevel.Error);
+                    _logService.AddLog("无法创建 IDirect3DDevice", LogLevel.Error);
                     return false;
                 }
                 _logService.AddLog("IDirect3DDevice 已创建");
 
                 // 从窗口句柄创建捕获项
-                _captureItem = CaptureHelper.CreateItemForWindow(hWnd);
+                _captureItem = CaptureHelper.CreateItemForWindow(hWnd, _logService);
                 if (_captureItem == null)
                 {
-                    _logService.AddLog($"无法创建捕获项: {1}", LogLevel.Error);
+                    _logService.AddLog($"无法创建捕获项 - 窗口句柄: 0x{hWnd:X}", LogLevel.Error);
                     return false;
                 }
 
@@ -90,18 +92,41 @@ namespace Sai2Capture.Services
 
                 // 订阅帧到达事件
                 _framePool.FrameArrived += OnFrameArrived;
+                _logService.AddLog("已订阅帧到达事件");
 
                 // 创建捕获会话
                 _session = _framePool.CreateCaptureSession(_captureItem);
                 _logService.AddLog("捕获会话已创建");
+                
+                // 设置捕获选项
+                _session.IsCursorCaptureEnabled = false; // 不捕获光标
+                _logService.AddLog("捕获选项已设置");
 
                 // 启动捕获
                 _session.StartCapture();
                 _isCapturing = true;
                 _logService.AddLog("WGC 捕获会话已启动");
 
-                // 等待一小段时间让第一帧到达
-                await Task.Delay(100);
+                // 等待足够的时间让第一帧到达
+                _logService.AddLog("等待第一帧到达...");
+                
+                // 尝试多次等待，每次检查是否收到帧
+                for (int i = 0; i < 10; i++)
+                {
+                    await Task.Delay(100);
+                    
+                    lock (_frameLock)
+                    {
+                        if (_lastCapturedFrame != null)
+                        {
+                            _logService.AddLog($"已收到第一帧 (等待 {(i + 1) * 100}ms)");
+                            return true;
+                        }
+                    }
+                }
+                
+                _logService.AddLog("等待超时，未收到帧", LogLevel.Warning);
+                _logService.AddLog("提示：某些窗口可能不支持 WGC 捕获，或窗口需要在前台", LogLevel.Warning);
 
                 return true;
             }
@@ -152,15 +177,19 @@ namespace Sai2Capture.Services
                 using var frame = sender.TryGetNextFrame();
                 if (frame == null)
                 {
+                    _logService.AddLog("TryGetNextFrame 返回 null", LogLevel.Warning);
                     return;
                 }
 
+                _logService.AddLog($"收到新帧 - 尺寸: {frame.ContentSize.Width}x{frame.ContentSize.Height}");
+                
                 // 处理帧数据
                 ProcessFrame(frame);
             }
             catch (Exception ex)
             {
                 _logService.AddLog($"处理帧时出错: {ex.Message}", LogLevel.Error);
+                _logService.AddLog($"异常堆栈: {ex.StackTrace}", LogLevel.Error);
             }
         }
 
@@ -173,8 +202,11 @@ namespace Sai2Capture.Services
             {
                 if (_d3dDevice == null)
                 {
+                    _logService.AddLog("D3D 设备为 null，无法处理帧", LogLevel.Warning);
                     return;
                 }
+
+                _logService.AddLog("开始处理帧数据...");
 
                 // 获取 Surface
                 var surface = frame.Surface;
@@ -185,6 +217,8 @@ namespace Sai2Capture.Services
 
                 // 获取纹理描述
                 var desc = texture2D.Description;
+                _logService.AddLog($"纹理描述 - 宽度: {desc.Width}, 高度: {desc.Height}, 格式: {desc.Format}");
+                
                 desc.Usage = ResourceUsage.Staging;
                 desc.BindFlags = BindFlags.None;
                 desc.CpuAccessFlags = CpuAccessFlags.Read;
@@ -229,6 +263,8 @@ namespace Sai2Capture.Services
 
                         // 转换 BGRA 到 BGR
                         Cv2.CvtColor(_lastCapturedFrame, _lastCapturedFrame, ColorConversionCodes.BGRA2BGR);
+                        
+                        _logService.AddLog($"帧处理完成 - Mat 尺寸: {_lastCapturedFrame.Width}x{_lastCapturedFrame.Height}");
                     }
                 }
                 finally
@@ -239,6 +275,7 @@ namespace Sai2Capture.Services
             catch (Exception ex)
             {
                 _logService.AddLog($"处理帧数据失败: {ex.Message}", LogLevel.Error);
+                _logService.AddLog($"异常堆栈: {ex.StackTrace}", LogLevel.Error);
             }
         }
 
@@ -250,7 +287,47 @@ namespace Sai2Capture.Services
         {
             lock (_frameLock)
             {
+                if (_lastCapturedFrame == null)
+                {
+                    _logService.AddLog("GetLatestFrame: 没有可用的帧", LogLevel.Warning);
+                }
                 return _lastCapturedFrame?.Clone();
+            }
+        }
+        
+        /// <summary>
+        /// 手动捕获一帧（用于调试）
+        /// </summary>
+        public Mat? CaptureFrame()
+        {
+            try
+            {
+                if (_framePool == null || !_isCapturing)
+                {
+                    _logService.AddLog("捕获会话未激活", LogLevel.Warning);
+                    return null;
+                }
+                
+                _logService.AddLog("尝试手动捕获帧...");
+                using var frame = _framePool.TryGetNextFrame();
+                
+                if (frame == null)
+                {
+                    _logService.AddLog("TryGetNextFrame 返回 null", LogLevel.Warning);
+                    return null;
+                }
+                
+                ProcessFrame(frame);
+                
+                lock (_frameLock)
+                {
+                    return _lastCapturedFrame?.Clone();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logService.AddLog($"手动捕获帧失败: {ex.Message}", LogLevel.Error);
+                return null;
             }
         }
 
@@ -335,40 +412,131 @@ namespace Sai2Capture.Services
         /// <summary>
         /// 从窗口句柄创建捕获项
         /// </summary>
-        public static GraphicsCaptureItem? CreateItemForWindow(IntPtr hWnd)
+        public static GraphicsCaptureItem? CreateItemForWindow(IntPtr hWnd, LogService? logService = null)
         {
             try
             {
+                logService?.AddLog($"开始创建捕获项 - 窗口句柄: 0x{hWnd:X}");
+
                 // 获取根窗口
                 var rootWindow = GetAncestor(hWnd, GA_ROOT);
                 if (rootWindow == IntPtr.Zero)
                 {
+                    logService?.AddLog("无法获取根窗口，使用原始句柄", LogLevel.Warning);
                     rootWindow = hWnd;
+                }
+                else
+                {
+                    logService?.AddLog($"根窗口句柄: 0x{rootWindow:X}");
                 }
 
                 // 创建捕获项
-                var interop = GraphicsCaptureItem.As<IGraphicsCaptureItemInterop>();
-                var itemPointer = interop.CreateForWindow(rootWindow);
-                var item = GraphicsCaptureItem.FromAbi(itemPointer);
-                Marshal.Release(itemPointer);
+                logService?.AddLog("正在创建 GraphicsCaptureItem...");
+                
+                // GraphicsCaptureItem 的 IID
+                var itemIID = new Guid("79C3F95B-31F7-4EC2-A464-632EF5D30760");
+                
+                // 使用 WinRT Interop 获取工厂
+                var factoryGuid = new Guid("3628E81B-3CAC-4C60-B7F4-23CE0E0C3356");
+                
+                var hr = WindowsCreateString("Windows.Graphics.Capture.GraphicsCaptureItem", 
+                    (uint)"Windows.Graphics.Capture.GraphicsCaptureItem".Length, 
+                    out IntPtr hString);
+                
+                if (hr != 0)
+                {
+                    logService?.AddLog($"创建字符串失败: 0x{hr:X}", LogLevel.Error);
+                    return null;
+                }
+                
+                hr = RoGetActivationFactory(hString, ref factoryGuid, out IntPtr factoryPtr);
+                WindowsDeleteString(hString);
+                
+                if (hr != 0 || factoryPtr == IntPtr.Zero)
+                {
+                    logService?.AddLog($"获取激活工厂失败: 0x{hr:X}", LogLevel.Error);
+                    return null;
+                }
+                
+                try
+                {
+                    var interop = Marshal.GetObjectForIUnknown(factoryPtr) as IGraphicsCaptureItemInterop;
+                    
+                    if (interop == null)
+                    {
+                        logService?.AddLog("无法获取 IGraphicsCaptureItemInterop 接口", LogLevel.Error);
+                        return null;
+                    }
+                    
+                    // 调用 CreateForWindow
+                    hr = interop.CreateForWindow(rootWindow, ref itemIID, out object itemObj);
+                    
+                    if (hr != 0)
+                    {
+                        logService?.AddLog($"CreateForWindow 失败: HRESULT = 0x{hr:X}", LogLevel.Error);
+                        return null;
+                    }
+                    
+                    if (itemObj == null)
+                    {
+                        logService?.AddLog("CreateForWindow 返回 null", LogLevel.Error);
+                        return null;
+                    }
+                    
+                    // 使用 WinRT 投影转换
+                    var itemPtr = Marshal.GetIUnknownForObject(itemObj);
+                    var item = GraphicsCaptureItem.FromAbi(itemPtr);
+                    Marshal.Release(itemPtr);
+                    
+                    if (itemObj is IDisposable disposable)
+                    {
+                        disposable.Dispose();
+                    }
 
-                return item;
+                    logService?.AddLog("捕获项创建成功");
+                    return item;
+                }
+                finally
+                {
+                    Marshal.Release(factoryPtr);
+                }
             }
-            catch
+            catch (Exception ex)
             {
+                logService?.AddLog($"创建捕获项失败: {ex.Message}", LogLevel.Error);
+                logService?.AddLog($"异常详情: {ex.StackTrace}", LogLevel.Error);
                 return null;
             }
         }
+        
+        [DllImport("api-ms-win-core-winrt-string-l1-1-0.dll", CallingConvention = CallingConvention.StdCall)]
+        private static extern int WindowsCreateString([MarshalAs(UnmanagedType.LPWStr)] string sourceString, 
+            uint length, out IntPtr hString);
+        
+        [DllImport("api-ms-win-core-winrt-string-l1-1-0.dll", CallingConvention = CallingConvention.StdCall)]
+        private static extern int WindowsDeleteString(IntPtr hString);
+        
+        [DllImport("api-ms-win-core-winrt-l1-1-0.dll", CallingConvention = CallingConvention.StdCall)]
+        private static extern int RoGetActivationFactory(IntPtr activatableClassId, 
+            ref Guid iid, out IntPtr factory);
     }
 
     [ComImport]
     [Guid("3628E81B-3CAC-4C60-B7F4-23CE0E0C3356")]
     [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    [ComVisible(true)]
     interface IGraphicsCaptureItemInterop
     {
-        IntPtr CreateForWindow([In] IntPtr window);
-        IntPtr CreateForMonitor([In] IntPtr monitor);
+        [PreserveSig]
+        int CreateForWindow(
+            [In] IntPtr window,
+            [In] ref Guid iid,
+            [Out, MarshalAs(UnmanagedType.IUnknown)] out object result);
+
+        [PreserveSig]
+        int CreateForMonitor(
+            [In] IntPtr monitor,
+            [In] ref Guid iid,
+            [Out, MarshalAs(UnmanagedType.IUnknown)] out object result);
     }
 
     [ComImport]

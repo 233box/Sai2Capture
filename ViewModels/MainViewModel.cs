@@ -25,6 +25,7 @@ namespace Sai2Capture.ViewModels
         private readonly SettingsService _settingsService;
         private readonly LogService _logService;
         private readonly System.Windows.Threading.DispatcherTimer _statusTimer;
+        private System.Windows.Window? _previewWindow;
 
         /// <summary>
         /// 可用窗口标题列表
@@ -227,11 +228,28 @@ namespace Sai2Capture.ViewModels
         public CaptureService CaptureService => _captureService;
 
         /// <summary>
+        /// 刷新窗口列表命令
+        /// 重新枚举系统中所有可用的窗口标题
+        /// </summary>
+        [RelayCommand]
+        private void RefreshWindowList()
+        {
+            var currentSelection = SelectedWindowTitle;
+            WindowTitles = new ObservableCollection<string>(_windowCaptureService.EnumWindowTitles());
+            AddLog($"窗口列表已刷新，共 {WindowTitles.Count} 个窗口");
+            
+            // 如果之前的选择仍然存在，保持选择
+            if (!string.IsNullOrEmpty(currentSelection) && WindowTitles.Contains(currentSelection))
+            {
+                SelectedWindowTitle = currentSelection;
+            }
+        }
+
+        /// <summary>
         /// 预览窗口命令
         /// 创建一个新窗口实时预览指定窗口的内容
+        /// 如果预览窗口已存在，则激活并聚焦该窗口
         /// 当窗口标题未选择时显示错误状态
-        /// param name="windowTitle">待预览的窗口标题</param>
-        /// exception cref="Exception">捕获并显示预览过程中的错误</exception>
         /// </summary>
         [RelayCommand]
         private void PreviewWindow()
@@ -245,8 +263,39 @@ namespace Sai2Capture.ViewModels
                     return;
                 }
 
+                // 如果预览窗口已存在且未关闭，则激活并聚焦
+                if (_previewWindow != null)
+                {
+                    // 检查窗口是否仍然有效
+                    try
+                    {
+                        if (_previewWindow.IsLoaded)
+                        {
+                            _previewWindow.Activate();
+                            _previewWindow.Focus();
+                            AddLog($"聚焦到现有预览窗口: {SelectedWindowTitle}");
+                            
+                            // 如果窗口标题改变了，更新预览内容
+                            if (_previewWindow.Title != "窗口预览 - " + SelectedWindowTitle)
+                            {
+                                _previewWindow.Title = "窗口预览 - " + SelectedWindowTitle;
+                                _utilityService.StopPreview();
+                                _utilityService.StartPreview(SelectedWindowTitle, _previewWindow);
+                                AddLog($"更新预览窗口内容: {SelectedWindowTitle}");
+                            }
+                            return;
+                        }
+                    }
+                    catch
+                    {
+                        // 窗口已关闭或无效，继续创建新窗口
+                        _previewWindow = null;
+                    }
+                }
+
+                // 创建新的预览窗口
                 AddLog($"打开预览窗口: {SelectedWindowTitle}");
-                var previewWindow = new System.Windows.Window
+                _previewWindow = new System.Windows.Window
                 {
                     Title = "窗口预览 - " + SelectedWindowTitle,
                     Width = 640,
@@ -254,13 +303,22 @@ namespace Sai2Capture.ViewModels
                     Content = new System.Windows.Controls.Image()
                 };
 
-                _utilityService.StartPreview(SelectedWindowTitle, previewWindow);
-                previewWindow.Show();
+                // 窗口关闭时清理引用
+                _previewWindow.Closed += (s, e) =>
+                {
+                    _utilityService.StopPreview();
+                    _previewWindow = null;
+                    AddLog("预览窗口已关闭");
+                };
+
+                _utilityService.StartPreview(SelectedWindowTitle, _previewWindow);
+                _previewWindow.Show();
             }
             catch (Exception ex)
             {
                 Status = $"预览窗口错误: {ex.Message}";
                 AddLog($"预览窗口错误: {ex.Message}", "ERROR");
+                _previewWindow = null;
             }
         }
 
@@ -268,7 +326,8 @@ namespace Sai2Capture.ViewModels
         /// 窗口关闭前处理
         /// 1. 保存当前所有设置值
         /// 2. 确保停止所有捕获操作
-        /// 3. 保留应用状态的完整性
+        /// 3. 关闭预览窗口
+        /// 4. 保留应用状态的完整性
         /// </summary>
         public void OnWindowClosing()
         {
@@ -280,6 +339,20 @@ namespace Sai2Capture.ViewModels
             _settingsService.SaveSettings();
 
             _captureService.StopCapture();
+            
+            // 关闭预览窗口
+            if (_previewWindow != null)
+            {
+                try
+                {
+                    _previewWindow.Close();
+                }
+                catch
+                {
+                    // 窗口可能已经关闭
+                }
+                _previewWindow = null;
+            }
         }
 
         /// <summary>

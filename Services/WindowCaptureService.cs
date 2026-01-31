@@ -176,7 +176,16 @@ namespace Sai2Capture.Services
             // 尝试使用 WGC API
             if (_useWgcApi && _wgcCapture != null)
             {
+                // 先尝试获取最新帧
                 var frame = _wgcCapture.GetLatestFrame();
+                if (frame != null)
+                {
+                    return frame;
+                }
+                
+                // 如果没有帧，尝试手动捕获
+                _logService.AddLog("尝试手动捕获 WGC 帧...");
+                frame = _wgcCapture.CaptureFrame();
                 if (frame != null)
                 {
                     return frame;

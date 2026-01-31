@@ -103,7 +103,7 @@ namespace Sai2Capture.Services
                 }
 
                 _previewTimer = new System.Windows.Threading.DispatcherTimer();
-                _previewTimer.Interval = TimeSpan.FromMilliseconds(50);
+                _previewTimer.Interval = TimeSpan.FromMilliseconds(200);
                 _previewTimer.Tick += (sender, e) => UpdatePreview(hwnd, previewWindow);
                 _previewTimer.Start();
 
