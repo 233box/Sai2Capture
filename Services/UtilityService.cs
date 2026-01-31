@@ -73,7 +73,7 @@ namespace Sai2Capture.Services
         {
             if (string.IsNullOrEmpty(windowTitle))
             {
-                MessageBox.Show("未选择窗口名称", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                System.Windows.MessageBox.Show("未选择窗口名称", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
 
@@ -87,7 +87,7 @@ namespace Sai2Capture.Services
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"找不到指定窗口: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                System.Windows.MessageBox.Show($"找不到指定窗口: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 

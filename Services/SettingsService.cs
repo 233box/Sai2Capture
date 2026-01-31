@@ -60,6 +60,14 @@ namespace Sai2Capture.Services
         private bool _useComboBox = true;
 
         /// <summary>
+        /// 保存路径
+        /// 用于指定捕获图像的保存位置
+        /// 默认值：空字符串
+        /// </summary>
+        [ObservableProperty]
+        private string _savePath = string.Empty;
+
+        /// <summary>
         /// 初始化设置服务
         /// </summary>
         /// <param name="sharedState">共享状态服务，用于配置同步</param>
@@ -92,6 +100,7 @@ namespace Sai2Capture.Services
                         ZoomLevel = settings.ZoomLevel ?? ZoomLevel;
                         VideoDuration = settings.VideoDuration;
                         UseComboBox = settings.UseComboBox;
+                        SavePath = settings.SavePath ?? SavePath;
 
                         // 更新共享状态
                         _sharedState.Interval = CaptureInterval;
@@ -100,7 +109,7 @@ namespace Sai2Capture.Services
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"加载设置失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Warning);
+                System.Windows.MessageBox.Show($"加载设置失败: {ex.Message}", "错误", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
             }
         }
 
@@ -121,7 +130,8 @@ namespace Sai2Capture.Services
                     CaptureInterval = CaptureInterval,
                     ZoomLevel = ZoomLevel,
                     VideoDuration = VideoDuration,
-                    UseComboBox = UseComboBox
+                    UseComboBox = UseComboBox,
+                    SavePath = SavePath
                 };
 
                 string json = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
@@ -129,7 +139,7 @@ namespace Sai2Capture.Services
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"保存设置失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                System.Windows.MessageBox.Show($"保存设置失败: {ex.Message}", "错误", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
             }
         }
 
@@ -164,6 +174,11 @@ namespace Sai2Capture.Services
             /// 是否使用下拉框选择窗口
             /// </summary>
             public bool UseComboBox { get; set; }
+
+            /// <summary>
+            /// 保存路径
+            /// </summary>
+            public string? SavePath { get; set; }
         }
     }
 }

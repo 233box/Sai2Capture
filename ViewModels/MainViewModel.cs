@@ -38,7 +38,7 @@ namespace Sai2Capture.ViewModels
         /// 默认值："从列表选择或手动输入"
         /// </summary>
         [ObservableProperty]
-        public string _selectedWindowTitle = "从列表选择或手动输入";
+        public string? _selectedWindowTitle = null;
 
         /// <summary>
         /// 手动输入的窗口名称  
@@ -118,7 +118,7 @@ namespace Sai2Capture.ViewModels
         /// </summary>
         private void InitializeServices()
         {
-            _captureService.Initialize(Application.Current.Dispatcher);
+            _captureService.Initialize(System.Windows.Application.Current.Dispatcher);
             WindowTitles = new ObservableCollection<string>(_windowCaptureService.EnumWindowTitles());
             _settingsService.LoadSettings();
 
@@ -128,6 +128,7 @@ namespace Sai2Capture.ViewModels
             ZoomLevel = _settingsService.ZoomLevel;
             VideoDuration = _settingsService.VideoDuration;
             UseComboBox = _settingsService.UseComboBox;
+            SavePath = _settingsService.SavePath;
         }
 
         /// <summary>
@@ -140,7 +141,7 @@ namespace Sai2Capture.ViewModels
         [RelayCommand]
         private void StartCapture()
         {
-            string windowTitle = UseComboBox ? SelectedWindowTitle : WindowName;
+            string? windowTitle = UseComboBox ? SelectedWindowTitle : WindowName;
             _captureService.StartCapture(windowTitle, UseComboBox, CaptureInterval);
         }
 
@@ -176,26 +177,26 @@ namespace Sai2Capture.ViewModels
         {
             _videoCreatorService.SelectFolderAndCreateVideo(VideoDuration);
         }
-
+        
+        private string _status = "准备就绪";
         /// <summary>
-        /// 切换窗口置顶状态命令
-        /// 修改指定窗口的Topmost属性
-        /// param name="window">需要修改置顶状态的窗口对象</param>
+        /// 预览窗口命令  
+        /// 创建一个新窗口实时预览指定窗口的内容
+        /// 当窗口标题未选择时显示错误状态
         /// </summary>
-        [RelayCommand]
-        private void ToggleTopmost(System.Windows.Window window)
+        public string Status
         {
-            _utilityService.ToggleTopmost(window);
+            get => _status;
+            set
+            {
+                if (_status != value)
+                {
+                    _status = value;
+                    OnPropertyChanged();
+                }
+            }
         }
 
-        /// <summary>
-        /// 应用程序状态信息
-        /// 显示在主界面底部的状态栏
-        /// 包含就绪、捕获、错误等状态
-        /// 默认值："准备就绪"
-        /// </summary>
-        [ObservableProperty]
-        private string _status = "准备就绪";
 
         /// <summary>
         /// 获取捕获服务实例
@@ -216,7 +217,7 @@ namespace Sai2Capture.ViewModels
         {
             try
             {
-                string windowTitle = UseComboBox ? SelectedWindowTitle : WindowName;
+                string? windowTitle = UseComboBox ? SelectedWindowTitle : WindowName;
                 if (string.IsNullOrWhiteSpace(windowTitle))
                 {
                     Status = "请先选择窗口标题";
@@ -253,9 +254,29 @@ namespace Sai2Capture.ViewModels
             _settingsService.ZoomLevel = ZoomLevel;
             _settingsService.VideoDuration = VideoDuration;
             _settingsService.UseComboBox = UseComboBox;
+            _settingsService.SavePath = SavePath;
             _settingsService.SaveSettings();
 
             _captureService.StopCapture();
+        }
+
+        /// <summary>
+        /// 获取或设置保存路径
+        /// </summary>
+        [ObservableProperty]
+        private string _savePath = string.Empty;
+
+        /// <summary>
+        /// 浏览保存路径命令
+        /// </summary>
+        [RelayCommand]
+        private void BrowseSavePath()
+        {
+            var dialog = new FolderBrowserDialog();
+            if (dialog.ShowDialog() == DialogResult.OK)
+            {
+                SavePath = dialog.SelectedPath;
+            }
         }
     }
 }

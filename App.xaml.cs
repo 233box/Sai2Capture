@@ -6,7 +6,7 @@ using System.Windows;
 
 namespace Sai2Capture
 {
-    public partial class App : Application
+    public partial class App : System.Windows.Application
     {
         public App()
         {
@@ -27,7 +27,7 @@ namespace Sai2Capture
 
             // 注册Dispatcher - 使用延迟初始化
             services.AddSingleton<System.Windows.Threading.Dispatcher>(provider => 
-                Application.Current?.Dispatcher ?? System.Windows.Threading.Dispatcher.CurrentDispatcher);
+                System.Windows.Application.Current?.Dispatcher ?? System.Windows.Threading.Dispatcher.CurrentDispatcher);
 
             // 注册ViewModel
             services.AddTransient<MainViewModel>();
@@ -36,10 +36,6 @@ namespace Sai2Capture
         protected override void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
-
-            var mainWindow = new MainWindow();
-            mainWindow.DataContext = Ioc.Default.GetRequiredService<MainViewModel>();
-            mainWindow.Show();
         }
     }
 }

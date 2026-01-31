@@ -76,12 +76,16 @@ namespace Sai2Capture.Services
         /// <param name="interval">捕获间隔时间(秒)</param>
         /// <exception cref="Exception">捕获过程中的异常会显示错误消息</exception>
         public void StartCapture(
-            string windowTitle,
+            string? windowTitle,
             bool useExactMatch,
             double interval)
         {
             try
             {
+                if (string.IsNullOrEmpty(windowTitle))
+                {
+                    throw new ArgumentException("窗口标题不能为空", nameof(windowTitle));
+                }
                 StopCapture(); // 确保停止任何正在运行的捕获
 
                 _sharedState.Hwnd = _windowCaptureService.FindWindowByTitle(windowTitle);
@@ -109,7 +113,7 @@ namespace Sai2Capture.Services
             }
             catch (Exception ex)
             {
-                MessageBox.Show(ex.Message, "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                System.Windows.MessageBox.Show(ex.Message, "错误", MessageBoxButton.OK, MessageBoxImage.Error);
                 Status = $"错误: {ex.Message}";
             }
         }
