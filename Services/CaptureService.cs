@@ -1,7 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using OpenCvSharp;
 using System;
-using System.ComponentModel;
 using System.Threading;
 using System.Windows;
 using System.Windows.Threading;
@@ -110,7 +109,7 @@ namespace Sai2Capture.Services
                 // 首次启动时初始化
                 if (!_sharedState.FirstStart)
                 {
-                    _logService.AddLog("首次启动，创建输出目录");
+                    _logService.AddLog("首次启动，创建输出目录和视频写入器");
                     _sharedState.OutputFolder = "output_frames";
                     _sharedState.VideoPath = _utilityService.GetUniqueVideoPath(
                         _sharedState.OutputFolder, 
@@ -118,6 +117,10 @@ namespace Sai2Capture.Services
                         ".mp4");
                     _logService.AddLog($"输出目录: {_sharedState.OutputFolder}");
                     _logService.AddLog($"视频路径: {_sharedState.VideoPath}");
+                    
+                    // 创建视频写入器
+                    InitializeVideoWriter();
+                    
                     _sharedState.FirstStart = true;
                 }
 
@@ -184,6 +187,55 @@ namespace Sai2Capture.Services
             // 重置所有状态到初始值
             _sharedState.ResetCaptureState();
             _logService.AddLog("捕获状态已重置到初始值");
+        }
+
+        /// <summary>
+        /// 初始化视频写入器
+        /// 在第一次录制时创建VideoWriter实例
+        /// 使用MP4V编码器，帧率根据捕获间隔自动计算
+        /// </summary>
+        private void InitializeVideoWriter()
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(_sharedState.VideoPath))
+                {
+                    throw new Exception("视频路径未设置");
+                }
+                
+                // 获取第一帧以确定视频尺寸
+                var firstFrame = _windowCaptureService.CaptureWindowContent(_sharedState.Hwnd);
+                int width = firstFrame.Width;
+                int height = firstFrame.Height;
+                
+                // 根据捕获间隔计算帧率: FPS = 1 / 间隔
+                // 例如: 间隔0.1秒 -> 10 FPS, 间隔0.5秒 -> 2 FPS
+                double fps = _sharedState.Interval > 0 ? 1.0 / _sharedState.Interval : 10.0;
+                
+                // 创建视频写入器
+                // 使用MP4V编码器
+                var fourcc = VideoWriter.FourCC('m', 'p', '4', 'v');
+                _sharedState.VideoWriter = new VideoWriter(
+                    _sharedState.VideoPath,
+                    fourcc,
+                    fps,
+                    new OpenCvSharp.Size(width, height));
+                
+                if (!_sharedState.VideoWriter.IsOpened())
+                {
+                    throw new Exception("无法创建视频写入器");
+                }
+                
+                _logService.AddLog($"视频写入器已创建 - 尺寸: {width}x{height}, FPS: {fps:F2} (间隔: {_sharedState.Interval}秒)");
+                
+                // 释放第一帧
+                firstFrame.Dispose();
+            }
+            catch (Exception ex)
+            {
+                _logService.AddLog($"创建视频写入器失败: {ex.Message}", LogLevel.Error);
+                throw;
+            }
         }
 
         /// <summary>
