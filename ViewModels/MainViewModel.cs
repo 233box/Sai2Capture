@@ -33,21 +33,12 @@ namespace Sai2Capture.ViewModels
         private ObservableCollection<string> _windowTitles = new();
 
         /// <summary>
-        /// 当前选中的窗口标题
-        /// 当UseComboBox=true时使用的目标窗口标题
-        /// 默认值："从列表选择或手动输入"
-        /// </summary>
-        [ObservableProperty]
-        public string? _selectedWindowTitle = null;
-
-        /// <summary>
-        /// 手动输入的窗口名称  
-        /// 当UseComboBox=false时使用的目标窗口名称
+        /// 当前选中或输入的窗口标题
+        /// 支持从下拉列表选择或手动输入
         /// 默认值："导航器"
-        /// 与设置服务同步
         /// </summary>
         [ObservableProperty]
-        public string _windowName = "导航器";
+        public string? _selectedWindowTitle = "导航器";
 
         /// <summary>
         /// 帧捕获间隔时间(秒)
@@ -73,15 +64,6 @@ namespace Sai2Capture.ViewModels
         /// </summary>
         [ObservableProperty]
         public double _videoDuration = 10;
-
-        /// <summary>
-        /// 是否使用下拉框选择窗口
-        /// true: 使用ComboBox选择窗口
-        /// false: 使用文本框手动输入
-        /// 默认值：true
-        /// </summary>
-        [ObservableProperty]
-        public bool _useComboBox = true;
 
         /// <summary>
         /// 初始化主视图模型
@@ -123,26 +105,22 @@ namespace Sai2Capture.ViewModels
             _settingsService.LoadSettings();
 
             // 同步设置
-            WindowName = _settingsService.WindowName;
+            SelectedWindowTitle = _settingsService.WindowName;
             CaptureInterval = _settingsService.CaptureInterval;
             ZoomLevel = _settingsService.ZoomLevel;
             VideoDuration = _settingsService.VideoDuration;
-            UseComboBox = _settingsService.UseComboBox;
             SavePath = _settingsService.SavePath;
         }
 
         /// <summary>
         /// 开始捕获窗口内容的命令
-        /// 根据UI选择自动确定窗口标题来源：
-        /// - UserComboBox=true时使用下拉框选中的标题
-        /// - UserComboBox=false时使用手动输入的窗口名
+        /// 使用 ComboBox 中显示的窗口标题（无论是选择还是输入）
         /// 启动捕获服务并传递间隔参数
         /// </summary>
         [RelayCommand]
         private void StartCapture()
         {
-            string? windowTitle = UseComboBox ? SelectedWindowTitle : WindowName;
-            _captureService.StartCapture(windowTitle, UseComboBox, CaptureInterval);
+            _captureService.StartCapture(SelectedWindowTitle, true, CaptureInterval);
         }
 
         /// <summary>
@@ -217,22 +195,21 @@ namespace Sai2Capture.ViewModels
         {
             try
             {
-                string? windowTitle = UseComboBox ? SelectedWindowTitle : WindowName;
-                if (string.IsNullOrWhiteSpace(windowTitle))
+                if (string.IsNullOrWhiteSpace(SelectedWindowTitle))
                 {
-                    Status = "请先选择窗口标题";
+                    Status = "请先选择或输入窗口标题";
                     return;
                 }
 
                 var previewWindow = new System.Windows.Window
                 {
-                    Title = "窗口预览 - " + windowTitle,
+                    Title = "窗口预览 - " + SelectedWindowTitle,
                     Width = 640,
                     Height = 480,
                     Content = new System.Windows.Controls.Image()
                 };
 
-                _utilityService.StartPreview(windowTitle, previewWindow);
+                _utilityService.StartPreview(SelectedWindowTitle, previewWindow);
                 previewWindow.Show();
             }
             catch (Exception ex)
@@ -249,11 +226,10 @@ namespace Sai2Capture.ViewModels
         /// </summary>
         public void OnWindowClosing()
         {
-            _settingsService.WindowName = WindowName;
+            _settingsService.WindowName = SelectedWindowTitle ?? "导航器";
             _settingsService.CaptureInterval = CaptureInterval;
             _settingsService.ZoomLevel = ZoomLevel;
             _settingsService.VideoDuration = VideoDuration;
-            _settingsService.UseComboBox = UseComboBox;
             _settingsService.SavePath = SavePath;
             _settingsService.SaveSettings();
 

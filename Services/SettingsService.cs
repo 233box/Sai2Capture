@@ -51,15 +51,6 @@ namespace Sai2Capture.Services
         private double _videoDuration = 10;
 
         /// <summary>
-        /// 是否使用下拉框选择窗口
-        /// true: 使用ComboBox选择已枚举窗口
-        /// false: 使用TextBox手动输入窗口标题
-        /// 默认值：true
-        /// </summary>
-        [ObservableProperty]
-        private bool _useComboBox = true;
-
-        /// <summary>
         /// 保存路径
         /// 用于指定捕获图像的保存位置
         /// 默认值：空字符串
@@ -99,7 +90,6 @@ namespace Sai2Capture.Services
                         CaptureInterval = settings.CaptureInterval;
                         ZoomLevel = settings.ZoomLevel ?? ZoomLevel;
                         VideoDuration = settings.VideoDuration;
-                        UseComboBox = settings.UseComboBox;
                         SavePath = settings.SavePath ?? SavePath;
 
                         // 更新共享状态
@@ -109,7 +99,7 @@ namespace Sai2Capture.Services
             }
             catch (Exception ex)
             {
-                System.Windows.MessageBox.Show($"加载设置失败: {ex.Message}", "错误", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                System.Windows.MessageBox.Show($"加载设置失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
 
@@ -130,7 +120,6 @@ namespace Sai2Capture.Services
                     CaptureInterval = CaptureInterval,
                     ZoomLevel = ZoomLevel,
                     VideoDuration = VideoDuration,
-                    UseComboBox = UseComboBox,
                     SavePath = SavePath
                 };
 
@@ -139,7 +128,7 @@ namespace Sai2Capture.Services
             }
             catch (Exception ex)
             {
-                System.Windows.MessageBox.Show($"保存设置失败: {ex.Message}", "错误", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                System.Windows.MessageBox.Show($"保存设置失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -169,11 +158,6 @@ namespace Sai2Capture.Services
             /// 生成视频时长(秒)
             /// </summary>
             public double VideoDuration { get; set; }
-
-            /// <summary>
-            /// 是否使用下拉框选择窗口
-            /// </summary>
-            public bool UseComboBox { get; set; }
 
             /// <summary>
             /// 保存路径

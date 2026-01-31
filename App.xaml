@@ -2,10 +2,14 @@
     x:Class="Sai2Capture.App"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    StartupUri="MainWindow.xaml">
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
     
-    <!-- 资源可留空，或仅放自定义资源 -->
     <Application.Resources>
-        <!-- 如果你有自己的样式，放这里 -->
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ui:ThemesDictionary Theme="Light" />
+                <ui:ControlsDictionary />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
     </Application.Resources>
 </Application>

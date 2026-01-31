@@ -127,7 +127,7 @@ namespace Sai2Capture.Services
             int height = windowRect.Bottom - windowRect.Top;
 
             using var bitmap = new System.Drawing.Bitmap(width, height);
-            using (var graphics = System.Drawing.Graphics.FromImage(bitmap))
+            using (var graphics = Graphics.FromImage(bitmap))
             {
                 IntPtr hdc = graphics.GetHdc();
                 try

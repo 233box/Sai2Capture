@@ -1,4 +1,4 @@
-<ui:FluentWindow
+<Window
     x:Class="Sai2Capture.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -11,8 +11,6 @@
     Title="Sai2 捕获工具"
     Height="450"
     Width="900"
-    ExtendsContentIntoTitleBar="True"
-    WindowBackdropType="Acrylic"
     Closing="Window_Closing">
 
     <Grid Margin="16">
@@ -49,33 +47,11 @@
                         VerticalAlignment="Center"/>
                     <ComboBox
                         Grid.Row="0" Grid.Column="1"
+                        Grid.ColumnSpan="2"
                         ItemsSource="{Binding WindowTitles}"
-                        SelectedItem="{Binding SelectedWindowTitle}"
-                        IsEnabled="{Binding UseComboBox}"
+                        Text="{Binding SelectedWindowTitle, UpdateSourceTrigger=PropertyChanged}"
                         IsEditable="True"
-                        Margin="0,0,0,12">
-                        
-                        <ComboBox.Style>
-                            <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
-                                <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
-                                <Style.Triggers>
-                                    <!-- 当没有选中项且文本为空时，显示占位符 -->
-                                    <DataTrigger Binding="{Binding RelativeSource={RelativeSource Self}, Path=SelectedItem}" Value="{x:Null}">
-                                        <Setter Property="Foreground" Value="{DynamicResource TextFillColorDisabledBrush}" />
-                                    </DataTrigger>
-                                    
-                                    <DataTrigger Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsKeyboardFocusWithin}" Value="True">
-                                        <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </ComboBox.Style>
-                    </ComboBox>
-                    <ui:ToggleSwitch 
-                        Grid.Row="0" Grid.Column="2"
-                        Content="使用下拉列表"
-                        IsChecked="{Binding UseComboBox}"
-                        Margin="16,0,0,12"/>
+                        Margin="0,0,0,12" />
 
                     <TextBlock 
                         Grid.Row="1" Grid.Column="0" 
@@ -133,4 +109,4 @@
                 HorizontalAlignment="Center"/>
         </ui:Card>
     </Grid>
-</ui:FluentWindow>
+</Window>

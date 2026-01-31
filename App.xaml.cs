@@ -26,16 +26,20 @@ namespace Sai2Capture
             services.AddSingleton<SettingsService>();
 
             // 注册Dispatcher - 使用延迟初始化
-            services.AddSingleton<System.Windows.Threading.Dispatcher>(provider => 
-                System.Windows.Application.Current?.Dispatcher ?? System.Windows.Threading.Dispatcher.CurrentDispatcher);
+            services.AddSingleton(provider =>
+                Current?.Dispatcher ?? System.Windows.Threading.Dispatcher.CurrentDispatcher);
 
             // 注册ViewModel
-            services.AddTransient<MainViewModel>();
+            services.AddSingleton<MainViewModel>();
         }
 
         protected override void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
+            
+            var mainWindow = new MainWindow();
+            mainWindow.DataContext = Ioc.Default.GetRequiredService<MainViewModel>();
+            mainWindow.Show();
         }
     }
 }

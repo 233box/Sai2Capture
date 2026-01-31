@@ -5,12 +5,12 @@ using Wpf.Ui.Controls; // 包含 FluentWindow, Button, Card 等
 
 namespace Sai2Capture
 {
-    public partial class MainWindow : FluentWindow
+    public partial class MainWindow : Window
     {
         public MainWindow()
         {
-            InitializeComponent();
             DataContext = Ioc.Default.GetRequiredService<MainViewModel>();
+            InitializeComponent();
         }
 
         private bool _isClosing = false;

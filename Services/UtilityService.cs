@@ -169,7 +169,7 @@ namespace Sai2Capture.Services
                 var bytes = File.ReadAllBytes("temp.bmp");
                 memoryStream.Write(bytes, 0, bytes.Length);
                 File.Delete("temp.bmp");
-                memoryStream.Seek(0, System.IO.SeekOrigin.Begin);
+                memoryStream.Seek(0, SeekOrigin.Begin);
 
                 var bitmapImage = new BitmapImage();
                 bitmapImage.BeginInit();
