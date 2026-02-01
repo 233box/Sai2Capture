@@ -30,6 +30,7 @@ bld/
 *.lib
 
 # Visual Studio cache/options directory
+.git/
 .vs/
 .kiro/
 .vscode/
