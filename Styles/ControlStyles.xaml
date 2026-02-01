@@ -2,40 +2,120 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
     
-    <!-- 自定义 TabItem 样式 -->
-    <Style TargetType="TabItem">
-        <Setter Property="MinWidth" Value="80"/>
-        <Setter Property="Padding" Value="16,10"/>
-        <Setter Property="FontSize" Value="13"/>
-        <Setter Property="Foreground" Value="#666666"/>
+    <!-- 自定义 TabControl 样式 -->
+    <Style TargetType="TabControl">
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="0"/>
+    </Style>
+
+    <!-- 自定义 TabItem 样式 -->
+    <Style TargetType="TabItem">
+        <!-- 基础属性 -->
+        <Setter Property="MinWidth" Value="100"/>
+        <Setter Property="Height" Value="33"/>
+        <Setter Property="Padding" Value="20,0"/>
+        <Setter Property="Margin" Value="0,0,8,0"/>
+        
+        <!-- 字体样式 -->
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="FontWeight" Value="Normal"/>
+        <Setter Property="Foreground" Value="#666666"/>
+        
+        <!-- 背景和边框 -->
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        
+        <!-- 自定义模板 -->
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="TabItem">
-                    <Border 
-                        x:Name="Border"
-                        Background="{TemplateBinding Background}"
-                        BorderThickness="0,0,0,2"
-                        BorderBrush="Transparent"
-                        Padding="{TemplateBinding Padding}"
-                        Margin="0,0,4,0">
-                        <ContentPresenter 
-                            x:Name="ContentSite"
-                            ContentSource="Header"
-                            HorizontalAlignment="Center"
-                            VerticalAlignment="Center"/>
-                    </Border>
+                    <Grid>
+                        <Border 
+                            x:Name="Border"
+                            Background="{TemplateBinding Background}"
+                            BorderThickness="0,0,0,3"
+                            BorderBrush="Transparent"
+                            CornerRadius="4,4,0,0"
+                            Padding="{TemplateBinding Padding}">
+                            
+                            <!-- 添加过渡动画效果 -->
+                            <Border.RenderTransform>
+                                <TranslateTransform x:Name="BorderTransform" Y="0"/>
+                            </Border.RenderTransform>
+                            
+                            <!-- Header文字居中显示 -->
+                            <ContentPresenter 
+                                x:Name="ContentSite"
+                                ContentSource="Header"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                TextBlock.FontSize="{TemplateBinding FontSize}"
+                                TextBlock.FontWeight="{TemplateBinding FontWeight}"
+                                TextBlock.Foreground="{TemplateBinding Foreground}"
+                                TextBlock.TextAlignment="Center"/>
+                        </Border>
+                    </Grid>
+                    
                     <ControlTemplate.Triggers>
+                        <!-- 鼠标悬停效果 -->
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Border" Property="Background" Value="#E8F8F7"/>
+                            <Setter TargetName="Border" Property="Background" Value="#F5FFFE"/>
+                            <Setter Property="Foreground" Value="#39C5BB"/>
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation 
+                                            Storyboard.TargetName="BorderTransform"
+                                            Storyboard.TargetProperty="Y"
+                                            To="-2"
+                                            Duration="0:0:0.15">
+                                            <DoubleAnimation.EasingFunction>
+                                                <QuadraticEase EasingMode="EaseOut"/>
+                                            </DoubleAnimation.EasingFunction>
+                                        </DoubleAnimation>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation 
+                                            Storyboard.TargetName="BorderTransform"
+                                            Storyboard.TargetProperty="Y"
+                                            To="0"
+                                            Duration="0:0:0.15">
+                                            <DoubleAnimation.EasingFunction>
+                                                <QuadraticEase EasingMode="EaseOut"/>
+                                            </DoubleAnimation.EasingFunction>
+                                        </DoubleAnimation>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
                         </Trigger>
+                        
+                        <!-- 选中状态 -->
                         <Trigger Property="IsSelected" Value="True">
                             <Setter Property="Foreground" Value="#39C5BB"/>
                             <Setter Property="FontWeight" Value="SemiBold"/>
                             <Setter TargetName="Border" Property="BorderBrush" Value="#39C5BB"/>
                             <Setter TargetName="Border" Property="Background" Value="#E8F8F7"/>
                         </Trigger>
+                        
+                        <!-- 禁用状态 -->
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Foreground" Value="#CCCCCC"/>
+                            <Setter TargetName="Border" Property="Background" Value="Transparent"/>
+                        </Trigger>
+                        
+                        <!-- 选中且悬停 -->
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsSelected" Value="True"/>
+                                <Condition Property="IsMouseOver" Value="True"/>
+                            </MultiTrigger.Conditions>
+                            <Setter TargetName="Border" Property="Background" Value="#D5F5F3"/>
+                        </MultiTrigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
@@ -51,7 +131,7 @@
 
     <!-- 标题文本样式 -->
     <Style x:Key="CardTitleStyle" TargetType="TextBlock">
-        <Setter Property="FontSize" Value="16"/>
+        <Setter Property="FontSize" Value="13"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="Foreground" Value="#333333"/>
         <Setter Property="Margin" Value="0,0,0,12"/>
@@ -59,9 +139,130 @@
 
     <!-- 标签文本样式 -->
     <Style x:Key="LabelStyle" TargetType="TextBlock">
-        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="FontSize" Value="12"/>
         <Setter Property="Foreground" Value="#666666"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+    
+    <!-- ========== 可选的 TabItem 样式变体 ========== -->
+    
+    <!-- 样式1: 圆角卡片式 TabItem -->
+    <Style x:Key="CardTabItemStyle" TargetType="TabItem">
+        <Setter Property="MinWidth" Value="100"/>
+        <Setter Property="Height" Value="40"/>
+        <Setter Property="Padding" Value="20,0"/>
+        <Setter Property="Margin" Value="0,0,8,0"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="Foreground" Value="#666666"/>
+        <Setter Property="Background" Value="#F5F5F5"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TabItem">
+                    <Border 
+                        x:Name="Border"
+                        Background="{TemplateBinding Background}"
+                        BorderThickness="1"
+                        BorderBrush="#E0E0E0"
+                        CornerRadius="8,8,0,0"
+                        Padding="{TemplateBinding Padding}">
+                        <ContentPresenter 
+                            ContentSource="Header"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Border" Property="Background" Value="#E8F8F7"/>
+                            <Setter Property="Foreground" Value="#39C5BB"/>
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter Property="Foreground" Value="#39C5BB"/>
+                            <Setter Property="FontWeight" Value="SemiBold"/>
+                            <Setter TargetName="Border" Property="Background" Value="White"/>
+                            <Setter TargetName="Border" Property="BorderBrush" Value="#39C5BB"/>
+                            <Setter TargetName="Border" Property="BorderThickness" Value="1,1,1,0"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    
+    <!-- 样式2: 扁平按钮式 TabItem -->
+    <Style x:Key="FlatTabItemStyle" TargetType="TabItem">
+        <Setter Property="MinWidth" Value="90"/>
+        <Setter Property="Height" Value="36"/>
+        <Setter Property="Padding" Value="16,0"/>
+        <Setter Property="Margin" Value="0,0,4,0"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Foreground" Value="#666666"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TabItem">
+                    <Border 
+                        x:Name="Border"
+                        Background="{TemplateBinding Background}"
+                        CornerRadius="6"
+                        Padding="{TemplateBinding Padding}">
+                        <ContentPresenter 
+                            ContentSource="Header"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Border" Property="Background" Value="#F0F0F0"/>
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter Property="Foreground" Value="White"/>
+                            <Setter Property="FontWeight" Value="SemiBold"/>
+                            <Setter TargetName="Border" Property="Background" Value="#39C5BB"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    
+    <!-- 样式3: 带图标的 TabItem (需要在 Header 中使用 StackPanel) -->
+    <Style x:Key="IconTabItemStyle" TargetType="TabItem">
+        <Setter Property="MinWidth" Value="110"/>
+        <Setter Property="Height" Value="44"/>
+        <Setter Property="Padding" Value="16,0"/>
+        <Setter Property="Margin" Value="0,0,6,0"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="Foreground" Value="#666666"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TabItem">
+                    <Border 
+                        x:Name="Border"
+                        Background="{TemplateBinding Background}"
+                        BorderThickness="0,0,0,2"
+                        BorderBrush="Transparent"
+                        Padding="{TemplateBinding Padding}">
+                        <ContentPresenter 
+                            ContentSource="Header"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Border" Property="Background" Value="#F5FFFE"/>
+                            <Setter Property="Foreground" Value="#39C5BB"/>
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter Property="Foreground" Value="#39C5BB"/>
+                            <Setter Property="FontWeight" Value="SemiBold"/>
+                            <Setter TargetName="Border" Property="BorderBrush" Value="#39C5BB"/>
+                            <Setter TargetName="Border" Property="Background" Value="#E8F8F7"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
     
 </ResourceDictionary>

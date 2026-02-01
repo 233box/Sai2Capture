@@ -10,7 +10,7 @@
     Title="Sai2 捕获工具"
     Height="450"
     Width="900"
-    Background="#F5F5F5"
+    Background="Transparent"
     WindowStyle="None"
     AllowsTransparency="True"
     ResizeMode="CanResize"
@@ -18,7 +18,7 @@
 
     <WindowChrome.WindowChrome>
         <WindowChrome
-            CaptionHeight="40"
+            CaptionHeight="28"
             CornerRadius="8"
             GlassFrameThickness="0"
             ResizeBorderThickness="6"
@@ -33,7 +33,7 @@
     <Border 
         Background="White" 
         CornerRadius="8"
-        BorderBrush="#E0E0E0"
+        BorderBrush="#39C5BB"
         BorderThickness="1">
         <Border.Effect>
             <DropShadowEffect 
@@ -45,15 +45,15 @@
 
         <Grid>
             <Grid.RowDefinitions>
-                <RowDefinition Height="40"/>
-                <RowDefinition Height="*"/>
+                <RowDefinition Height="28"/>
+                <RowDefinition/>
             </Grid.RowDefinitions>
 
             <!-- 自定义标题栏 -->
             <Border 
                 Grid.Row="0" 
                 Background="#39C5BB"
-                CornerRadius="8,8,0,0"
+                CornerRadius="7,7,0,0"
                 MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
                 <Grid>
                     <Grid.ColumnDefinitions>
@@ -70,7 +70,7 @@
                         Margin="16,0,0,0">
                         <TextBlock 
                             Text="Sai2 捕获工具" 
-                            FontSize="14" 
+                            FontSize="12" 
                             FontWeight="SemiBold"
                             Foreground="White"
                             VerticalAlignment="Center"/>
@@ -85,7 +85,7 @@
                             x:Name="MinimizeButton"
                             Click="MinimizeButton_Click"
                             Style="{StaticResource WindowControlButtonStyle}"
-                            Width="46" Height="40"
+                            Width="46" Height="28"
                             ToolTip="最小化">
                             <Path 
                                 Data="M 0,0 H 10" 
@@ -98,7 +98,7 @@
                             x:Name="MaximizeButton"
                             Click="MaximizeButton_Click"
                             Style="{StaticResource WindowControlButtonStyle}"
-                            Width="46" Height="40"
+                            Width="46" Height="28"
                             ToolTip="最大化">
                             <Path 
                                 x:Name="MaximizeIcon"
@@ -113,7 +113,7 @@
                             x:Name="CloseButton"
                             Click="CloseButton_Click"
                             Style="{StaticResource CloseButtonStyle}"
-                            Width="46" Height="40"
+                            Width="46" Height="28"
                             ToolTip="关闭">
                             <Path 
                                 Data="M 0,0 L 10,10 M 10,0 L 0,10" 
@@ -127,7 +127,7 @@
             </Border>
 
             <!-- 主内容区域 -->
-            <TabControl Grid.Row="1" Margin="8" BorderThickness="0" Background="Transparent">
+            <TabControl Grid.Row="1" Margin="8,8,8,8" BorderThickness="0" Background="Transparent">
                 <!-- 主页面标签页 -->
                 <TabItem Header="主页面">
                     <views:MainPage DataContext="{Binding}"/>
