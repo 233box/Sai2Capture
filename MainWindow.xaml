@@ -27,12 +27,6 @@
 
     <Window.Resources>
         <ResourceDictionary>
-            <ResourceDictionary.MergedDictionaries>
-                <!-- 合并样式资源 -->
-                <ResourceDictionary Source="/Styles/Colors.xaml"/>
-                <ResourceDictionary Source="/Styles/WindowStyles.xaml"/>
-                <ResourceDictionary Source="/Styles/ControlStyles.xaml"/>
-            </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Window.Resources>
 
