@@ -130,7 +130,7 @@
             <TabControl Grid.Row="1" Margin="8,8,8,8" BorderThickness="0" Background="Transparent">
                 <!-- 主页面标签页 -->
                 <TabItem Header="主页面">
-                    <views:MainPage DataContext="{Binding}"/>
+                    <views:MainPage DataContext="{Binding}" Loaded="MainPage_Loaded"/>
                 </TabItem>
 
                 <!-- 设置标签页 -->

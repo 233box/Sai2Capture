@@ -36,6 +36,7 @@
                         <ui:NumberBox 
                             Grid.Column="1"
                             Value="{Binding CaptureInterval}"
+                            FontWeight="Normal"
                             Minimum="0.1" Maximum="10" SmallChange="0.1"
                             ToolTip="设置截图的时间间隔"/>
                     </Grid>
@@ -62,6 +63,7 @@
                         <ui:TextBox 
                             Grid.Column="1"
                             Text="{Binding SavePath}" 
+                            FontWeight="Normal"
                             Margin="0,0,12,0"
                             ToolTip="截图保存的文件夹路径"/>
                         <ui:Button

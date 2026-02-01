@@ -93,5 +93,10 @@ namespace Sai2Capture
         {
             Close();
         }
+
+        private void MainPage_Loaded(object sender, RoutedEventArgs e)
+        {
+
+        }
     }
 }
