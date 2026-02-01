@@ -27,6 +27,13 @@
     </WindowChrome.WindowChrome>
 
     <Window.Resources>
+        <!-- 主题颜色定义 -->
+        <SolidColorBrush x:Key="PrimaryBrush" Color="#39C5BB"/>
+        <SolidColorBrush x:Key="PrimaryHoverBrush" Color="#2DA39A"/>
+        <SolidColorBrush x:Key="PrimaryPressedBrush" Color="#00827D"/>
+        <SolidColorBrush x:Key="AccentBrush" Color="#E8F8F7"/>
+        <SolidColorBrush x:Key="BorderBrush" Color="#D0D0D0"/>
+        
         <!-- 窗口控制按钮样式 -->
         <Style x:Key="WindowControlButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
@@ -46,7 +53,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#00827D"/>
+                                <Setter TargetName="border" Property="Background" Value="#2DA39A"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="border" Property="Background" Value="#00827D"/>
@@ -73,15 +80,77 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#C41A41"/>
+                                <Setter TargetName="border" Property="Background" Value="#E81123"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#C41A41"/>
+                                <Setter TargetName="border" Property="Background" Value="#C50F1F"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
+        </Style>
+
+        <!-- 自定义 TabItem 样式 -->
+        <Style TargetType="TabItem">
+            <Setter Property="MinWidth" Value="80"/>
+            <Setter Property="Padding" Value="16,10"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="#666666"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border 
+                            x:Name="Border"
+                            Background="{TemplateBinding Background}"
+                            BorderThickness="0,0,0,2"
+                            BorderBrush="Transparent"
+                            Padding="{TemplateBinding Padding}"
+                            Margin="0,0,4,0">
+                            <ContentPresenter 
+                                x:Name="ContentSite"
+                                ContentSource="Header"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#E8F8F7"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Foreground" Value="#39C5BB"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                <Setter TargetName="Border" Property="BorderBrush" Value="#39C5BB"/>
+                                <Setter TargetName="Border" Property="Background" Value="#E8F8F7"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- 自定义 Card 样式 -->
+        <Style TargetType="ui:Card">
+            <Setter Property="Padding" Value="20"/>
+            <Setter Property="BorderBrush" Value="#E0E0E0"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+
+        <!-- 标题文本样式 -->
+        <Style x:Key="CardTitleStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#333333"/>
+            <Setter Property="Margin" Value="0,0,0,12"/>
+        </Style>
+
+        <!-- 标签文本样式 -->
+        <Style x:Key="LabelStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="#666666"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
     </Window.Resources>
 
@@ -182,14 +251,7 @@
             </Border>
 
             <!-- 主内容区域 -->
-            <TabControl Grid.Row="1" Margin="8">
-                <TabControl.Resources>
-                    <!-- 自定义 TabItem 样式，使标签页按钮更紧凑 -->
-                    <Style TargetType="TabItem">
-                        <Setter Property="MinWidth" Value="80"/>
-                        <Setter Property="Padding" Value="12,8"/>
-                    </Style>
-                </TabControl.Resources>
+            <TabControl Grid.Row="1" Margin="8" BorderThickness="0" Background="Transparent">
         <!-- 主页面标签页 -->
         <TabItem Header="主页面">
             <Grid Margin="16">
@@ -203,7 +265,7 @@
                 <!-- Capture Settings Card -->
                 <ui:Card Grid.Row="0" Margin="0,0,0,16">
                     <StackPanel>
-                        <TextBlock Text="窗口选择" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                        <TextBlock Text="窗口选择" Style="{StaticResource CardTitleStyle}"/>
 
                         <Grid>
                             <Grid.ColumnDefinitions>
@@ -215,8 +277,8 @@
                             <TextBlock 
                                 Grid.Column="0" 
                                 Text="窗口名称:" 
-                                Margin="0,0,12,0" 
-                                VerticalAlignment="Center"/>
+                                Style="{StaticResource LabelStyle}"
+                                Margin="0,0,12,0"/>
                             <ComboBox
                                 Grid.Column="1"
                                 ItemsSource="{Binding WindowTitles}"
@@ -274,24 +336,21 @@
                     <!-- 捕获设置 -->
                     <ui:Card Margin="0,0,0,16">
                         <StackPanel>
-                            <TextBlock Text="捕获设置" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                            <TextBlock Text="捕获设置" Style="{StaticResource CardTitleStyle}"/>
 
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="120"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
 
                                 <TextBlock 
-                                    Grid.Row="0" Grid.Column="0" 
+                                    Grid.Column="0" 
                                     Text="捕获间隔(秒):" 
-                                    Margin="0,0,12,0" 
-                                    VerticalAlignment="Center"/>
+                                    Style="{StaticResource LabelStyle}"
+                                    Margin="0,0,12,0"/>
                                 <ui:NumberBox 
-                                    Grid.Row="0" Grid.Column="1"
+                                    Grid.Column="1"
                                     Value="{Binding CaptureInterval}"
                                     Minimum="0.1" Maximum="10" SmallChange="0.1"
                                     ToolTip="设置截图的时间间隔"/>
@@ -302,7 +361,7 @@
                     <!-- 保存设置 -->
                     <ui:Card Margin="0,0,0,16">
                         <StackPanel>
-                            <TextBlock Text="保存设置" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                            <TextBlock Text="保存设置" Style="{StaticResource CardTitleStyle}"/>
 
                             <Grid>
                                 <Grid.ColumnDefinitions>
@@ -314,8 +373,8 @@
                                 <TextBlock 
                                     Grid.Column="0" 
                                     Text="保存路径:" 
-                                    Margin="0,0,12,0" 
-                                    VerticalAlignment="Center"/>
+                                    Style="{StaticResource LabelStyle}"
+                                    Margin="0,0,12,0"/>
                                 <ui:TextBox 
                                     Grid.Column="1"
                                     Text="{Binding SavePath}" 
@@ -359,7 +418,7 @@
                         Margin="0,0,12,0"/>
                     <TextBlock 
                         Text="过滤级别:" 
-                        VerticalAlignment="Center"
+                        Style="{StaticResource LabelStyle}"
                         Margin="0,0,8,0"/>
                     <ComboBox 
                         SelectedItem="{Binding LogFilterLevel}"
