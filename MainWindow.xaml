@@ -82,6 +82,25 @@
                         Orientation="Horizontal"
                         WindowChrome.IsHitTestVisibleInChrome="True">
                         <Button 
+                            x:Name="PinButton"
+                            Click="PinButton_Click"
+                            Style="{StaticResource WindowControlButtonStyle}"
+                            Width="46" Height="28"
+                            ToolTip="置顶">
+                            <TextBlock 
+                                x:Name="PinIcon"
+                                Text="📌" 
+                                FontSize="12"
+                                Foreground="White"
+                                VerticalAlignment="Center"
+                                HorizontalAlignment="Center"
+                                RenderTransformOrigin="0.5,0.5">
+                                <TextBlock.RenderTransform>
+                                    <RotateTransform x:Name="PinRotation" Angle="0"/>
+                                </TextBlock.RenderTransform>
+                            </TextBlock>
+                        </Button>
+                        <Button 
                             x:Name="MinimizeButton"
                             Click="MinimizeButton_Click"
                             Style="{StaticResource WindowControlButtonStyle}"

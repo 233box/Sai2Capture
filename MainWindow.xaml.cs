@@ -65,6 +65,26 @@ namespace Sai2Capture
             }
         }
 
+        // 置顶按钮
+        private void PinButton_Click(object sender, RoutedEventArgs e)
+        {
+            Topmost = !Topmost;
+            
+            // 更新图钉图标的旋转角度
+            if (Topmost)
+            {
+                // 置顶时，图钉旋转45度（钉住状态）
+                PinRotation.Angle = 45;
+                PinButton.ToolTip = "取消置顶";
+            }
+            else
+            {
+                // 取消置顶时，图钉恢复原位
+                PinRotation.Angle = 0;
+                PinButton.ToolTip = "置顶";
+            }
+        }
+
         // 最小化按钮
         private void MinimizeButton_Click(object sender, RoutedEventArgs e)
         {
