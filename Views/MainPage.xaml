@@ -1,0 +1,84 @@
+<UserControl x:Class="Sai2Capture.Views.MainPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="800">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/Styles/ControlStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Capture Settings Card -->
+        <ui:Card Grid.Row="0" Margin="0,0,0,16">
+            <StackPanel>
+                <TextBlock Text="窗口选择" Style="{StaticResource CardTitleStyle}"/>
+
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock 
+                        Grid.Column="0" 
+                        Text="窗口名称:" 
+                        Style="{StaticResource LabelStyle}"
+                        Margin="0,0,12,0"/>
+                    <ComboBox
+                        Grid.Column="1"
+                        ItemsSource="{Binding WindowTitles}"
+                        Text="{Binding SelectedWindowTitle, UpdateSourceTrigger=PropertyChanged}"
+                        IsEditable="True"
+                        Margin="0,0,12,0" />
+                    <ui:Button
+                        Grid.Column="2"
+                        Content="刷新"
+                        Command="{Binding RefreshWindowListCommand}"
+                        ToolTip="刷新窗口列表"/>
+                </Grid>
+            </StackPanel>
+        </ui:Card>
+
+        <!-- Control Buttons -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,16">
+            <ui:Button 
+                Appearance="Primary"
+                Content="开始/继续" 
+                Command="{Binding StartCaptureCommand}" 
+                Margin="0,0,12,0"/>
+            <ui:Button 
+                Content="暂停" 
+                Command="{Binding PauseCaptureCommand}" 
+                Margin="0,0,12,0"/>
+            <ui:Button 
+                Content="停止录制" 
+                Command="{Binding StopCaptureCommand}" 
+                Margin="0,0,12,0"/>
+            <ui:Button 
+                Content="预览窗口" 
+                Command="{Binding PreviewWindowCommand}"/>
+        </StackPanel>
+
+        <!-- Status Display -->
+        <ui:Card Grid.Row="3" Margin="0">
+            <TextBlock 
+                Text="{Binding Status}" 
+                FontWeight="SemiBold"
+                HorizontalAlignment="Center"/>
+        </ui:Card>
+    </Grid>
+</UserControl>

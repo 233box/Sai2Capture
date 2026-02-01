@@ -5,8 +5,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:local="clr-namespace:Sai2Capture"
-    xmlns:converters="clr-namespace:Sai2Capture.Converters"
-    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    xmlns:views="clr-namespace:Sai2Capture.Views"
     mc:Ignorable="d"
     Title="Sai2 捕获工具"
     Height="450"
@@ -27,131 +26,14 @@
     </WindowChrome.WindowChrome>
 
     <Window.Resources>
-        <!-- 主题颜色定义 -->
-        <SolidColorBrush x:Key="PrimaryBrush" Color="#39C5BB"/>
-        <SolidColorBrush x:Key="PrimaryHoverBrush" Color="#2DA39A"/>
-        <SolidColorBrush x:Key="PrimaryPressedBrush" Color="#00827D"/>
-        <SolidColorBrush x:Key="AccentBrush" Color="#E8F8F7"/>
-        <SolidColorBrush x:Key="BorderBrush" Color="#D0D0D0"/>
-        
-        <!-- 窗口控制按钮样式 -->
-        <Style x:Key="WindowControlButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border 
-                            x:Name="border"
-                            Background="{TemplateBinding Background}"
-                            BorderThickness="0">
-                            <ContentPresenter 
-                                HorizontalAlignment="Center" 
-                                VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#2DA39A"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#00827D"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- 关闭按钮样式 -->
-        <Style x:Key="CloseButtonStyle" TargetType="Button" BasedOn="{StaticResource WindowControlButtonStyle}">
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border 
-                            x:Name="border"
-                            Background="{TemplateBinding Background}"
-                            BorderThickness="0"
-                            CornerRadius="0,8,0,0">
-                            <ContentPresenter 
-                                HorizontalAlignment="Center" 
-                                VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#E81123"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#C50F1F"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- 自定义 TabItem 样式 -->
-        <Style TargetType="TabItem">
-            <Setter Property="MinWidth" Value="80"/>
-            <Setter Property="Padding" Value="16,10"/>
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="Foreground" Value="#666666"/>
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="TabItem">
-                        <Border 
-                            x:Name="Border"
-                            Background="{TemplateBinding Background}"
-                            BorderThickness="0,0,0,2"
-                            BorderBrush="Transparent"
-                            Padding="{TemplateBinding Padding}"
-                            Margin="0,0,4,0">
-                            <ContentPresenter 
-                                x:Name="ContentSite"
-                                ContentSource="Header"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Border" Property="Background" Value="#E8F8F7"/>
-                            </Trigger>
-                            <Trigger Property="IsSelected" Value="True">
-                                <Setter Property="Foreground" Value="#39C5BB"/>
-                                <Setter Property="FontWeight" Value="SemiBold"/>
-                                <Setter TargetName="Border" Property="BorderBrush" Value="#39C5BB"/>
-                                <Setter TargetName="Border" Property="Background" Value="#E8F8F7"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- 自定义 Card 样式 -->
-        <Style TargetType="ui:Card">
-            <Setter Property="Padding" Value="20"/>
-            <Setter Property="BorderBrush" Value="#E0E0E0"/>
-            <Setter Property="BorderThickness" Value="1"/>
-        </Style>
-
-        <!-- 标题文本样式 -->
-        <Style x:Key="CardTitleStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="16"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="#333333"/>
-            <Setter Property="Margin" Value="0,0,0,12"/>
-        </Style>
-
-        <!-- 标签文本样式 -->
-        <Style x:Key="LabelStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="Foreground" Value="#666666"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-        </Style>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- 合并样式资源 -->
+                <ResourceDictionary Source="/Styles/Colors.xaml"/>
+                <ResourceDictionary Source="/Styles/WindowStyles.xaml"/>
+                <ResourceDictionary Source="/Styles/ControlStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
     </Window.Resources>
 
     <Border 
@@ -252,222 +134,21 @@
 
             <!-- 主内容区域 -->
             <TabControl Grid.Row="1" Margin="8" BorderThickness="0" Background="Transparent">
-        <!-- 主页面标签页 -->
-        <TabItem Header="主页面">
-            <Grid Margin="16">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
+                <!-- 主页面标签页 -->
+                <TabItem Header="主页面">
+                    <views:MainPage DataContext="{Binding}"/>
+                </TabItem>
 
-                <!-- Capture Settings Card -->
-                <ui:Card Grid.Row="0" Margin="0,0,0,16">
-                    <StackPanel>
-                        <TextBlock Text="窗口选择" Style="{StaticResource CardTitleStyle}"/>
+                <!-- 设置标签页 -->
+                <TabItem Header="设置">
+                    <views:SettingsPage DataContext="{Binding}"/>
+                </TabItem>
 
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-
-                            <TextBlock 
-                                Grid.Column="0" 
-                                Text="窗口名称:" 
-                                Style="{StaticResource LabelStyle}"
-                                Margin="0,0,12,0"/>
-                            <ComboBox
-                                Grid.Column="1"
-                                ItemsSource="{Binding WindowTitles}"
-                                Text="{Binding SelectedWindowTitle, UpdateSourceTrigger=PropertyChanged}"
-                                IsEditable="True"
-                                Margin="0,0,12,0" />
-                            <ui:Button
-                                Grid.Column="2"
-                                Content="刷新"
-                                Command="{Binding RefreshWindowListCommand}"
-                                ToolTip="刷新窗口列表"/>
-                        </Grid>
-                    </StackPanel>
-                </ui:Card>
-
-                <!-- Control Buttons -->
-                <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,16">
-                    <ui:Button 
-                        Appearance="Primary"
-                        Content="开始/继续" 
-                        Command="{Binding StartCaptureCommand}" 
-                        Margin="0,0,12,0"/>
-                    <ui:Button 
-                        Content="暂停" 
-                        Command="{Binding PauseCaptureCommand}" 
-                        Margin="0,0,12,0"/>
-                    <ui:Button 
-                        Content="停止录制" 
-                        Command="{Binding StopCaptureCommand}" 
-                        Margin="0,0,12,0"/>
-                    <ui:Button 
-                        Content="预览窗口" 
-                        Command="{Binding PreviewWindowCommand}"/>
-                </StackPanel>
-
-                <!-- Status Display -->
-                <ui:Card Grid.Row="3" Margin="0">
-                    <TextBlock 
-                        Text="{Binding Status}" 
-                        FontWeight="SemiBold"
-                        HorizontalAlignment="Center"/>
-                </ui:Card>
-            </Grid>
-        </TabItem>
-
-        <!-- 设置标签页 -->
-        <TabItem Header="设置">
-            <Grid Margin="16">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
-
-                <StackPanel Grid.Row="0">
-                    <!-- 捕获设置 -->
-                    <ui:Card Margin="0,0,0,16">
-                        <StackPanel>
-                            <TextBlock Text="捕获设置" Style="{StaticResource CardTitleStyle}"/>
-
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="120"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-
-                                <TextBlock 
-                                    Grid.Column="0" 
-                                    Text="捕获间隔(秒):" 
-                                    Style="{StaticResource LabelStyle}"
-                                    Margin="0,0,12,0"/>
-                                <ui:NumberBox 
-                                    Grid.Column="1"
-                                    Value="{Binding CaptureInterval}"
-                                    Minimum="0.1" Maximum="10" SmallChange="0.1"
-                                    ToolTip="设置截图的时间间隔"/>
-                            </Grid>
-                        </StackPanel>
-                    </ui:Card>
-
-                    <!-- 保存设置 -->
-                    <ui:Card Margin="0,0,0,16">
-                        <StackPanel>
-                            <TextBlock Text="保存设置" Style="{StaticResource CardTitleStyle}"/>
-
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="120"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-
-                                <TextBlock 
-                                    Grid.Column="0" 
-                                    Text="保存路径:" 
-                                    Style="{StaticResource LabelStyle}"
-                                    Margin="0,0,12,0"/>
-                                <ui:TextBox 
-                                    Grid.Column="1"
-                                    Text="{Binding SavePath}" 
-                                    Margin="0,0,12,0"
-                                    ToolTip="截图保存的文件夹路径"/>
-                                <ui:Button
-                                    Grid.Column="2"
-                                    Content="浏览"
-                                    Command="{Binding BrowseSavePathCommand}"
-                                    ToolTip="选择保存文件夹"/>
-                            </Grid>
-                        </StackPanel>
-                    </ui:Card>
-                </StackPanel>
-            </Grid>
-        </TabItem>
-
-        <!-- 系统日志标签页 -->
-        <TabItem Header="系统日志">
-            <Grid Margin="16">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-
-                <!-- 日志工具栏 -->
-                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,12">
-                    <ui:Button 
-                        Content="清空日志" 
-                        Command="{Binding ClearLogCommand}" 
-                        Margin="0,0,12,0"/>
-                    <ui:Button 
-                        Content="导出日志" 
-                        Command="{Binding ExportLogCommand}"
-                        Margin="0,0,12,0"/>
-                    <CheckBox 
-                        Content="自动滚动" 
-                        IsChecked="{Binding AutoScrollLog}"
-                        VerticalAlignment="Center"
-                        Margin="0,0,12,0"/>
-                    <TextBlock 
-                        Text="过滤级别:" 
-                        Style="{StaticResource LabelStyle}"
-                        Margin="0,0,8,0"/>
-                    <ComboBox 
-                        SelectedItem="{Binding LogFilterLevel}"
-                        VerticalAlignment="Center"
-                        Width="100">
-                        <ComboBoxItem Content="全部"/>
-                        <ComboBoxItem Content="INFO"/>
-                        <ComboBoxItem Content="WARNING"/>
-                        <ComboBoxItem Content="ERROR"/>
-                    </ComboBox>
-                </StackPanel>
-
-                <!-- 日志显示区域 -->
-                <ui:Card Grid.Row="1" Margin="0,0,0,12">
-                    <ScrollViewer 
-                        x:Name="LogScrollViewer"
-                        VerticalScrollBarVisibility="Auto" 
-                        HorizontalScrollBarVisibility="Auto">
-                        <TextBox 
-                            Text="{Binding LogContent, Mode=OneWay}"
-                            IsReadOnly="True"
-                            TextWrapping="NoWrap"
-                            FontFamily="Consolas"
-                            FontSize="11"
-                            Background="Transparent"
-                            BorderThickness="0"
-                            VerticalScrollBarVisibility="Disabled"
-                            HorizontalScrollBarVisibility="Disabled"
-                            Padding="8"/>
-                    </ScrollViewer>
-                </ui:Card>
-
-                <!-- 日志统计信息 -->
-                <ui:Card Grid.Row="2">
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                        <TextBlock 
-                            Text="{Binding LogStatistics}" 
-                            FontSize="11"
-                            Foreground="Gray"/>
-                        <TextBlock 
-                            Text=" | 提示: 取消勾选'自动滚动'可查看历史日志" 
-                            FontSize="11"
-                            Foreground="Gray"
-                            Margin="12,0,0,0"/>
-                    </StackPanel>
-                </ui:Card>
-            </Grid>
-        </TabItem>
-    </TabControl>
+                <!-- 系统日志标签页 -->
+                <TabItem Header="系统日志">
+                    <views:LogPage x:Name="LogPageControl" DataContext="{Binding}"/>
+                </TabItem>
+            </TabControl>
         </Grid>
     </Border>
 </Window>

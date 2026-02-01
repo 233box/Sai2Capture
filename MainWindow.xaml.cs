@@ -23,7 +23,7 @@ namespace Sai2Capture
             // 查找日志ScrollViewer并传递给ViewModel
             if (DataContext is MainViewModel viewModel)
             {
-                var scrollViewer = FindName("LogScrollViewer") as ScrollViewer;
+                var scrollViewer = LogPageControl.GetLogScrollViewer();
                 if (scrollViewer != null)
                 {
                     viewModel.SetLogScrollViewer(scrollViewer);
