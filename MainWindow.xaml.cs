@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using CommunityToolkit.Mvvm.DependencyInjection;
 using Sai2Capture.ViewModels;
 using Wpf.Ui.Controls; // 包含 FluentWindow, Button, Card 等
@@ -69,19 +70,21 @@ namespace Sai2Capture
         private void PinButton_Click(object sender, RoutedEventArgs e)
         {
             Topmost = !Topmost;
-            
-            // 更新图钉图标的旋转角度
+
+            // 更新图钉图标的旋转角度和置顶状态
             if (Topmost)
             {
-                // 置顶时，图钉旋转45度（钉住状态）
+                // 置顶时，图钉旋转45度（钉住状态），设置Tag表示置顶状态
                 PinRotation.Angle = 45;
                 PinButton.ToolTip = "取消置顶";
+                PinButton.Tag = "Pinned";
             }
             else
             {
-                // 取消置顶时，图钉恢复原位
+                // 取消置顶时，图钉恢复原位，清除Tag
                 PinRotation.Angle = 0;
                 PinButton.ToolTip = "置顶";
+                PinButton.Tag = null;
             }
         }
 
