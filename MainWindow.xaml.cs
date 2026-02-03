@@ -36,18 +36,58 @@ namespace Sai2Capture
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
             if (_isClosing) return;
-            
+
+            // 检查是否正在录制
+            if (DataContext is MainViewModel mainViewModel)
+            {
+                // 通过捕获服务检查录制状态
+                var isRecording = mainViewModel.CaptureService?.SharedState?.Running ?? false;
+
+                if (isRecording)
+                {
+                    // 正在录制，显示确认对话框
+                    var result = System.Windows.MessageBox.Show(
+                        "正在录制中，是否确认关闭？\n\n确认关闭将停止录制并保存当前视频。",
+                        "确认关闭",
+                        System.Windows.MessageBoxButton.YesNo,
+                        System.Windows.MessageBoxImage.Warning,
+                        System.Windows.MessageBoxResult.No);
+
+                    if (result != System.Windows.MessageBoxResult.Yes)
+                    {
+                        // 用户选择不关闭，取消关闭事件
+                        e.Cancel = true;
+                        return;
+                    }
+
+                    // 用户确认关闭，继续执行关闭逻辑
+                    AddLogWithContext(mainViewModel, "用户确认关闭 - 停止录制并关闭应用程序");
+                }
+            }
+
             _isClosing = true;
             try
             {
-                if (DataContext is MainViewModel viewModel)
+                if (DataContext is MainViewModel closingViewModel)
                 {
-                    viewModel.OnWindowClosing();
+                    closingViewModel.OnWindowClosing();
                 }
             }
             finally
             {
                 _isClosing = false;
+            }
+        }
+
+        private void AddLogWithContext(MainViewModel viewModel, string message)
+        {
+            try
+            {
+                viewModel.AddLog(message);
+            }
+            catch
+            {
+                // 日志记录失败时不阻止关闭流程
             }
         }
 
