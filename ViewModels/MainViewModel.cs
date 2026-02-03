@@ -3,7 +3,9 @@ using CommunityToolkit.Mvvm.Input;
 using Sai2Capture.Services;
 using System;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Windows;
+using System.Windows.Controls;
 using System.IO;
 
 namespace Sai2Capture.ViewModels
@@ -314,7 +316,7 @@ namespace Sai2Capture.ViewModels
                     }
                 }
 
-                // 创建新的预览窗口
+                // 创建新的预览窗口（使用自定义样式）
                 AddLog($"打开预览窗口: {SelectedWindowTitle}");
                 _previewWindow = new System.Windows.Window
                 {
@@ -323,6 +325,9 @@ namespace Sai2Capture.ViewModels
                     Height = 480,
                     Content = new System.Windows.Controls.Image()
                 };
+
+                // 应用自定义样式模板
+                Sai2Capture.Styles.WindowTemplateHelper.ApplyCustomWindowStyle(_previewWindow);
 
                 // 窗口关闭时清理引用
                 _previewWindow.Closed += (s, e) =>

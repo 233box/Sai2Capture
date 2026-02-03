@@ -46,14 +46,13 @@ namespace Sai2Capture
                 if (isRecording)
                 {
                     // 正在录制，显示确认对话框
-                    var result = System.Windows.MessageBox.Show(
+                    var result = Sai2Capture.Services.CustomDialogService.ShowDialog(
                         "正在录制中，是否确认关闭？\n\n确认关闭将停止录制并保存当前视频。",
                         "确认关闭",
-                        System.Windows.MessageBoxButton.YesNo,
-                        System.Windows.MessageBoxImage.Warning,
-                        System.Windows.MessageBoxResult.No);
+                        "是",
+                        "否");
 
-                    if (result != System.Windows.MessageBoxResult.Yes)
+                    if (!result)
                     {
                         // 用户选择不关闭，取消关闭事件
                         e.Cancel = true;

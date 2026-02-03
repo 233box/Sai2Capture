@@ -12,6 +12,7 @@
                 <ResourceDictionary Source="Styles/Colors.xaml" />
                 <ResourceDictionary Source="Styles/ControlStyles.xaml" />
                 <ResourceDictionary Source="Styles/WindowStyles.xaml" />
+                <ResourceDictionary Source="Styles/CustomWindowStyles.xaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Application.Resources>
