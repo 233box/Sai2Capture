@@ -192,6 +192,83 @@ namespace Sai2Capture.ViewModels
             Status = "未录制";
         }
 
+        /// <summary>
+        /// 执行热键命令
+        /// </summary>
+        public void ExecuteHotkeyCommand(string hotkeyId, string commandName)
+        {
+            try
+            {
+                AddLog($"执行热键命令: {hotkeyId} -> {commandName}");
+
+                switch (commandName)
+                {
+                    case "StartCaptureCommand":
+                        StartCaptureCommand.Execute(null);
+                        break;
+                    case "PauseCaptureCommand":
+                        PauseCaptureCommand.Execute(null);
+                        break;
+                    case "StopCaptureCommand":
+                        StopCaptureCommand.Execute(null);
+                        break;
+                    case "RefreshWindowListCommand":
+                        RefreshWindowListCommand.Execute(null);
+                        break;
+                    case "PreviewWindowCommand":
+                        PreviewWindowCommand.Execute(null);
+                        break;
+                    case "ExportLogCommand":
+                        ExportLogCommand.Execute(null);
+                        break;
+                    default:
+                        // 特殊处理一些没有直接命令的热键
+                        HandleSpecialHotkey(hotkeyId);
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                AddLog($"执行热键命令失败: {ex.Message}", "ERROR");
+            }
+        }
+
+        /// <summary>
+        /// 处理特殊热键
+        /// </summary>
+        private void HandleSpecialHotkey(string hotkeyId)
+        {
+            switch (hotkeyId)
+            {
+                case "toggle_window_topmost":
+                    // 切换窗口置顶状态
+                    // 这个需要在MainWindow中处理
+                    ToggleWindowTopmost();
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// 切换窗口置顶状态
+        /// </summary>
+        private void ToggleWindowTopmost()
+        {
+            try
+            {
+                // 通过Application.Current.MainWindow访问主窗口
+                if (System.Windows.Application.Current.MainWindow != null)
+                {
+                    System.Windows.Application.Current.MainWindow.Topmost = !System.Windows.Application.Current.MainWindow.Topmost;
+                    AddLog($"窗口置顶状态已切换为: {System.Windows.Application.Current.MainWindow.Topmost}");
+                    Status = $"窗口已{ (System.Windows.Application.Current.MainWindow.Topmost ? "置顶" : "取消置顶") }";
+                }
+            }
+            catch (Exception ex)
+            {
+                AddLog($"切换窗口置顶状态失败: {ex.Message}", "ERROR");
+            }
+        }
+
         private int _elapsedSeconds = 0;
         
         private string _status = "未录制";

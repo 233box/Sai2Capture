@@ -24,6 +24,8 @@ namespace Sai2Capture
             services.AddSingleton<CaptureService>();
             services.AddSingleton<SettingsService>();
             services.AddSingleton<LogService>();
+            services.AddSingleton<HotkeyService>(); // 新增热键服务
+            services.AddSingleton<HotkeyViewModel>(); // 新增热键视图模型
 
             // 注册Dispatcher - 使用延迟初始化
             services.AddSingleton(provider =>

@@ -1,6 +1,9 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using Sai2Capture.Models;
 using System;
+using System.Collections.ObjectModel;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Windows;
 
@@ -51,6 +54,13 @@ namespace Sai2Capture.Services
         private string _savePath = string.Empty;
 
         /// <summary>
+        /// 热键配置列表
+        /// 存储用户自定义的热键配置
+        /// </summary>
+        [ObservableProperty]
+        private ObservableCollection<HotkeyModel> _hotkeys = new();
+
+        /// <summary>
         /// 初始化设置服务
         /// </summary>
         /// <param name="sharedState">共享状态服务，用于配置同步</param>
@@ -95,21 +105,41 @@ namespace Sai2Capture.Services
                         ZoomLevel = settings.ZoomLevel ?? ZoomLevel;
                         SavePath = settings.SavePath ?? SavePath;
 
+                        // 加载热键配置
+                        if (settings.Hotkeys != null && settings.Hotkeys.Any())
+                        {
+                            Hotkeys.Clear();
+                            foreach (var savedHotkey in settings.Hotkeys)
+                            {
+                                Hotkeys.Add(savedHotkey);
+                            }
+                            _logService.AddLog($"加载了 {settings.Hotkeys.Count} 个热键配置");
+                        }
+                        else
+                        {
+                            // 使用默认热键配置
+                            InitializeDefaultHotkeys();
+                        }
+
                         // 更新共享状态
                         _sharedState.Interval = CaptureInterval;
-                        
+
                         _logService.AddLog($"设置加载成功 - 窗口: {WindowName}, 间隔: {CaptureInterval}秒, 缩放: {ZoomLevel}");
                     }
                 }
                 else
                 {
                     _logService.AddLog("设置文件不存在，使用默认设置", LogLevel.Warning);
+                    InitializeDefaultHotkeys();
                 }
             }
             catch (Exception ex)
             {
                 _logService.AddLog($"加载设置失败: {ex.Message}", LogLevel.Error);
                 System.Windows.MessageBox.Show($"加载设置失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Warning);
+
+                // 出现错误时初始化默认热键
+                InitializeDefaultHotkeys();
             }
         }
 
@@ -129,12 +159,13 @@ namespace Sai2Capture.Services
                     WindowName = WindowName,
                     CaptureInterval = CaptureInterval,
                     ZoomLevel = ZoomLevel,
-                    SavePath = SavePath
+                    SavePath = SavePath,
+                    Hotkeys = Hotkeys.ToList()
                 };
 
                 string json = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
                 File.WriteAllText(SettingsFileName, json);
-                
+
                 _logService.AddLog($"设置已保存到: {GetSettingsFilePath()}");
             }
             catch (Exception ex)
@@ -142,6 +173,38 @@ namespace Sai2Capture.Services
                 _logService.AddLog($"保存设置失败: {ex.Message}", LogLevel.Error);
                 System.Windows.MessageBox.Show($"保存设置失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        /// <summary>
+        /// 单独保存热键配置
+        /// </summary>
+        public void SaveHotkeys(ObservableCollection<HotkeyModel> hotkeys)
+        {
+            try
+            {
+                Hotkeys = new ObservableCollection<HotkeyModel>(hotkeys);
+                SaveSettings();
+                _logService.AddLog("热键配置已保存");
+            }
+            catch (Exception ex)
+            {
+                _logService.AddLog($"保存热键配置失败: {ex.Message}", LogLevel.Error);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// 初始化默认热键配置
+        /// </summary>
+        private void InitializeDefaultHotkeys()
+        {
+            Hotkeys.Clear();
+            var defaultHotkeys = HotkeyModel.CreateDefaultHotkeys();
+            foreach (var hotkey in defaultHotkeys)
+            {
+                Hotkeys.Add(hotkey);
+            }
+            _logService.AddLog("初始化默认热键配置");
         }
 
         /// <summary>
@@ -170,6 +233,11 @@ namespace Sai2Capture.Services
             /// 保存路径
             /// </summary>
             public string? SavePath { get; set; }
+
+            /// <summary>
+            /// 热键配置列表
+            /// </summary>
+            public List<HotkeyModel>? Hotkeys { get; set; }
         }
     }
 }
