@@ -7,7 +7,12 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.IO;
-
+/// TODO: 热键修改窗口显示错误
+/// TODO：热键保存问题
+/// TODO：置顶热键不修改按钮效果问题
+/// TODO：增加热键反馈
+/// TODO：子窗口存在冗余按键
+/// TODO：子窗口右上角关闭按钮无效
 namespace Sai2Capture.ViewModels
 {
     /// <summary>

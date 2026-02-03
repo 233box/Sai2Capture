@@ -62,7 +62,7 @@ namespace Sai2Capture.Services
 
             Hotkeys = new ObservableCollection<HotkeyModel>();
 
-            _logService.AddLog("热键服务初始化");
+            _logService.AddLog("热键服务已创建");
         }
 
         /// <summary>
@@ -101,7 +101,7 @@ namespace Sai2Capture.Services
         }
 
         /// <summary>
-        /// 加载热键配置
+        /// 加载热键配置（仅加载配置，不注册热键）
         /// </summary>
         private void LoadHotkeys()
         {
@@ -125,7 +125,7 @@ namespace Sai2Capture.Services
                         }
                         Hotkeys.Add(defaultHotkey);
                     }
-                    _logService.AddLog($"加载了 {savedHotkeys.Count} 个已保存的热键配置");
+                    _logService.AddLog($"加载了 {savedHotkeys.Count} 个热键配置");
                 }
                 else
                 {
@@ -134,14 +134,20 @@ namespace Sai2Capture.Services
                     {
                         Hotkeys.Add(hotkey);
                     }
-                    _logService.AddLog("使用默认热键配置");
+                    _logService.AddLog($"创建了 {defaultHotkeys.Count} 个默认热键配置");
                 }
             }
             catch (Exception ex)
             {
                 _logService.AddLog($"加载热键配置失败: {ex.Message}", LogLevel.Error);
                 // 失败时使用默认配置
-                ResetToDefaults();
+                var defaultHotkeys = HotkeyModel.CreateDefaultHotkeys();
+                Hotkeys.Clear();
+                foreach (var hotkey in defaultHotkeys)
+                {
+                    Hotkeys.Add(hotkey);
+                }
+                _logService.AddLog($"使用默认热键配置（{defaultHotkeys.Count} 个）");
             }
         }
 
@@ -319,7 +325,12 @@ namespace Sai2Capture.Services
                 Hotkeys.Add(hotkey);
             }
 
-            RegisterAllHotkeys();
+            // 只有在已初始化的情况下才重新注册热键
+            if (_isInitialized)
+            {
+                RegisterAllHotkeys();
+            }
+            
             _logService.AddLog("热键已重置为默认配置");
         }
 
