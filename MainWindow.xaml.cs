@@ -49,8 +49,8 @@ namespace Sai2Capture
                     var result = Sai2Capture.Services.CustomDialogService.ShowDialog(
                         "正在录制中，是否确认关闭？\n\n确认关闭将停止录制并保存当前视频。",
                         "确认关闭",
-                        "是",
-                        "否");
+                        "关闭",
+                        "再想想");
 
                     if (!result)
                     {

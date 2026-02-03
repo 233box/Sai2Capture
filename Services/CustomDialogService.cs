@@ -16,6 +16,7 @@ using StackPanel = System.Windows.Controls.StackPanel;
 using Thickness = System.Windows.Thickness;
 using TextWrapping = System.Windows.TextWrapping;
 using Style = System.Windows.Style;
+using Panel = System.Windows.Controls.Panel;
 
 namespace Sai2Capture.Services
 {
@@ -129,7 +130,35 @@ namespace Sai2Capture.Services
                     if (cancelBtn != null && confirmBtn != null)
                     {
                         // 移除模板中的按钮，使用我们自定义的按钮
-                        // 这些按钮会被替换成我们上面创建的按钮
+                        var parentPanel = cancelBtn.Parent as Panel;
+                        if (parentPanel != null)
+                        {
+                            int cancelIndex = parentPanel.Children.IndexOf(cancelBtn);
+                            int confirmIndex = parentPanel.Children.IndexOf(confirmBtn);
+
+                            // 移除模板按钮
+                            parentPanel.Children.Remove(cancelBtn);
+                            parentPanel.Children.Remove(confirmBtn);
+
+                            // 添加自定义按钮到正确位置
+                            if (cancelIndex >= 0 && cancelIndex < parentPanel.Children.Count)
+                            {
+                                parentPanel.Children.Insert(cancelIndex, cancelButton);
+                            }
+                            else
+                            {
+                                parentPanel.Children.Add(cancelButton);
+                            }
+
+                            if (confirmIndex >= 0 && confirmIndex < parentPanel.Children.Count)
+                            {
+                                parentPanel.Children.Insert(confirmIndex, confirmButton);
+                            }
+                            else
+                            {
+                                parentPanel.Children.Add(confirmButton);
+                            }
+                        }
                     }
                 }
             };
