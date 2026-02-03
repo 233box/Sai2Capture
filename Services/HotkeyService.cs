@@ -186,7 +186,7 @@ namespace Sai2Capture.Services
                     _registeredHotkeys[hotkeyId] = hotkey;
                     hotkey.PropertyChanged += (s, e) =>
                     {
-                        if (e.PropertyName == nameof(HotkeyModel.CurrentKey) || 
+                        if (e.PropertyName == nameof(HotkeyModel.CurrentKey) ||
                             e.PropertyName == nameof(HotkeyModel.IsEnabled))
                         {
                             RefreshHotkey(hotkeyId);
@@ -196,7 +196,9 @@ namespace Sai2Capture.Services
                 }
                 else
                 {
-                    _logService.AddLog($"注册热键失败: {hotkey.Name} = {hotkey.CurrentKey}", LogLevel.Warning);
+                    int errorCode = Marshal.GetLastWin32Error();
+                    string errorMessage = GetErrorMessage(errorCode);
+                    _logService.AddLog($"注册热键失败: {hotkey.Name} = {hotkey.CurrentKey}, 错误代码: {errorCode}, 错误信息: {errorMessage}", LogLevel.Warning);
                 }
             }
             catch (Exception ex)
@@ -378,6 +380,34 @@ namespace Sai2Capture.Services
             catch (Exception ex)
             {
                 _logService.AddLog($"释放热键服务异常: {ex.Message}", LogLevel.Error);
+            }
+        }
+
+        /// <summary>
+        /// 获取 Win32 错误信息
+        /// </summary>
+        private static string GetErrorMessage(int errorCode)
+        {
+            try
+            {
+                if (errorCode == 0) return "无错误";
+
+                switch (errorCode)
+                {
+                    case 1409: return "热键已注册 (ERROR_HOTKEY_ALREADY_REGISTERED) - 该热键已被其他应用程序注册";
+                    case 5: return "访问被拒绝 (ERROR_ACCESS_DENIED) - 权限不足";
+                    case 1008: return "尝试引用不存在的令牌 (ERROR_NO_TOKEN)";
+                    case 1155: return "没有应用程序与此操作的指定文件关联 (ERROR_NO_ASSOCIATION)";
+                    case 2: return "系统找不到指定的文件 (ERROR_FILE_NOT_FOUND)";
+                    case 3: return "系统找不到指定的路径 (ERROR_PATH_NOT_FOUND)";
+                    case 87: return "参数错误 (ERROR_INVALID_PARAMETER) - 可能是无效的修饰键或键码";
+                    case 1444: return "指定的窗口句柄无效 (ERROR_INVALID_WINDOW_HANDLE)";
+                    default: return $"未知错误代码: {errorCode}";
+                }
+            }
+            catch
+            {
+                return $"错误代码: {errorCode}";
             }
         }
     }

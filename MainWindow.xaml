@@ -154,7 +154,7 @@
 
                 <!-- 设置标签页 -->
                 <TabItem Header="设置">
-                    <views:SettingsPage DataContext="{Binding}"/>
+                    <views:SettingsPage DataContext="{Binding HotkeyViewModel}"/>
                 </TabItem>
 
                 <!-- 系统日志标签页 -->

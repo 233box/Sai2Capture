@@ -26,6 +26,7 @@ namespace Sai2Capture.ViewModels
         private readonly CaptureService _captureService;
         private readonly SettingsService _settingsService;
         private readonly LogService _logService;
+        private readonly HotkeyViewModel _hotkeyViewModel;
         private readonly System.Windows.Threading.DispatcherTimer _statusTimer;
         private System.Windows.Window? _previewWindow;
         private System.Windows.Controls.ScrollViewer? _logScrollViewer;
@@ -54,7 +55,7 @@ namespace Sai2Capture.ViewModels
         public double _captureInterval = 0.1;
 
         /// <summary>
-        /// 界面缩放级别  
+        /// 界面缩放级别
         /// 支持值："100%""125%""150%""200%"
         /// 默认值："125%"
         /// </summary>
@@ -71,18 +72,21 @@ namespace Sai2Capture.ViewModels
         /// <param name="captureService">捕获服务</param>
         /// <param name="settingsService">设置服务</param>
         /// <param name="logService">日志服务</param>
+        /// <param name="hotkeyViewModel">热键视图模型</param>
         public MainViewModel(
             WindowCaptureService windowCaptureService,
             UtilityService utilityService,
             CaptureService captureService,
             SettingsService settingsService,
-            LogService logService)
+            LogService logService,
+            HotkeyViewModel hotkeyViewModel)
         {
             _windowCaptureService = windowCaptureService;
             _utilityService = utilityService;
             _captureService = captureService;
             _settingsService = settingsService;
             _logService = logService;
+            _hotkeyViewModel = hotkeyViewModel;
 
             // 订阅日志更新事件
             _logService.LogUpdated += OnLogUpdated;
@@ -96,6 +100,11 @@ namespace Sai2Capture.ViewModels
 
             InitializeServices();
         }
+
+        /// <summary>
+        /// 热键视图模型
+        /// </summary>
+        public HotkeyViewModel HotkeyViewModel => _hotkeyViewModel;
 
         /// <summary>
         /// 日志更新事件处理
@@ -132,7 +141,7 @@ namespace Sai2Capture.ViewModels
             AddLog($"设置文件路径: {_settingsService.GetSettingsFilePath()}");
             AddLog($"加载设置 - 窗口: {SelectedWindowTitle}, 间隔: {CaptureInterval}秒");
             AddLog($"保存路径: {SavePath}");
-            
+
             // 初始化状态
             Status = "未录制";
         }
@@ -148,13 +157,13 @@ namespace Sai2Capture.ViewModels
             AddLog($"开始捕获 - 窗口: {SelectedWindowTitle}, 间隔: {CaptureInterval}秒");
             AddLog($"_captureService.SharedState.IsInitialized = {_captureService.SharedState.IsInitialized}");
             AddLog($"_captureService.SharedState.Running = {_captureService.SharedState.Running}");
-            
+
             // 只在未录制时重置计数器
             if (_captureService.SharedState.IsInitialized == false && _captureService.SharedState.Running == false)
             {
                 _elapsedSeconds = 0;
             }
-            
+
             _statusTimer.Start();
             _captureService.StartCapture(SelectedWindowTitle, true, CaptureInterval);
         }
@@ -270,7 +279,7 @@ namespace Sai2Capture.ViewModels
         }
 
         private int _elapsedSeconds = 0;
-        
+
         private string _status = "未录制";
         /// <summary>
         /// 状态显示文本
@@ -305,7 +314,7 @@ namespace Sai2Capture.ViewModels
                 var minutes = _elapsedSeconds / 10 / 60;
                 var seconds = (_elapsedSeconds / 10) % 60;
                 var elapsedStr = $"{minutes:D2}:{seconds:D2}";
-                
+
                 Status = $"正在录制（当前已经过：{elapsedStr}，有效捕获：{sharedState.SavedCount}）";
             }
             else if (sharedState.FrameNumber > 0)
@@ -314,7 +323,7 @@ namespace Sai2Capture.ViewModels
                 var minutes = _elapsedSeconds / 10 / 60;
                 var seconds = (_elapsedSeconds / 10) % 60;
                 var elapsedStr = $"{minutes:D2}:{seconds:D2}";
-                
+
                 Status = $"已暂停（当前已经过：{elapsedStr}，有效捕获：{sharedState.SavedCount}）";
             }
         }
@@ -337,7 +346,7 @@ namespace Sai2Capture.ViewModels
             var currentSelection = SelectedWindowTitle;
             WindowTitles = new ObservableCollection<string>(_windowCaptureService.EnumWindowTitles());
             AddLog($"窗口列表已刷新，共 {WindowTitles.Count} 个窗口");
-            
+
             // 如果之前的选择仍然存在，保持选择
             if (!string.IsNullOrEmpty(currentSelection) && WindowTitles.Contains(currentSelection))
             {
@@ -374,7 +383,7 @@ namespace Sai2Capture.ViewModels
                             _previewWindow.Activate();
                             _previewWindow.Focus();
                             AddLog($"聚焦到现有预览窗口: {SelectedWindowTitle}");
-                            
+
                             // 如果窗口标题改变了，更新预览内容
                             if (_previewWindow.Title != "窗口预览 - " + SelectedWindowTitle)
                             {
@@ -442,7 +451,7 @@ namespace Sai2Capture.ViewModels
             _settingsService.SaveSettings();
 
             _captureService.StopCapture();
-            
+
             // 关闭预览窗口
             if (_previewWindow != null)
             {
@@ -512,7 +521,7 @@ namespace Sai2Capture.ViewModels
             LogContent = _logService.GetFullLog(filterLevel);
             var count = _logService.GetLineCount(filterLevel);
             var totalCount = _logService.GetLineCount();
-            
+
             if (filterLevel.HasValue)
             {
                 LogStatistics = $"显示: {count} / 总计: {totalCount} / 1000 | 过滤: {LogFilterLevel}";
@@ -594,7 +603,7 @@ namespace Sai2Capture.ViewModels
                 var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
                 var fileName = $"Sai2Capture_Log_{timestamp}.txt";
                 var filePath = Path.Combine(SavePath ?? Environment.GetFolderPath(Environment.SpecialFolder.Desktop), fileName);
-                
+
                 File.WriteAllText(filePath, LogContent);
                 AddLog($"日志已导出到: {filePath}");
                 Status = $"日志已导出: {fileName}";

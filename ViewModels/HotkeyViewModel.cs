@@ -74,6 +74,14 @@ namespace Sai2Capture.ViewModels
             // 初始加载热键配置
             LoadHotkeys();
 
+            // 确保热键集合不为空
+            if (Hotkeys == null || !Hotkeys.Any())
+            {
+                _logService.AddLog("热键集合仍然为空，尝试直接创建默认热键", LogLevel.Warning);
+                Hotkeys = new ObservableCollection<HotkeyModel>(HotkeyModel.CreateDefaultHotkeys());
+                _logService.AddLog($"直接创建了 {Hotkeys.Count} 个默认热键");
+            }
+
             // 同步热键启用状态
             HotkeysEnabled = _hotkeyService.HotkeysEnabled;
         }
@@ -86,12 +94,45 @@ namespace Sai2Capture.ViewModels
             try
             {
                 // 从热键服务获取当前配置
-                Hotkeys = new ObservableCollection<HotkeyModel>(_hotkeyService.Hotkeys);
-                _logService.AddLog("热键配置已加载");
+                var hotkeys = _hotkeyService.Hotkeys;
+
+                // 如果热键集合为空，检查是否需要初始化默认热键
+                if (hotkeys == null || !hotkeys.Any())
+                {
+                    _logService.AddLog("热键集合为空，尝试初始化默认热键");
+
+                    // 尝试从设置服务加载保存的热键
+                    if (_settingsService?.Hotkeys != null && _settingsService.Hotkeys.Any())
+                    {
+                        // 使用已保存的热键配置
+                        Hotkeys = new ObservableCollection<HotkeyModel>(_settingsService.Hotkeys);
+                        _logService.AddLog($"从设置服务加载了 {Hotkeys.Count} 个热键配置");
+                    }
+                    else
+                    {
+                        // 创建默认热键
+                        Hotkeys = new ObservableCollection<HotkeyModel>(HotkeyModel.CreateDefaultHotkeys());
+                        _logService.AddLog($"创建了 {Hotkeys.Count} 个默认热键配置");
+                    }
+
+                    // 确保热键服务也更新
+                    if (_hotkeyService.Hotkeys == null || !_hotkeyService.Hotkeys.Any())
+                    {
+                        _hotkeyService.ResetToDefaults();
+                    }
+                }
+                else
+                {
+                    Hotkeys = new ObservableCollection<HotkeyModel>(hotkeys);
+                    _logService.AddLog($"热键配置已加载: {Hotkeys.Count} 个热键");
+                }
             }
             catch (Exception ex)
             {
                 _logService.AddLog($"加载热键配置失败: {ex.Message}", LogLevel.Error);
+                // 失败时使用默认配置
+                Hotkeys = new ObservableCollection<HotkeyModel>(HotkeyModel.CreateDefaultHotkeys());
+                _logService.AddLog($"创建了 {Hotkeys.Count} 个默认热键配置作为备用");
             }
         }
 
