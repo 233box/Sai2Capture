@@ -291,7 +291,7 @@
                                  VerticalAlignment="Center"
                                  Margin="0,0,0,4"/>
                         
-                        <TextBlock Text="• 双击列表项可快速编辑快捷键" 
+                        <TextBlock Text="• 修改快捷键需点击保存配置后生效" 
                                  FontWeight="Normal"
                                  Foreground="{DynamicResource ui:BodyForegroundBrush}"
                                  VerticalAlignment="Center"
