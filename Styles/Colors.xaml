@@ -6,7 +6,7 @@
     <SolidColorBrush x:Key="PrimaryBrush" Color="#39C5BB"/>
     <SolidColorBrush x:Key="PrimaryHoverBrush" Color="#2DA39A"/>
     <SolidColorBrush x:Key="PrimaryPressedBrush" Color="#00827D"/>
-    <SolidColorBrush x:Key="WindowBorderBrush" Color="#4DB3B3"/>
+    <SolidColorBrush x:Key="WindowBorderBrush" Color="#669999"/>
     <SolidColorBrush x:Key="AccentBrush" Color="#E8F8F7"/>
     <SolidColorBrush x:Key="BorderBrush" Color="#D0D0D0"/>
     

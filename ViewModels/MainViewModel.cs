@@ -6,10 +6,10 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using System.IO;
 /// TODO: 热键修改窗口显示错误
 /// TODO：热键保存问题
-/// TODO：置顶热键不修改按钮效果问题
 /// TODO：增加热键反馈
 /// TODO：子窗口存在冗余按键
 /// TODO：子窗口右上角关闭按钮无效
@@ -273,9 +273,14 @@ namespace Sai2Capture.ViewModels
                 // 通过Application.Current.MainWindow访问主窗口
                 if (System.Windows.Application.Current.MainWindow != null)
                 {
-                    System.Windows.Application.Current.MainWindow.Topmost = !System.Windows.Application.Current.MainWindow.Topmost;
-                    AddLog($"窗口置顶状态已切换为: {System.Windows.Application.Current.MainWindow.Topmost}");
-                    Status = $"窗口已{ (System.Windows.Application.Current.MainWindow.Topmost ? "置顶" : "取消置顶") }";
+                    var mainWindow = System.Windows.Application.Current.MainWindow;
+                    mainWindow.Topmost = !mainWindow.Topmost;
+
+                    // 手动更新置顶按钮状态以同步按钮样式
+                    Sai2Capture.Styles.WindowTemplateHelper.UpdateWindowTopmostState(mainWindow);
+
+                    AddLog($"窗口置顶状态已切换为: {mainWindow.Topmost}");
+                    Status = $"窗口已{ (mainWindow.Topmost ? "置顶" : "取消置顶") }";
                 }
             }
             catch (Exception ex)

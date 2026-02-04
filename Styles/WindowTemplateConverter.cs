@@ -156,17 +156,61 @@ namespace Sai2Capture.Styles
         /// </summary>
         private static void UpdatePinButtonState(Window window, ControlTemplate template)
         {
-            var pinButton = template?.FindName("PinButton", window) as Button;
-            var pinRotation = template?.FindName("PinRotation", window) as RotateTransform;
-
-            if (pinButton != null)
+            try
             {
-                pinButton.Tag = window.Topmost ? "Pinned" : "Unpinned";
+                var pinButton = template?.FindName("PinButton", window) as Button;
+                var pinRotation = template?.FindName("PinRotation", window) as RotateTransform;
+
+                if (pinButton != null)
+                {
+                    string newTag = window.Topmost ? "Pinned" : "Unpinned";
+                    pinButton.Tag = newTag;
+                    // 强制重新评估数据触发器
+                    pinButton.InvalidateProperty(Button.TagProperty);
+                }
+
+                if (pinRotation != null)
+                {
+                    double newAngle = window.Topmost ? 45 : 0;
+                    pinRotation.Angle = newAngle;
+                    pinRotation.InvalidateProperty(RotateTransform.AngleProperty);
+                }
             }
-
-            if (pinRotation != null)
+            catch (Exception ex)
             {
-                pinRotation.Angle = window.Topmost ? 45 : 0;
+                System.Diagnostics.Debug.WriteLine($"更新置顶按钮状态失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 手动更新窗口的置顶按钮状态（用于外部程序调用）
+        /// </summary>
+        /// <param name="window">要更新的窗口</param>
+        public static void UpdateWindowTopmostState(Window window)
+        {
+            if (window?.Template != null)
+            {
+                // 确保在UI线程上执行
+                if (window.Dispatcher.CheckAccess())
+                {
+                    // 延迟执行以确保模板完全加载
+                    window.Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        UpdatePinButtonState(window, window.Template);
+                        // 强制重新应用模板
+                        window.InvalidateArrange();
+                        window.InvalidateVisual();
+                    }), System.Windows.Threading.DispatcherPriority.Background);
+                }
+                else
+                {
+                    window.Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        UpdatePinButtonState(window, window.Template);
+                        window.InvalidateArrange();
+                        window.InvalidateVisual();
+                    }), System.Windows.Threading.DispatcherPriority.Normal);
+                }
             }
         }
 
