@@ -88,9 +88,6 @@ namespace Sai2Capture.Services
             var cancelButton = new Button
             {
                 Content = cancelText,
-                Width = 80,
-                Margin = new Thickness(0, 0, 8, 0),
-                Tag = "DialogButton",
                 Style = (Style)Application.Current.FindResource("SecondaryButtonStyle")
             };
             cancelButton.Click += (s, e) =>
@@ -105,8 +102,6 @@ namespace Sai2Capture.Services
             var confirmButton = new Button
             {
                 Content = buttonText,
-                Width = 80,
-                Tag = "DialogButton",
                 Style = (Style)Application.Current.FindResource("DefaultButtonStyle")
             };
             confirmButton.Click += (s, e) =>

@@ -10,7 +10,7 @@ using System.Windows.Interop;
 
 namespace Sai2Capture
 {
-    public partial class MainWindow : Window
+    public partial class MainWindow : Sai2Capture.Styles.CustomMainWindow
     {
         private HotkeyService? _hotkeyService;
 
@@ -18,6 +18,8 @@ namespace Sai2Capture
         {
             DataContext = Ioc.Default.GetRequiredService<MainViewModel>();
             InitializeComponent();
+
+            // 窗口样式已通过基类自动应用
 
             // 在窗口加载后设置ScrollViewer引用和热键服务
             Loaded += MainWindow_Loaded;
@@ -150,71 +152,7 @@ namespace Sai2Capture
             }
         }
 
-        // 标题栏拖动
-        private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            if (e.ClickCount == 2)
-            {
-                // 双击最大化/还原
-                MaximizeButton_Click(sender, e);
-            }
-            else
-            {
-                // 单击拖动
-                DragMove();
-            }
-        }
-
-        // 置顶按钮
-        private void PinButton_Click(object sender, RoutedEventArgs e)
-        {
-            Topmost = !Topmost;
-
-            // 更新图钉图标的旋转角度和置顶状态
-            if (Topmost)
-            {
-                // 置顶时，图钉旋转45度（钉住状态），设置Tag表示置顶状态
-                PinRotation.Angle = 45;
-                PinButton.ToolTip = "取消置顶";
-                PinButton.Tag = "Pinned";
-            }
-            else
-            {
-                // 取消置顶时，图钉恢复原位，清除Tag
-                PinRotation.Angle = 0;
-                PinButton.ToolTip = "置顶";
-                PinButton.Tag = null;
-            }
-        }
-
-        // 最小化按钮
-        private void MinimizeButton_Click(object sender, RoutedEventArgs e)
-        {
-            WindowState = WindowState.Minimized;
-        }
-
-        // 最大化/还原按钮
-        private void MaximizeButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (WindowState == WindowState.Maximized)
-            {
-                WindowState = WindowState.Normal;
-                // 还原图标：单个方框
-                MaximizeIcon.Data = System.Windows.Media.Geometry.Parse("M 0,0 H 10 V 10 H 0 Z");
-            }
-            else
-            {
-                WindowState = WindowState.Maximized;
-                // 最大化图标：双层方框
-                MaximizeIcon.Data = System.Windows.Media.Geometry.Parse("M 0,2 H 8 V 10 H 0 Z M 2,0 H 10 V 8");
-            }
-        }
-
-        // 关闭按钮
-        private void CloseButton_Click(object sender, RoutedEventArgs e)
-        {
-            Close();
-        }
+        // 窗口控制按钮功能现在由WindowTemplateHelper自动处理
 
         private void MainPage_Loaded(object sender, RoutedEventArgs e)
         {

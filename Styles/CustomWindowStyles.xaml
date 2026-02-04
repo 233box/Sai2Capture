@@ -2,7 +2,7 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:local="clr-namespace:Sai2Capture.Styles">
 
-    <!-- 自定义窗口模板（无标题栏）-->
+    <!-- 自定义窗口模板（完整功能版）-->
     <ControlTemplate x:Key="CustomWindowTemplate" TargetType="Window">
         <Border
             Background="White"
@@ -50,11 +50,64 @@
                                 VerticalAlignment="Center"/>
                         </StackPanel>
 
-                        <!-- 窗口控制按钮（关闭按钮）-->
+                        <!-- 窗口控制按钮区域 -->
                         <StackPanel
                             Grid.Column="2"
                             Orientation="Horizontal"
                             WindowChrome.IsHitTestVisibleInChrome="True">
+
+                            <!-- 置顶按钮 -->
+                            <Button
+                                x:Name="PinButton"
+                                Style="{StaticResource WindowControlButtonStyle}"
+                                Width="46" Height="28"
+                                ToolTip="置顶"
+                                Tag="Pinned">
+                                <TextBlock
+                                    x:Name="PinIcon"
+                                    Text="📌"
+                                    FontSize="12"
+                                    Foreground="White"
+                                    VerticalAlignment="Center"
+                                    HorizontalAlignment="Center"
+                                    RenderTransformOrigin="0.5,0.5">
+                                    <TextBlock.RenderTransform>
+                                        <RotateTransform x:Name="PinRotation" Angle="0"/>
+                                    </TextBlock.RenderTransform>
+                                </TextBlock>
+                            </Button>
+
+                            <!-- 最小化按钮 -->
+                            <Button
+                                x:Name="MinimizeButton"
+                                Style="{StaticResource WindowControlButtonStyle}"
+                                Width="46" Height="28"
+                                ToolTip="最小化">
+                                <Path
+                                    Data="M 0,0 H 10"
+                                    Stroke="White"
+                                    StrokeThickness="1"
+                                    VerticalAlignment="Center"
+                                    HorizontalAlignment="Center"/>
+                            </Button>
+
+                            <!-- 最大化按钮 -->
+                            <Button
+                                x:Name="MaximizeButton"
+                                Style="{StaticResource WindowControlButtonStyle}"
+                                Width="46" Height="28"
+                                ToolTip="最大化">
+                                <Path
+                                    x:Name="MaximizeIcon"
+                                    Data="M 0,0 H 10 V 10 H 0 Z"
+                                    Stroke="White"
+                                    StrokeThickness="1"
+                                    Fill="Transparent"
+                                    VerticalAlignment="Center"
+                                    HorizontalAlignment="Center"/>
+                            </Button>
+
+                            <!-- 关闭按钮 -->
                             <Button
                                 x:Name="CustomCloseButton"
                                 Style="{StaticResource CloseButtonStyle}"

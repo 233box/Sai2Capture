@@ -7,7 +7,7 @@ namespace Sai2Capture.Views
     /// <summary>
     /// 热键编辑对话框
     /// </summary>
-    public partial class HotkeyEditDialog : Window
+    public partial class HotkeyEditDialog : Sai2Capture.Styles.CustomDialogWindow
     {
         private readonly HotkeyViewModel _viewModel;
         
@@ -22,8 +22,7 @@ namespace Sai2Capture.Views
             _viewModel = viewModel;
             DataContext = _viewModel;
 
-            // 应用自定义对话框样式
-            Styles.WindowTemplateHelper.ApplyCustomDialogStyle(this);
+            // 对话框样式已通过基类自动应用
 
             Loaded += HotkeyEditDialog_Loaded;
         }

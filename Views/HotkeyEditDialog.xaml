@@ -1,9 +1,10 @@
-<Window x:Class="Sai2Capture.Views.HotkeyEditDialog"
+<styles:CustomDialogWindow x:Class="Sai2Capture.Views.HotkeyEditDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+        xmlns:styles="clr-namespace:Sai2Capture.Styles"
         xmlns:local="clr-namespace:Sai2Capture.Views"
         xmlns:converters="clr-namespace:Sai2Capture.Converters"
         mc:Ignorable="d"
@@ -101,4 +102,4 @@
             </StackPanel>
         </Border>
     </Grid>
-</Window>
+</styles:CustomDialogWindow>

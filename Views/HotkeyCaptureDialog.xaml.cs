@@ -11,7 +11,7 @@ namespace Sai2Capture.Views
     /// <summary>
     /// Interaction logic for HotkeyCaptureDialog.xaml
     /// </summary>
-    public partial class HotkeyCaptureDialog : Window, INotifyPropertyChanged
+    public partial class HotkeyCaptureDialog : Sai2Capture.Styles.CustomDialogWindow, INotifyPropertyChanged
     {
         private readonly HashSet<Key> _pressedKeys = new();
         private bool _canCaptureKeys = false;
@@ -56,8 +56,7 @@ namespace Sai2Capture.Views
             InitializeComponent();
             DataContext = this;
 
-            // 应用自定义对话框样式
-            Styles.WindowTemplateHelper.ApplyCustomDialogStyle(this);
+            // 对话框样式已通过基类自动应用
 
             Loaded += HotkeyCaptureDialog_Loaded;
             Closing += HotkeyCaptureDialog_Closing;

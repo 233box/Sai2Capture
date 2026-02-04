@@ -4,6 +4,8 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Interop;
+using System.Windows.Media;
+using System.Windows.Shapes;
 using System.Windows.Shell;
 using Application = System.Windows.Application;
 using Button = System.Windows.Controls.Button;
@@ -41,8 +43,8 @@ namespace Sai2Capture.Styles
                                     if (args.ClickCount == 2)
                                     {
                                         // 双击最大化/还原
-                                        w.WindowState = w.WindowState == WindowState.Maximized 
-                                            ? WindowState.Normal 
+                                        w.WindowState = w.WindowState == WindowState.Maximized
+                                            ? WindowState.Normal
                                             : WindowState.Maximized;
                                     }
                                     else
@@ -53,22 +55,118 @@ namespace Sai2Capture.Styles
                                 };
                             }
 
-                            // 查找关闭按钮
-                            var closeButton = template.FindName("CustomCloseButton", w) as Button;
-                            if (closeButton != null)
-                            {
-                                closeButton.Click += (sender, args) => w.Close();
-                            }
-
                             // 查找窗口标题文本
                             var titleText = template.FindName("WindowTitleText", w) as TextBlock;
                             if (titleText != null)
                             {
                                 titleText.Text = w.Title;
                             }
+
+                            // 绑定窗口控制按钮事件
+                            BindWindowControlButtons(w, template);
                         }
                     }), System.Windows.Threading.DispatcherPriority.ApplicationIdle);
                 };
+
+                // 监听窗口状态变化，更新最大化按钮图标
+                w.StateChanged += (s, e) => UpdateMaximizeIcon(w);
+            }
+        }
+
+        /// <summary>
+        /// 绑定窗口控制按钮事件
+        /// </summary>
+        private static void BindWindowControlButtons(Window window, ControlTemplate template)
+        {
+            // 关闭按钮
+            var closeButton = template.FindName("CustomCloseButton", window) as Button;
+            if (closeButton != null)
+            {
+                closeButton.Click += (sender, args) => window.Close();
+            }
+
+            // 最小化按钮
+            var minimizeButton = template.FindName("MinimizeButton", window) as Button;
+            if (minimizeButton != null)
+            {
+                minimizeButton.Click += (sender, args) => window.WindowState = WindowState.Minimized;
+            }
+
+            // 最大化按钮
+            var maximizeButton = template.FindName("MaximizeButton", window) as Button;
+            if (maximizeButton != null)
+            {
+                maximizeButton.Click += (sender, args) =>
+                {
+                    window.WindowState = window.WindowState == WindowState.Maximized
+                        ? WindowState.Normal
+                        : WindowState.Maximized;
+                };
+
+                // 初始化图标状态
+                UpdateMaximizeIcon(window);
+            }
+
+            // 置顶按钮
+            var pinButton = template.FindName("PinButton", window) as Button;
+            if (pinButton != null)
+            {
+                pinButton.Click += (sender, args) => ToggleWindowTopmost(window);
+
+                // 初始化置顶状态
+                UpdatePinButtonState(window, template);
+            }
+        }
+
+        /// <summary>
+        /// 更新最大化按钮图标
+        /// </summary>
+        private static void UpdateMaximizeIcon(Window window)
+        {
+            if (window.Template != null)
+            {
+                var maximizeIcon = window.Template.FindName("MaximizeIcon", window) as Path;
+                if (maximizeIcon != null)
+                {
+                    if (window.WindowState == WindowState.Maximized)
+                    {
+                        // 还原图标
+                        maximizeIcon.Data = Geometry.Parse("M 0,4 H 10 V 14 H 0 Z M 2,0 H 12 V 10 H 10 V 2 H 2 Z");
+                    }
+                    else
+                    {
+                        // 最大化图标
+                        maximizeIcon.Data = Geometry.Parse("M 0,0 H 10 V 10 H 0 Z");
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// 切换窗口置顶状态
+        /// </summary>
+        private static void ToggleWindowTopmost(Window window)
+        {
+            window.Topmost = !window.Topmost;
+            UpdatePinButtonState(window, window.Template);
+        }
+
+        /// <summary>
+        /// 更新置顶按钮状态
+        /// </summary>
+        private static void UpdatePinButtonState(Window window, ControlTemplate template)
+        {
+            var pinButton = template?.FindName("PinButton", window) as Button;
+            var pinRotation = template?.FindName("PinRotation", window) as RotateTransform;
+
+            if (pinButton != null)
+            {
+                pinButton.Tag = window.Topmost ? "Pinned" : "Unpinned";
+            }
+
+            if (pinRotation != null)
+            {
+                pinRotation.Angle = window.Topmost ? 45 : 0;
             }
         }
 
