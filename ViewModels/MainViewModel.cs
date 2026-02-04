@@ -8,11 +8,8 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.IO;
-/// TODO: 热键修改窗口显示错误
 /// TODO：热键保存问题
 /// TODO：增加热键反馈
-/// TODO：子窗口存在冗余按键
-/// TODO：子窗口右上角关闭按钮无效
 /// TODO：默认捕获间隔和保存路径
 namespace Sai2Capture.ViewModels
 {
@@ -480,9 +477,10 @@ namespace Sai2Capture.ViewModels
 
         /// <summary>
         /// 获取或设置保存路径
+        /// 默认为程序根目录下的output文件夹
         /// </summary>
         [ObservableProperty]
-        private string _savePath = string.Empty;
+        private string _savePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "output");
 
         /// <summary>
         /// 日志内容

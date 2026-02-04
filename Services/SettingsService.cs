@@ -48,10 +48,10 @@ namespace Sai2Capture.Services
         /// <summary>
         /// 保存路径
         /// 用于指定捕获图像的保存位置
-        /// 默认值：空字符串
+        /// 默认值：程序根目录下的output文件夹
         /// </summary>
         [ObservableProperty]
-        private string _savePath = string.Empty;
+        private string _savePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "output");
 
         /// <summary>
         /// 热键配置列表
@@ -86,7 +86,8 @@ namespace Sai2Capture.Services
         /// 2. 读取并反序列化JSON内容
         /// 3. 更新所有配置属性
         /// 4. 同步共享状态服务
-        /// 5. 处理并显示可能的错误
+        /// 5. 确保保存目录存在
+        /// 6. 处理并显示可能的错误
         /// </summary>
         public void LoadSettings()
         {
@@ -101,9 +102,9 @@ namespace Sai2Capture.Services
                     if (settings != null)
                     {
                         WindowName = settings.WindowName ?? WindowName;
-                        CaptureInterval = settings.CaptureInterval;
+                        CaptureInterval = settings.CaptureInterval > 0 ? settings.CaptureInterval : 0.1;
                         ZoomLevel = settings.ZoomLevel ?? ZoomLevel;
-                        SavePath = settings.SavePath ?? SavePath;
+                        SavePath = !string.IsNullOrEmpty(settings.SavePath) ? settings.SavePath : SavePath;
 
                         // 加载热键配置
                         if (settings.Hotkeys != null && settings.Hotkeys.Any())
@@ -124,13 +125,18 @@ namespace Sai2Capture.Services
                         // 更新共享状态
                         _sharedState.Interval = CaptureInterval;
 
-                        _logService.AddLog($"设置加载成功 - 窗口: {WindowName}, 间隔: {CaptureInterval}秒, 缩放: {ZoomLevel}");
+                        // 确保保存目录存在
+                        EnsureSavePathExists();
+
+                        _logService.AddLog($"设置加载成功 - 窗口: {WindowName}, 间隔: {CaptureInterval}秒, 缩放: {ZoomLevel}, 保存路径: {SavePath}");
                     }
                 }
                 else
                 {
                     _logService.AddLog("设置文件不存在，使用默认设置", LogLevel.Warning);
                     InitializeDefaultHotkeys();
+                    // 确保默认保存目录存在
+                    EnsureSavePathExists();
                 }
             }
             catch (Exception ex)
@@ -140,6 +146,8 @@ namespace Sai2Capture.Services
 
                 // 出现错误时初始化默认热键
                 InitializeDefaultHotkeys();
+                // 确保默认保存目录存在
+                EnsureSavePathExists();
             }
         }
 
@@ -148,12 +156,16 @@ namespace Sai2Capture.Services
         /// 1. 创建SettingsModel对象
         /// 2. 序列化为JSON格式
         /// 3. 写入到配置文件
-        /// 4. 处理并显示可能的错误
+        /// 4. 确保保存目录存在
+        /// 5. 处理并显示可能的错误
         /// </summary>
         public void SaveSettings()
         {
             try
             {
+                // 确保保存路径目录存在
+                EnsureSavePathExists();
+
                 var settings = new SettingsModel
                 {
                     WindowName = WindowName,
@@ -190,6 +202,26 @@ namespace Sai2Capture.Services
             {
                 _logService.AddLog($"保存热键配置失败: {ex.Message}", LogLevel.Error);
                 throw;
+            }
+        }
+
+        /// <summary>
+        /// 确保保存路径目录存在
+        /// 如果不存在则创建该目录
+        /// </summary>
+        private void EnsureSavePathExists()
+        {
+            try
+            {
+                if (!Directory.Exists(SavePath))
+                {
+                    Directory.CreateDirectory(SavePath);
+                    _logService.AddLog($"创建保存目录: {SavePath}");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logService.AddLog($"创建保存目录失败: {ex.Message}", LogLevel.Error);
             }
         }
 
