@@ -33,7 +33,7 @@
     <Border 
         Background="White" 
         CornerRadius="8"
-        BorderBrush="#39C5BB"
+        BorderBrush="{StaticResource WindowBorderBrush}"
         BorderThickness="1">
         <Border.Effect>
             <DropShadowEffect 
@@ -50,9 +50,9 @@
             </Grid.RowDefinitions>
 
             <!-- 自定义标题栏 -->
-            <Border 
-                Grid.Row="0" 
-                Background="#39C5BB"
+            <Border
+                Grid.Row="0"
+                Background="{StaticResource PrimaryBrush}"
                 CornerRadius="7,7,0,0"
                 MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
                 <Grid>

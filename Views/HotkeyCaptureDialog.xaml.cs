@@ -56,6 +56,9 @@ namespace Sai2Capture.Views
             InitializeComponent();
             DataContext = this;
 
+            // 应用自定义对话框样式
+            Styles.WindowTemplateHelper.ApplyCustomDialogStyle(this);
+
             Loaded += HotkeyCaptureDialog_Loaded;
             Closing += HotkeyCaptureDialog_Closing;
         }
@@ -307,13 +310,6 @@ namespace Sai2Capture.Views
             Status = "请按下您想要设置的快捷键...";
         }
 
-        private void Window_MouseDown(object sender, MouseButtonEventArgs e)
-        {
-            if (e.ChangedButton == MouseButton.Left)
-            {
-                DragMove();
-            }
-        }
 
         protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         {

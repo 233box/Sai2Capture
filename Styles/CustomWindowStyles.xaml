@@ -7,7 +7,7 @@
         <Border
             Background="White"
             CornerRadius="8"
-            BorderBrush="{StaticResource PrimaryBrush}"
+            BorderBrush="{StaticResource WindowBorderBrush}"
             BorderThickness="1">
             <Border.Effect>
                 <DropShadowEffect
@@ -85,7 +85,7 @@
         <Border
             Background="White"
             CornerRadius="8"
-            BorderBrush="{StaticResource PrimaryBrush}"
+            BorderBrush="{StaticResource WindowBorderBrush}"
             BorderThickness="1">
             <Border.Effect>
                 <DropShadowEffect
