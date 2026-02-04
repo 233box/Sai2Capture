@@ -32,6 +32,7 @@ namespace Sai2Capture.Services
         private readonly LogService _logService;
         private readonly SettingsService _settingsService;
         private readonly Dispatcher _dispatcher;
+        private readonly SoundService _soundService;
         private IntPtr _windowHandle = IntPtr.Zero;
         private readonly Dictionary<int, HotkeyModel> _registeredHotkeys = new();
         private int _nextHotkeyId = 1000;
@@ -59,6 +60,10 @@ namespace Sai2Capture.Services
             _logService = logService;
             _settingsService = settingsService;
             _dispatcher = Dispatcher.CurrentDispatcher;
+            _soundService = new SoundService();
+
+            // 检查嵌入音效资源
+            _soundService.ListAvailableSounds();
 
             Hotkeys = new ObservableCollection<HotkeyModel>();
 
@@ -295,6 +300,9 @@ namespace Sai2Capture.Services
                     return;
                 }
 
+                // 播放热键反馈音效
+                PlayHotkeyFeedback(hotkey.Id);
+
                 // 这里会根据CommandName在MainViewModel中查找对应的命令
                 // 实际执行逻辑在MainViewModel中处理
                 OnHotkeyTriggered?.Invoke(this, new HotkeyEventArgs
@@ -386,11 +394,40 @@ namespace Sai2Capture.Services
             try
             {
                 UnregisterAllHotkeys();
+                _soundService?.Dispose();
                 _logService.AddLog("热键服务已释放");
             }
             catch (Exception ex)
             {
                 _logService.AddLog($"释放热键服务异常: {ex.Message}", LogLevel.Error);
+            }
+        }
+
+        /// <summary>
+        /// 播放热键反馈音效
+        /// </summary>
+        private void PlayHotkeyFeedback(string hotkeyId)
+        {
+            try
+            {
+                // 使用SoundService播放对应的wav音效
+                string soundFile = hotkeyId switch
+                {
+                    "start_capture" => "start_capture",         // 开始录制
+                    "pause_capture" => "pause_capture",         // 暂停录制
+                    "stop_capture" => "stop_capture",           // 停止录制
+                    "refresh_window_list" => "refresh_window_list", // 刷新列表
+                    "preview_window" => "preview_window",       // 预览窗口
+                    "toggle_window_topmost" => "toggle_window_topmost", // 切换置顶
+                    "export_log" => "export_log",               // 导出日志
+                    _ => "default_beep"                          // 默认
+                };
+
+                _soundService.PlaySoundAsync(soundFile);
+            }
+            catch (Exception ex)
+            {
+                _logService.AddLog($"播放热键反馈音效失败: {ex.Message}", LogLevel.Warning);
             }
         }
 
