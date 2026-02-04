@@ -8,7 +8,14 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.IO;
-/// TODO：增加热键反馈
+/// TODO：    - 窗口句柄查找： 应用启动时自动扫描系统进程，查找 SAI2 的窗口句柄。只显示与sai2相关的窗口
+// 可选是否为每一帧框选变化区域
+// 1.  视频预览与回放
+//     - 录制结束后，直接在应用内播放生成的视频，确认无误
+// 1.  极简模式/悬浮窗
+//     - 录制开始后，主界面可以最小化到系统托盘，或者变成一个半透明的悬浮小控件（显示录制时长和停止按钮），不遮挡 SAI2 的操作区域。
+// 2.  状态指示灯
+//     - 明显的红色闪烁圆点或文字，显示“正在录制”状态。
 namespace Sai2Capture.ViewModels
 {
     /// <summary>
