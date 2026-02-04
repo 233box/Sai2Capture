@@ -32,11 +32,6 @@ namespace Sai2Capture.ViewModels
         [ObservableProperty]
         private HotkeyModel? _selectedHotkey;
 
-        /// <summary>
-        /// 是否显示编辑对话框
-        /// </summary>
-        [ObservableProperty]
-        private bool _showEditDialog;
 
         /// <summary>
         /// 正在编辑的热键项
@@ -127,7 +122,11 @@ namespace Sai2Capture.ViewModels
             };
 
             EditDialogTitle = $"编辑热键: {hotkey.Name}";
-            ShowEditDialog = true;
+
+            // 创建并显示编辑对话框
+            var editDialog = new Views.HotkeyEditDialog(this);
+            editDialog.Owner = System.Windows.Application.Current.MainWindow;
+            editDialog.ShowDialog();
         }
 
         /// <summary>
@@ -177,7 +176,7 @@ namespace Sai2Capture.ViewModels
                     _logService.AddLog($"热键更新: {targetHotkey.Name} = {targetHotkey.CurrentKey}");
                 }
 
-                ShowEditDialog = false;
+// ShowEditDialog 不再需要，因为使用独立窗口
                 SaveHotkeys();
             }
             catch (Exception ex)
@@ -192,7 +191,7 @@ namespace Sai2Capture.ViewModels
         [RelayCommand]
         private void CancelEdit()
         {
-            ShowEditDialog = false;
+            // ShowEditDialog 不再需要，因为使用独立窗口
             EditingHotkey = null;
         }
 
