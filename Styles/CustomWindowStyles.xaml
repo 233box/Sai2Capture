@@ -41,13 +41,16 @@
                             Grid.Column="0"
                             Orientation="Horizontal"
                             VerticalAlignment="Center"
-                            Margin="16,0,0,0">
+                            Margin="16,0,0,0"
+                            MaxWidth="300">
                             <TextBlock
                                 x:Name="WindowTitleText"
                                 FontSize="12"
                                 FontWeight="SemiBold"
                                 Foreground="White"
-                                VerticalAlignment="Center"/>
+                                VerticalAlignment="Center"
+                                TextTrimming="CharacterEllipsis"
+                                TextWrapping="NoWrap"/>
                         </StackPanel>
 
                         <!-- 窗口控制按钮区域 -->
@@ -173,13 +176,16 @@
                             Grid.Column="0"
                             Orientation="Horizontal"
                             VerticalAlignment="Center"
-                            Margin="16,0,0,0">
+                            Margin="16,0,0,0"
+                            MaxWidth="300">
                             <TextBlock
                                 x:Name="DialogTitleText"
                                 FontSize="{StaticResource FontSizeNormal}"
                                 FontWeight="SemiBold"
                                 Foreground="White"
-                                VerticalAlignment="Center"/>
+                                VerticalAlignment="Center"
+                                TextTrimming="CharacterEllipsis"
+                                TextWrapping="NoWrap"/>
                         </StackPanel>
 
                         <!-- 关闭按钮 -->

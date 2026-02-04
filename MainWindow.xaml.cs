@@ -54,30 +54,59 @@ namespace Sai2Capture
         {
             if (_isClosing) return;
 
-            // 检查是否正在录制
+            // 检查是否正在录制或暂停
             if (DataContext is MainViewModel mainViewModel)
             {
-                // 通过捕获服务检查录制状态
-                var isRecording = mainViewModel.CaptureService?.SharedState?.Running ?? false;
-
-                if (isRecording)
+                var captureService = mainViewModel.CaptureService;
+                if (captureService != null)
                 {
-                    // 正在录制，显示确认对话框
-                    var result = Sai2Capture.Services.CustomDialogService.ShowDialog(
-                        "正在录制中，是否确认关闭？\n\n确认关闭将停止录制并保存当前视频。",
-                        "确认关闭",
-                        "关闭",
-                        "再想想");
+                    // 检查录制状态
+                    var isRecording = captureService.SharedState?.Running ?? false;
+                    var captureStatus = captureService.Status;
+                    var isPaused = captureStatus == "捕获已暂停";
 
-                    if (!result)
+                    if (isRecording || isPaused)
                     {
-                        // 用户选择不关闭，取消关闭事件
-                        e.Cancel = true;
-                        return;
-                    }
+                        string message;
+                        if (isRecording)
+                        {
+                            message = "正在录制中，请选择关闭方式：\n\n• 保存并关闭：停止录制并保存当前视频\n• 不保存关闭：放弃录制数据并直接关闭\n• 取消：返回继续录制";
+                        }
+                        else // isPaused
+                        {
+                            message = "录制已暂停但尚未保存，请选择关闭方式：\n\n• 保存并关闭：将暂停的数据保存为视频\n• 不保存关闭：放弃录制数据并直接关闭\n• 取消：返回继续编辑";
+                        }
 
-                    // 用户确认关闭，继续执行关闭逻辑
-                    AddLogWithContext(mainViewModel, "用户确认关闭 - 停止录制并关闭应用程序");
+                        // 显示三选项对话框
+                        var result = Sai2Capture.Services.CustomDialogService.ShowThreeButtonDialog(
+                            message,
+                            "选择关闭方式",
+                            "保存并关闭",
+                            "不保存关闭",
+                            "取消");
+
+                        if (result == 2) // 用户选择了"取消"
+                        {
+                            e.Cancel = true;
+                            return;
+                        }
+                        else if (result == 1) // 用户选择了"不保存关闭"
+                        {
+                            // 强制停止捕获但不保存
+                            ForceStopWithoutSave(mainViewModel);
+                            AddLogWithContext(mainViewModel, $"用户选择不保存 - {(isRecording ? "停止录制" : "放弃暂停的录制")}并关闭应用程序");
+                        }
+                        else if (result == 0) // 用户选择了"保存并关闭"
+                        {
+                            // 正常保存并关闭
+                            AddLogWithContext(mainViewModel, $"用户选择保存 - {(isRecording ? "停止录制" : "保存暂停的录制")}并关闭应用程序");
+                        }
+                        else if (result == -1) // ESC或关闭对话框
+                        {
+                            e.Cancel = true;
+                            return;
+                        }
+                    }
                 }
             }
 
@@ -137,6 +166,53 @@ namespace Sai2Capture
             if (DataContext is MainViewModel viewModel)
             {
                 viewModel.ExecuteHotkeyCommand(e.HotkeyId, e.CommandName);
+            }
+        }
+
+        /// <summary>
+        /// 强制停止捕获但不保存数据
+        /// </summary>
+        private void ForceStopWithoutSave(MainViewModel viewModel)
+        {
+            try
+            {
+                var captureService = viewModel.CaptureService;
+                if (captureService != null)
+                {
+                    // 强制停止捕获服务
+                    var sharedState = captureService.SharedState;
+                    if (sharedState != null)
+                    {
+                        // 立即设置为停止状态
+                        sharedState.Running = false;
+
+                        // 清理VideoWriter引用但不保存（直接Dispose）
+                        if (sharedState.VideoWriter != null)
+                        {
+                            try
+                            {
+                                sharedState.VideoWriter.Release(); // 释放资源但不保存
+                            }
+                            catch { /* 忽略释放时的错误 */ }
+
+                            sharedState.VideoWriter.Dispose();
+                            sharedState.VideoWriter = null;
+                            sharedState.VideoPath = null;
+                        }
+
+                        // 清理其他状态
+                        sharedState.Hwnd = IntPtr.Zero;
+                        // 更新状态显示 timers 在 MainViewModel 中处理
+                    }
+
+                    captureService.Status = "捕获已取消（未保存）";
+                }
+
+                AddLogWithContext(viewModel, "已强制停止捕获，未保存视频数据");
+            }
+            catch (Exception ex)
+            {
+                AddLogWithContext(viewModel, $"强制停止捕获时出错: {ex.Message}");
             }
         }
 

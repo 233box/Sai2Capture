@@ -215,5 +215,139 @@ namespace Sai2Capture.Services
         {
             return ShowDialog(message, caption, "确认", "取消");
         }
+
+        /// <summary>
+        /// 显示三选项对话框
+        /// </summary>
+        /// <param name="message">消息内容</param>
+        /// <param name="caption">对话框标题</param>
+        /// <param name="button1Text">第一个按钮文本</param>
+        /// <param name="button2Text">第二个按钮文本</param>
+        /// <param name="button3Text">第三个按钮文本</param>
+        /// <returns>按钮索引：0=第一个按钮, 1=第二个按钮, 2=第三个按钮, -1=关闭/ESC</returns>
+        public static int ShowThreeButtonDialog(string message, string caption,
+            string button1Text, string button2Text, string button3Text)
+        {
+            var dialog = new Window
+            {
+                Title = caption,
+                Width = 400,
+                Height = 200,
+                Owner = Application.Current.MainWindow,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                ShowInTaskbar = false,
+                ResizeMode = ResizeMode.NoResize
+            };
+
+            // 应用自定义样式
+            WindowTemplateHelper.ApplyCustomDialogStyle(dialog);
+
+            int result = -1;
+            bool isConfirmed = false;
+
+            // 创建对话框内容
+            var grid = new Grid();
+            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            // 消息文本 - 调整边距以容纳三个按钮
+            var textBlock = new TextBlock
+            {
+                Text = message,
+                TextWrapping = TextWrapping.Wrap,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(16, 16, 16, 8),
+                FontSize = 14
+            };
+            Grid.SetRow(textBlock, 0);
+            grid.Children.Add(textBlock);
+
+            // 按钮区域
+            var buttonPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 16)
+            };
+            Grid.SetRow(buttonPanel, 1);
+            grid.Children.Add(buttonPanel);
+
+            // 第一个按钮 - 主要操作
+            var button1 = new Button
+            {
+                Content = button1Text,
+                Style = (Style)Application.Current.FindResource("DefaultButtonStyle"),
+                Margin = new Thickness(0, 0, 8, 0)
+            };
+            button1.Click += (s, e) =>
+            {
+                result = 0;
+                isConfirmed = true;
+                dialog.Close();
+            };
+            buttonPanel.Children.Add(button1);
+
+            // 第二个按钮 - 危险操作
+            var button2 = new Button
+            {
+                Content = button2Text,
+                Style = Application.Current.FindResource("DangerButtonStyle") as Style ??
+                         (Style)Application.Current.FindResource("SecondaryButtonStyle"),
+                Margin = new Thickness(8, 0, 8, 0)
+            };
+            button2.Click += (s, e) =>
+            {
+                result = 1;
+                isConfirmed = true;
+                dialog.Close();
+            };
+            buttonPanel.Children.Add(button2);
+
+            // 第三个按钮 - 次要操作
+            var button3 = new Button
+            {
+                Content = button3Text,
+                Style = (Style)Application.Current.FindResource("SecondaryButtonStyle"),
+                Margin = new Thickness(8, 0, 0, 0)
+            };
+            button3.Click += (s, e) =>
+            {
+                result = 2;
+                isConfirmed = true;
+                dialog.Close();
+            };
+            buttonPanel.Children.Add(button3);
+
+            dialog.Content = grid;
+
+            // 键盘快捷键
+            dialog.PreviewKeyDown += (s, e) =>
+            {
+                if (e.Key == System.Windows.Input.Key.Enter)
+                {
+                    result = 0; // 默认第一个按钮
+                    isConfirmed = true;
+                    dialog.Close();
+                }
+                else if (e.Key == System.Windows.Input.Key.Escape)
+                {
+                    result = -1;
+                    isConfirmed = true;
+                    dialog.Close();
+                }
+            };
+
+            dialog.Closed += (s, e) =>
+            {
+                if (!isConfirmed)
+                {
+                    result = -1;
+                }
+            };
+
+            dialog.ShowDialog();
+            return result;
+        }
     }
 }

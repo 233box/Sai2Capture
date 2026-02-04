@@ -8,9 +8,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.IO;
-/// TODO：热键保存问题
 /// TODO：增加热键反馈
-/// TODO：默认捕获间隔和保存路径
 namespace Sai2Capture.ViewModels
 {
     /// <summary>

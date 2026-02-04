@@ -162,4 +162,28 @@
         <Setter Property="Height" Value="32"/>
     </Style>
 
+    <!-- 危险按钮样式 - 用于删除、放弃等危险操作 -->
+    <Style x:Key="DangerButtonStyle" TargetType="Button" BasedOn="{StaticResource RoundedButtonStyle}">
+        <Setter Property="Background" Value="#E53E3E"/>
+        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="BorderBrush" Value="#E53E3E"/>
+        <Setter Property="Width" Value="80"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="#C53030"/>
+                <Setter Property="BorderBrush" Value="#C53030"/>
+            </Trigger>
+            <Trigger Property="IsPressed" Value="True">
+                <Setter Property="Background" Value="#9B2C2C"/>
+                <Setter Property="BorderBrush" Value="#9B2C2C"/>
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Background" Value="#FED7D7"/>
+                <Setter Property="BorderBrush" Value="#FED7D7"/>
+                <Setter Property="Foreground" Value="#9B2C2C"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
 </ResourceDictionary>
