@@ -17,8 +17,8 @@
 
     <Window.Resources>
         <ResourceDictionary>
-            <!-- 转换器资源 -->
-            <converters:BoolToEnabledBackgroundConverter x:Key="BoolToEnabledBackgroundConverter" />
+            <!-- 通用转换器 -->
+            <converters:UniversalConverter x:Key="UniversalConverter" />
         </ResourceDictionary>
     </Window.Resources>
     
@@ -50,7 +50,7 @@
                          FontSize="12"/>
 
                 <Border Grid.Column="1"
-                       Background="{Binding EditingHotkey.IsEnabled, Converter={StaticResource BoolToEnabledBackgroundConverter}}"
+                       Background="{Binding EditingHotkey.IsEnabled, Converter={StaticResource UniversalConverter}, ConverterParameter=BoolToEnabledBackground}"
                        CornerRadius="4"
                        Padding="8,4">
                     <TextBlock Text="{Binding EditingHotkey.CurrentKey}"
