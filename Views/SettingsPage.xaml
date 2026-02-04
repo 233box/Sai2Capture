@@ -131,11 +131,6 @@
                                       Margin="4,0,0,0"
                                       Command="{Binding HotkeyViewModel.ResetAllHotkeysCommand}"
                                       ToolTip="将所有快捷键重置为默认设置"/>
-                            <ui:Button Content="保存配置"
-                                      Width="80"
-                                      Margin="4,0,0,0"
-                                      Command="{Binding HotkeyViewModel.SaveHotkeysCommand}"
-                                      ToolTip="保存当前热键配置"/>
                         </StackPanel>
                     </Grid>
 
@@ -291,7 +286,7 @@
                                  VerticalAlignment="Center"
                                  Margin="0,0,0,4"/>
 
-                        <TextBlock Text="• 修改快捷键需点击保存配置后生效"
+                        <TextBlock Text="• 修改快捷键会自动保存并立即生效"
                                  FontWeight="Normal"
                                  Foreground="{DynamicResource ui:BodyForegroundBrush}"
                                  VerticalAlignment="Center"

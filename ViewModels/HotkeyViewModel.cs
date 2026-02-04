@@ -19,6 +19,7 @@ namespace Sai2Capture.ViewModels
         private readonly HotkeyService _hotkeyService;
         private readonly LogService _logService;
         private readonly SettingsService _settingsService;
+        private System.Windows.Window? _currentEditDialog;
 
         /// <summary>
         /// 热键配置列表
@@ -126,7 +127,9 @@ namespace Sai2Capture.ViewModels
             // 创建并显示编辑对话框
             var editDialog = new Views.HotkeyEditDialog(this);
             editDialog.Owner = System.Windows.Application.Current.MainWindow;
+            _currentEditDialog = editDialog;
             editDialog.ShowDialog();
+            _currentEditDialog = null;
         }
 
         /// <summary>
@@ -142,24 +145,30 @@ namespace Sai2Capture.ViewModels
                 // 验证热键格式
                 if (!HotkeyModel.ValidateKeyCombination(EditingHotkey.CurrentKey))
                 {
-                    CustomDialogService.ShowDialog(
-                        "无效的热键格式！\n\n请确保：\n1. 至少包含一个非修饰键（F1-F12、字母键等）\n2. 使用有效的组合键格式，如 Ctrl+Shift+F5",
-                        "错误",
-                        "确定");
+                    var errorDialog = new Views.HotkeyErrorDialog()
+                    {
+                        Title = "错误",
+                        Message = "无效的热键格式！\n\n请确保：\n1. 至少包含一个非修饰键（F1-F12、字母键等）\n2. 使用有效的组合键格式，如 Ctrl+Shift+F5",
+                        Owner = _currentEditDialog ?? System.Windows.Application.Current.MainWindow
+                    };
+                    errorDialog.ShowDialog();
                     return;
                 }
 
                 // 检查快捷键是否重复
-                var duplicate = Hotkeys.FirstOrDefault(h => 
-                    h.Id != EditingHotkey.Id && 
+                var duplicate = Hotkeys.FirstOrDefault(h =>
+                    h.Id != EditingHotkey.Id &&
                     h.CurrentKey.ToUpper() == EditingHotkey.CurrentKey.ToUpper());
-                
+
                 if (duplicate != null)
                 {
-                    CustomDialogService.ShowDialog(
-                        $"快捷键 '{EditingHotkey.CurrentKey}' 已被 '{duplicate.Name}' 占用！\n\n请选择其他快捷键组合。",
-                        "快捷键冲突",
-                        "确定");
+                    var errorDialog = new Views.HotkeyErrorDialog()
+                    {
+                        Title = "快捷键冲突",
+                        Message = $"快捷键 '{EditingHotkey.CurrentKey}' 已被 '{duplicate.Name}' 占用！\n\n请选择其他快捷键组合。",
+                        Owner = _currentEditDialog ?? System.Windows.Application.Current.MainWindow
+                    };
+                    errorDialog.ShowDialog();
                     return;
                 }
 
@@ -172,12 +181,13 @@ namespace Sai2Capture.ViewModels
 
                     // 保存到热键服务
                     _hotkeyService.UpdateHotkey(targetHotkey.Id, targetHotkey.CurrentKey);
-                    
+
                     _logService.AddLog($"热键更新: {targetHotkey.Name} = {targetHotkey.CurrentKey}");
                 }
 
-// ShowEditDialog 不再需要，因为使用独立窗口
-                SaveHotkeys();
+                // 保存到设置
+                _hotkeyService.SaveHotkeys();
+                _logService.AddLog("热键配置已保存");
             }
             catch (Exception ex)
             {
@@ -213,7 +223,8 @@ namespace Sai2Capture.ViewModels
             {
                 hotkey.ResetToDefault();
                 _hotkeyService.UpdateHotkey(hotkey.Id, hotkey.CurrentKey);
-                SaveHotkeys();
+                // 直接保存热键配置
+                _hotkeyService.SaveHotkeys();
                 _logService.AddLog($"热键重置: {hotkey.Name} = {hotkey.DefaultKey}");
             }
         }
@@ -234,27 +245,25 @@ namespace Sai2Capture.ViewModels
             {
                 _hotkeyService.ResetToDefaults();
                 LoadHotkeys();
-                SaveHotkeys();
+                // 重置后直接保存热键配置
+                _hotkeyService.SaveHotkeys();
                 _logService.AddLog("所有热键已重置为默认设置");
             }
         }
 
         /// <summary>
-        /// 保存热键配置
+        /// 保存热键配置（保留方法，但不再用于手动保存）
         /// </summary>
-        [RelayCommand]
         private void SaveHotkeys()
         {
             try
             {
                 _hotkeyService.SaveHotkeys();
                 _logService.AddLog("热键配置已保存");
-                CustomDialogService.ShowDialog("热键配置已保存成功！", "保存成功", "确定");
             }
             catch (Exception ex)
             {
                 _logService.AddLog($"保存热键配置失败: {ex.Message}", LogLevel.Error);
-                CustomDialogService.ShowDialog($"保存热键配置失败: {ex.Message}", "保存失败", "确定");
             }
         }
 
@@ -291,7 +300,9 @@ namespace Sai2Capture.ViewModels
                 {
                     SelectedHotkey.CurrentKey = dialog.CapturedKey;
                     _hotkeyService.UpdateHotkey(SelectedHotkey.Id, SelectedHotkey.CurrentKey);
-                    SaveHotkeys();
+                    // 直接保存热键配置
+                    _hotkeyService.SaveHotkeys();
+                    _logService.AddLog($"热键更新: {SelectedHotkey.Name} = {SelectedHotkey.CurrentKey}");
                 }
             }
         }

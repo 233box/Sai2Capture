@@ -39,8 +39,8 @@ namespace Sai2Capture.Views
             {
                 // 执行保存逻辑
                 _viewModel.SaveEditedHotkeyCommand.Execute(null);
-                
-                // 如果保存成功，关闭窗口
+
+                // 关闭窗口（不再显示额外的保存成功提示）
                 DialogResult = true;
                 Close();
             }
