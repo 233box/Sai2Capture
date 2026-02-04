@@ -27,8 +27,8 @@ namespace Sai2Capture.Views
             }
         }
 
-        private string _capturedKey = null;
-        public string CapturedKey
+        private string? _capturedKey = null;
+        public string? CapturedKey
         {
             get => _capturedKey;
             set
@@ -69,7 +69,7 @@ namespace Sai2Capture.Views
             Focus();
         }
 
-        private void HotkeyCaptureDialog_Closing(object sender, CancelEventArgs e)
+        private void HotkeyCaptureDialog_Closing(object? sender, CancelEventArgs e)
         {
             _canCaptureKeys = false;
         }

@@ -99,7 +99,6 @@
                 <Grid.RowDefinitions>
                     <RowDefinition Height="28"/>
                     <RowDefinition Height="*"/>
-                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
                 <!-- 自定义标题栏 -->
@@ -107,7 +106,8 @@
                     x:Name="DialogTitleBarBorder"
                     Grid.Row="0"
                     Background="{StaticResource PrimaryBrush}"
-                    CornerRadius="7,7,0,0">
+                    CornerRadius="7,7,0,0"
+                    WindowChrome.IsHitTestVisibleInChrome="True">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
@@ -123,7 +123,7 @@
                             Margin="16,0,0,0">
                             <TextBlock
                                 x:Name="DialogTitleText"
-                                FontSize="12"
+                                FontSize="{StaticResource FontSizeNormal}"
                                 FontWeight="SemiBold"
                                 Foreground="White"
                                 VerticalAlignment="Center"/>
@@ -135,7 +135,8 @@
                             x:Name="DialogCloseButton"
                             Style="{StaticResource CloseButtonStyle}"
                             Width="46" Height="28"
-                            ToolTip="关闭">
+                            ToolTip="关闭"
+                            WindowChrome.IsHitTestVisibleInChrome="True">
                             <Path
                                 Data="M 0,0 L 10,10 M 10,0 L 0,10"
                                 Stroke="White"
@@ -149,8 +150,7 @@
                 <!-- 对话框内容 -->
                 <ContentPresenter
                     Grid.Row="1"
-                    Margin="16,8,16,8"/>
-
+                    Margin="16,8,16,16"/>
 
             </Grid>
         </Border>

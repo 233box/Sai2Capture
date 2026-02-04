@@ -10,6 +10,7 @@ using SharpDX.Direct3D11;
 using SharpDX.DXGI;
 using WinRT;
 using WinRT.Interop;
+using System.Diagnostics;
 
 namespace Sai2Capture.Services
 {
@@ -98,9 +99,25 @@ namespace Sai2Capture.Services
                 _session = _framePool.CreateCaptureSession(_captureItem);
                 _logService.AddLog("捕获会话已创建");
                 
-                // 设置捕获选项
-                _session.IsCursorCaptureEnabled = false; // 不捕获光标
-                _logService.AddLog("捕获选项已设置");
+                // 设置捕获选项（仅在使用 IsCursorCaptureEnabled 属性时进行版本检查）
+                if (Environment.OSVersion.Version >= new Version(10, 0, 19041, 0))
+                {
+                    try
+                    {
+#pragma warning disable CA1416 // 验证平台兼容性
+                        _session.IsCursorCaptureEnabled = false; // 不捕获光标
+#pragma warning restore CA1416 // 验证平台兼容性
+                        _logService.AddLog("捕获选项已设置");
+                    }
+                    catch (Exception ex)
+                    {
+                        _logService.AddLog($"光标捕获设置失败，使用默认设置: {ex.Message}");
+                    }
+                }
+                else
+                {
+                    _logService.AddLog("系统版本不支持光标捕获设置，跳过");
+                }
 
                 // 启动捕获
                 _session.StartCapture();

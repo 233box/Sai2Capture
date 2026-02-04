@@ -146,7 +146,7 @@ namespace Sai2Capture.ViewModels
                     CustomDialogService.ShowDialog(
                         "无效的热键格式！\n\n请确保：\n1. 至少包含一个非修饰键（F1-F12、字母键等）\n2. 使用有效的组合键格式，如 Ctrl+Shift+F5",
                         "错误",
-                        "确定", null);
+                        "确定");
                     return;
                 }
 
@@ -160,7 +160,7 @@ namespace Sai2Capture.ViewModels
                     CustomDialogService.ShowDialog(
                         $"快捷键 '{EditingHotkey.CurrentKey}' 已被 '{duplicate.Name}' 占用！\n\n请选择其他快捷键组合。",
                         "快捷键冲突",
-                        "确定", null);
+                        "确定");
                     return;
                 }
 
@@ -250,12 +250,12 @@ namespace Sai2Capture.ViewModels
             {
                 _hotkeyService.SaveHotkeys();
                 _logService.AddLog("热键配置已保存");
-                CustomDialogService.ShowDialog("热键配置已保存成功！", "保存成功", "确定", null);
+                CustomDialogService.ShowDialog("热键配置已保存成功！", "保存成功", "确定");
             }
             catch (Exception ex)
             {
                 _logService.AddLog($"保存热键配置失败: {ex.Message}", LogLevel.Error);
-                CustomDialogService.ShowDialog($"保存热键配置失败: {ex.Message}", "保存失败", "确定", null);
+                CustomDialogService.ShowDialog($"保存热键配置失败: {ex.Message}", "保存失败", "确定");
             }
         }
 
@@ -302,7 +302,10 @@ namespace Sai2Capture.ViewModels
         /// </summary>
         private void OnHotkeyTriggered(object? sender, HotkeyEventArgs e)
         {
-            _logService.AddLog($"热键触发: {e.Hotkey.Name} ({e.CommandName})");
+            if (e.Hotkey != null)
+            {
+                _logService.AddLog($"热键触发: {e.Hotkey.Name} ({e.CommandName})");
+            }
 
             // 这里的热键命令执行逻辑由MainViewModel处理
             // 这个视图模型主要负责配置管理
@@ -350,13 +353,13 @@ namespace Sai2Capture.ViewModels
                     
                     System.IO.File.WriteAllText(dialog.FileName, json);
                     _logService.AddLog($"热键配置已导出到: {dialog.FileName}");
-                    CustomDialogService.ShowDialog($"热键配置已成功导出到:\n{dialog.FileName}", "导出成功", "确定", null);
+                    CustomDialogService.ShowDialog($"热键配置已成功导出到:\n{dialog.FileName}", "导出成功", "确定");
                 }
             }
             catch (Exception ex)
             {
                 _logService.AddLog($"导出热键配置失败: {ex.Message}", LogLevel.Error);
-                CustomDialogService.ShowDialog($"导出热键配置失败: {ex.Message}", "导出失败", "确定", null);
+                CustomDialogService.ShowDialog($"导出热键配置失败: {ex.Message}", "导出失败", "确定");
             }
         }
 
@@ -382,7 +385,7 @@ namespace Sai2Capture.ViewModels
 
                     if (importData == null || !importData.Any())
                     {
-                        CustomDialogService.ShowDialog("导入文件格式无效或无数据！", "导入失败", "确定", null);
+                        CustomDialogService.ShowDialog("导入文件格式无效或无数据！", "导入失败", "确定");
                         return;
                     }
 
@@ -422,8 +425,7 @@ namespace Sai2Capture.ViewModels
                     CustomDialogService.ShowDialog(
                         $"成功导入 {importedCount} 个热键配置！",
                         "导入成功",
-                        "确定",
-                        null);
+                        "确定");
 
                     _logService.AddLog($"从 {dialog.FileName} 导入了 {importedCount} 个热键配置");
                 }
@@ -431,7 +433,7 @@ namespace Sai2Capture.ViewModels
             catch (Exception ex)
             {
                 _logService.AddLog($"导入热键配置失败: {ex.Message}", LogLevel.Error);
-                CustomDialogService.ShowDialog($"导入热键配置失败: {ex.Message}", "导入失败", "确定", null);
+                CustomDialogService.ShowDialog($"导入热键配置失败: {ex.Message}", "导入失败", "确定");
             }
         }
     }
