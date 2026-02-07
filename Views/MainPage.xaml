@@ -55,30 +55,37 @@
         </ui:Card>
 
         <!-- Control Buttons -->
-        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,16">
-            <ui:Button 
-                Appearance="Primary"
-                Content="开始/继续" 
-                Command="{Binding StartCaptureCommand}" 
-                Margin="0,0,12,0"/>
-            <ui:Button 
-                Content="暂停" 
-                Command="{Binding PauseCaptureCommand}" 
-                Margin="0,0,12,0"/>
-            <ui:Button 
-                Content="停止录制" 
-                Command="{Binding StopCaptureCommand}" 
-                Margin="0,0,12,0"/>
-            <ui:Button
-                Content="预览窗口"
-                Command="{Binding PreviewWindowCommand}"
-                Margin="0,0,12,0"/>
-            <ui:Button
-                Content="启动 SAI2"
-                Command="{Binding LaunchSai2Command}"
-                Appearance="Secondary"
-                ToolTip="启动 SAI2 应用程序"
-                IsEnabled="{Binding Sai2Path, Converter={StaticResource UniversalConverter}, ConverterParameter=StringToEnabled}"/>
+        <StackPanel Grid.Row="1" Margin="0,0,0,16">
+            <!-- 第一行：主要控制按钮 -->
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                <ui:Button
+                    Appearance="Primary"
+                    Content="开始/继续"
+                    Command="{Binding StartCaptureCommand}"
+                    Margin="0,0,12,0"/>
+                <ui:Button
+                    Content="暂停"
+                    Command="{Binding PauseCaptureCommand}"
+                    Margin="0,0,12,0"/>
+                <ui:Button
+                    Content="停止录制"
+                    Command="{Binding StopCaptureCommand}"
+                    Margin="0,0,12,0"/>
+            </StackPanel>
+            
+            <!-- 第二行：辅助功能按钮 -->
+            <StackPanel Orientation="Horizontal">
+                <ui:Button
+                    Content="预览窗口"
+                    Command="{Binding PreviewWindowCommand}"
+                    Margin="0,0,12,0"/>
+                <ui:Button
+                    Content="启动 SAI2"
+                    Command="{Binding LaunchSai2Command}"
+                    Appearance="Secondary"
+                    ToolTip="启动 SAI2 应用程序"
+                    IsEnabled="{Binding Sai2Path, Converter={StaticResource UniversalConverter}, ConverterParameter=StringToEnabled}"/>
+            </StackPanel>
         </StackPanel>
 
         <!-- Status Display -->

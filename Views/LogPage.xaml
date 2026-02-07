@@ -36,8 +36,9 @@
                 Text="过滤级别:" 
                 Style="{StaticResource LabelStyle}"
                 Margin="0,0,8,0"/>
-            <ComboBox 
-                SelectedItem="{Binding LogFilterLevel}"
+            <ComboBox
+                SelectedValue="{Binding LogFilterLevel}"
+                SelectedValuePath="Content"
                 VerticalAlignment="Center"
                 Width="100">
                 <ComboBoxItem Content="全部"/>

@@ -59,10 +59,10 @@ namespace Sai2Capture.Services
         /// </summary>
         public string GetFullLog(LogLevel? filterLevel = null)
         {
-            var entries = filterLevel.HasValue 
+            var entries = filterLevel.HasValue
                 ? _logEntries.Where(e => e.Level == filterLevel.Value)
                 : _logEntries;
-            
+
             var sb = new StringBuilder();
             foreach (var entry in entries)
             {

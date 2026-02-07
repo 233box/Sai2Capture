@@ -74,7 +74,7 @@ namespace Sai2Capture.Services
         /// 默认值：600
         /// </summary>
         [ObservableProperty]
-        private double _windowWidth = 600;
+        private double _windowWidth = 800;
 
         /// <summary>
         /// 窗口高度
@@ -82,7 +82,7 @@ namespace Sai2Capture.Services
         /// 默认值：800
         /// </summary>
         [ObservableProperty]
-        private double _windowHeight = 800;
+        private double _windowHeight = 600;
 
         /// <summary>
         /// 窗口左边距
