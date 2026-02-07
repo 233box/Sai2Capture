@@ -8,8 +8,10 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.IO;
-/// TODO：    - 窗口句柄查找： 应用启动时自动扫描系统进程，查找 SAI2 的窗口句柄。只显示与sai2相关的窗口
-// 可选是否为每一帧框选变化区域
+using System.Diagnostics;
+using System.Windows.Forms;
+/// TODO：
+// 可选是否为每一帧框选变化区域（感觉没用）
 // 1.  视频预览与回放
 //     - 录制结束后，直接在应用内播放生成的视频，确认无误
 // 1.  极简模式/悬浮窗
@@ -143,6 +145,7 @@ namespace Sai2Capture.ViewModels
             CaptureInterval = _settingsService.CaptureInterval;
             ZoomLevel = _settingsService.ZoomLevel;
             SavePath = _settingsService.SavePath;
+            Sai2Path = _settingsService.Sai2Path;
 
             // 初始化日志
             AddLog("应用程序启动");
@@ -461,6 +464,7 @@ namespace Sai2Capture.ViewModels
             _settingsService.CaptureInterval = CaptureInterval;
             _settingsService.ZoomLevel = ZoomLevel;
             _settingsService.SavePath = SavePath;
+            _settingsService.Sai2Path = Sai2Path;
             _settingsService.SaveSettings();
 
             _captureService.StopCapture();
@@ -486,6 +490,13 @@ namespace Sai2Capture.ViewModels
         /// </summary>
         [ObservableProperty]
         private string _savePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "output");
+
+        /// <summary>
+        /// 获取或设置SAI2程序路径
+        /// 用于快速启动SAI2应用程序
+        /// </summary>
+        [ObservableProperty]
+        private string _sai2Path = "";
 
         /// <summary>
         /// 日志内容
@@ -577,6 +588,62 @@ namespace Sai2Capture.ViewModels
             if (dialog.ShowDialog() == DialogResult.OK)
             {
                 SavePath = dialog.SelectedPath;
+            }
+        }
+
+        /// <summary>
+        /// 浏览SAI2程序路径命令
+        /// </summary>
+        [RelayCommand]
+        private void BrowseSai2Path()
+        {
+            var dialog = new OpenFileDialog();
+            dialog.Title = "选择 SAI2 可执行文件";
+            dialog.Filter = "可执行文件 (*.exe)|*.exe|所有文件 (*.*)|*.*";
+            dialog.FileName = "sai2.exe";
+
+            if (dialog.ShowDialog() == DialogResult.OK)
+            {
+                Sai2Path = dialog.FileName;
+                AddLog($"已选择 SAI2 程序路径: {Sai2Path}");
+            }
+        }
+
+        /// <summary>
+        /// 启动SAI2命令
+        /// </summary>
+        [RelayCommand]
+        private void LaunchSai2()
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(Sai2Path))
+                {
+                    System.Windows.MessageBox.Show("请先配置 SAI2 程序路径", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                if (!File.Exists(Sai2Path))
+                {
+                    System.Windows.MessageBox.Show($"SAI2 程序文件不存在: {Sai2Path}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                // 启动SAI2应用程序
+                var processStartInfo = new ProcessStartInfo
+                {
+                    FileName = Sai2Path,
+                    UseShellExecute = true
+                };
+
+                Process.Start(processStartInfo);
+                AddLog($"SAI2 已启动: {Sai2Path}");
+            }
+            catch (Exception ex)
+            {
+                var errorMessage = $"启动 SAI2 失败: {ex.Message}";
+                AddLog(errorMessage, "ERROR");
+                System.Windows.MessageBox.Show(errorMessage, "启动失败", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 

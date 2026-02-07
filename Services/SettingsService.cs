@@ -61,6 +61,14 @@ namespace Sai2Capture.Services
         private ObservableCollection<HotkeyModel> _hotkeys = new();
 
         /// <summary>
+        /// SAI2程序路径
+        /// 用于快速启动SAI2应用程序
+        /// 默认值：空字符串（用户需要手动配置）
+        /// </summary>
+        [ObservableProperty]
+        private string _sai2Path = "";
+
+        /// <summary>
         /// 初始化设置服务
         /// </summary>
         /// <param name="sharedState">共享状态服务，用于配置同步</param>
@@ -105,6 +113,7 @@ namespace Sai2Capture.Services
                         CaptureInterval = settings.CaptureInterval > 0 ? settings.CaptureInterval : 0.1;
                         ZoomLevel = settings.ZoomLevel ?? ZoomLevel;
                         SavePath = !string.IsNullOrEmpty(settings.SavePath) ? settings.SavePath : SavePath;
+                        Sai2Path = settings.Sai2Path ?? Sai2Path;
 
                         // 加载热键配置
                         if (settings.Hotkeys != null && settings.Hotkeys.Any())
@@ -172,6 +181,7 @@ namespace Sai2Capture.Services
                     CaptureInterval = CaptureInterval,
                     ZoomLevel = ZoomLevel,
                     SavePath = SavePath,
+                    Sai2Path = Sai2Path,
                     Hotkeys = Hotkeys.ToList()
                 };
 
@@ -270,6 +280,11 @@ namespace Sai2Capture.Services
             /// 热键配置列表
             /// </summary>
             public List<HotkeyModel>? Hotkeys { get; set; }
+
+            /// <summary>
+            /// SAI2程序路径
+            /// </summary>
+            public string? Sai2Path { get; set; }
         }
     }
 }

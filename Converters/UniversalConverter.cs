@@ -36,6 +36,8 @@ namespace Sai2Capture.Converters
                     return ConvertStringToVisibility(value);
                 case "StringToDisplayText":
                     return ConvertStringToDisplayText(value);
+                case "StringToEnabled":
+                    return ConvertStringToEnabled(value);
                 case "CommandToTooltip":
                     return ConvertCommandToTooltip(value);
                 case "Invert":
@@ -138,6 +140,15 @@ namespace Sai2Capture.Converters
                 return string.IsNullOrEmpty(hotkey) ? "未设置" : hotkey;
             }
             return "未设置";
+        }
+
+        private static object ConvertStringToEnabled(object value)
+        {
+            if (value is string str)
+            {
+                return !string.IsNullOrEmpty(str);
+            }
+            return false;
         }
 
         private static object ConvertCommandToTooltip(object value)
