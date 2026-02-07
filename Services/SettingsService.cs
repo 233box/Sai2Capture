@@ -69,6 +69,38 @@ namespace Sai2Capture.Services
         private string _sai2Path = "";
 
         /// <summary>
+        /// 窗口宽度
+        /// 记录主窗口的宽度
+        /// 默认值：600
+        /// </summary>
+        [ObservableProperty]
+        private double _windowWidth = 600;
+
+        /// <summary>
+        /// 窗口高度
+        /// 记录主窗口的高度
+        /// 默认值：800
+        /// </summary>
+        [ObservableProperty]
+        private double _windowHeight = 800;
+
+        /// <summary>
+        /// 窗口左边距
+        /// 记录主窗口的水平位置
+        /// 默认值：-1（居中）
+        /// </summary>
+        [ObservableProperty]
+        private double _windowLeft = -1;
+
+        /// <summary>
+        /// 窗口上边距
+        /// 记录主窗口的垂直位置
+        /// 默认值：-1（居中）
+        /// </summary>
+        [ObservableProperty]
+        private double _windowTop = -1;
+
+        /// <summary>
         /// 初始化设置服务
         /// </summary>
         /// <param name="sharedState">共享状态服务，用于配置同步</param>
@@ -114,6 +146,12 @@ namespace Sai2Capture.Services
                         ZoomLevel = settings.ZoomLevel ?? ZoomLevel;
                         SavePath = !string.IsNullOrEmpty(settings.SavePath) ? settings.SavePath : SavePath;
                         Sai2Path = settings.Sai2Path ?? Sai2Path;
+                        
+                        // 加载窗口设置
+                        WindowWidth = settings.WindowWidth > 0 ? settings.WindowWidth : WindowWidth;
+                        WindowHeight = settings.WindowHeight > 0 ? settings.WindowHeight : WindowHeight;
+                        WindowLeft = settings.WindowLeft;
+                        WindowTop = settings.WindowTop;
 
                         // 加载热键配置
                         if (settings.Hotkeys != null && settings.Hotkeys.Any())
@@ -137,7 +175,7 @@ namespace Sai2Capture.Services
                         // 确保保存目录存在
                         EnsureSavePathExists();
 
-                        _logService.AddLog($"设置加载成功 - 窗口: {WindowName}, 间隔: {CaptureInterval}秒, 缩放: {ZoomLevel}, 保存路径: {SavePath}");
+                        _logService.AddLog($"设置加载成功 - 窗口: {WindowName}, 间隔: {CaptureInterval}秒, 缩放: {ZoomLevel}, 保存路径: {SavePath}, 窗口大小: {WindowWidth}x{WindowHeight}");
                     }
                 }
                 else
@@ -182,7 +220,11 @@ namespace Sai2Capture.Services
                     ZoomLevel = ZoomLevel,
                     SavePath = SavePath,
                     Sai2Path = Sai2Path,
-                    Hotkeys = Hotkeys.ToList()
+                    Hotkeys = Hotkeys.ToList(),
+                    WindowWidth = WindowWidth,
+                    WindowHeight = WindowHeight,
+                    WindowLeft = WindowLeft,
+                    WindowTop = WindowTop
                 };
 
                 string json = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
@@ -285,6 +327,26 @@ namespace Sai2Capture.Services
             /// SAI2程序路径
             /// </summary>
             public string? Sai2Path { get; set; }
+
+            /// <summary>
+            /// 窗口宽度
+            /// </summary>
+            public double WindowWidth { get; set; }
+
+            /// <summary>
+            /// 窗口高度
+            /// </summary>
+            public double WindowHeight { get; set; }
+
+            /// <summary>
+            /// 窗口左边距
+            /// </summary>
+            public double WindowLeft { get; set; }
+
+            /// <summary>
+            /// 窗口上边距
+            /// </summary>
+            public double WindowTop { get; set; }
         }
     }
 }

@@ -13,6 +13,7 @@ namespace Sai2Capture
     public partial class MainWindow : Sai2Capture.Styles.CustomMainWindow
     {
         private HotkeyService? _hotkeyService;
+        private SettingsService? _settingsService;
 
         public MainWindow()
         {
@@ -23,6 +24,12 @@ namespace Sai2Capture
 
             // 在窗口加载后设置ScrollViewer引用和热键服务
             Loaded += MainWindow_Loaded;
+
+            // 获取设置服务
+            _settingsService = Ioc.Default.GetService<SettingsService>();
+            
+            // 恢复窗口大小和位置
+            RestoreWindowSettings();
 
             // 订阅热键触发事件
             var hotkeyService = Ioc.Default.GetService<HotkeyService>();
@@ -109,6 +116,9 @@ namespace Sai2Capture
                     }
                 }
             }
+
+            // 保存窗口大小和位置
+            SaveWindowSettings();
 
             _isClosing = true;
             try
@@ -225,6 +235,69 @@ namespace Sai2Capture
             catch
             {
                 // 日志记录失败时不阻止关闭流程
+            }
+        }
+
+        /// <summary>
+        /// 保存窗口大小和位置到设置服务
+        /// </summary>
+        private void SaveWindowSettings()
+        {
+            try
+            {
+                if (WindowState == WindowState.Normal && IsLoaded && _settingsService != null)
+                {
+                    _settingsService.WindowWidth = ActualWidth;
+                    _settingsService.WindowHeight = ActualHeight;
+                    _settingsService.WindowLeft = Left;
+                    _settingsService.WindowTop = Top;
+
+                    // 保存到设置文件
+                    _settingsService.SaveSettings();
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"保存窗口设置失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 从设置服务恢复窗口大小和位置
+        /// </summary>
+        private void RestoreWindowSettings()
+        {
+            try
+            {
+                if (_settingsService != null)
+                {
+                    double width = Math.Max(_settingsService.WindowWidth, 400);
+                    double height = Math.Max(_settingsService.WindowHeight, 300);
+                    double left = _settingsService.WindowLeft;
+                    double top = _settingsService.WindowTop;
+
+                    Width = width;
+                    Height = height;
+
+                    // 只有当位置合理时才设置位置
+                    if (left >= 0 && top >= 0)
+                    {
+                        // 确保窗口完全在屏幕内
+                        var screenWidth = SystemParameters.PrimaryScreenWidth;
+                        var screenHeight = SystemParameters.PrimaryScreenHeight;
+                        
+                        if (left + width <= screenWidth && top + height <= screenHeight)
+                        {
+                            Left = left;
+                            Top = top;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"恢复窗口设置失败: {ex.Message}");
+                // 失败时使用默认大小，已在XAML中设置
             }
         }
 
