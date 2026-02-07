@@ -89,17 +89,13 @@ namespace Sai2Capture.Services
                 _logService.AddLog($"启动预览窗口: {windowTitle}");
                 nint hwnd = _windowCaptureService.FindWindowByTitle(windowTitle);
                 
-                // 初始化 WGC 捕获会话用于预览
-                _logService.AddLog("为预览初始化 WGC 捕获会话");
-                bool wgcInitialized = await _windowCaptureService.InitializeWgcCaptureAsync(hwnd);
+                // 初始化捕获会话用于预览
+                _logService.AddLog("为预览初始化捕获会话");
+                bool captureInitialized = await _windowCaptureService.InitializeCaptureAsync(hwnd);
                 
-                if (wgcInitialized)
+                if (captureInitialized)
                 {
-                    _logService.AddLog("预览将使用 WGC API 进行截图");
-                }
-                else
-                {
-                    _logService.AddLog("预览将使用传统 PrintWindow API", LogLevel.Warning);
+                    _logService.AddLog("预览将使用 PrintWindow API 进行截图");
                 }
 
                 _previewTimer = new System.Windows.Threading.DispatcherTimer();
@@ -132,9 +128,8 @@ namespace Sai2Capture.Services
                 _logService.AddLog("预览定时器已停止");
             }
             
-            // 停止 WGC 捕获会话
-            _windowCaptureService.StopWgcCapture();
-            _logService.AddLog("预览 WGC 捕获会话已停止");
+            // 预览捕获会话已停止
+            _logService.AddLog("预览捕获会话已停止");
         }
 
         /// <summary>

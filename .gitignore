@@ -35,3 +35,4 @@ bld/
 .kiro/
 .vscode/
 settings.json
+Properties/PublishProfiles/FolderProfile.pubxml

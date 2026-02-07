@@ -135,16 +135,12 @@ namespace Sai2Capture.Services
                         ".mp4");
                     _logService.AddLog($"视频完整路径: {_sharedState.VideoPath}");
                     
-                    // 初始化 WGC 捕获会话
-                    _logService.AddLog("初始化 WGC 捕获会话");
-                    var wgcInitialized = _windowCaptureService.InitializeWgcCaptureAsync(_sharedState.Hwnd).Result;
-                    if (wgcInitialized)
+                    // 初始化捕获会话
+                    _logService.AddLog("初始化捕获会话");
+                    var captureInitialized = _windowCaptureService.InitializeCaptureAsync(_sharedState.Hwnd).Result;
+                    if (captureInitialized)
                     {
-                        _logService.AddLog("WGC 捕获会话初始化成功，将使用 WGC API 进行截图");
-                    }
-                    else
-                    {
-                        _logService.AddLog("WGC 捕获会话初始化失败，将使用传统 PrintWindow API", LogLevel.Warning);
+                        _logService.AddLog("捕获会话初始化成功，将使用 PrintWindow API 进行截图");
                     }
                     
                     // 创建视频写入器
@@ -203,9 +199,8 @@ namespace Sai2Capture.Services
             int totalFrames = _sharedState.FrameNumber;
             int savedFrames = _sharedState.SavedCount;
             
-            // 停止 WGC 捕获会话
-            _logService.AddLog("停止 WGC 捕获会话");
-            _windowCaptureService.StopWgcCapture();
+            // 捕获会话已完成
+            _logService.AddLog("捕获会话已完成");
             
             if (hasVideo)
             {

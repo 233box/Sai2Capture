@@ -67,8 +67,6 @@ namespace Sai2Capture.Services
 
         private readonly SharedStateService _sharedState;
         private readonly LogService _logService;
-        private WgcCaptureService? _wgcCapture;
-        private bool _useWgcApi = false; // 默认使用 WGC API
 
         /// <summary>
         /// 初始化窗口捕获服务
@@ -251,95 +249,31 @@ namespace Sai2Capture.Services
         }
 
         /// <summary>
-        /// 初始化 WGC 捕获会话
+        /// 初始化捕获会话（占位符，默认使用 PrintWindow API）
         /// </summary>
         /// <param name="hWnd">目标窗口句柄</param>
-        public async System.Threading.Tasks.Task<bool> InitializeWgcCaptureAsync(nint hWnd)
+        public System.Threading.Tasks.Task<bool> InitializeCaptureAsync(nint hWnd)
         {
-            if (_useWgcApi == false)
-            {
-                _logService.AddLog("WGC API 未启用，跳过初始化");
-                return false;
-            }
-            try
-            {
-                _logService.AddLog("尝试初始化 WGC 捕获会话");
-                
-                // 释放旧的捕获会话
-                if (_wgcCapture != null)
-                {
-                    _logService.AddLog("释放现有的 WGC 捕获会话");
-                    _wgcCapture.Dispose();
-                    _wgcCapture = null;
-                }
-
-                // 创建新的 WGC 捕获服务
-                _wgcCapture = new WgcCaptureService(_logService);
-                bool success = await _wgcCapture.InitializeCaptureAsync(hWnd);
-
-                if (success)
-                {
-                    _useWgcApi = true;
-                    _logService.AddLog("WGC 捕获会话初始化成功");
-                }
-                else
-                {
-                    _logService.AddLog("WGC 捕获会话初始化失败，将回退到 PrintWindow API", LogLevel.Warning);
-                    _useWgcApi = false;
-                    _wgcCapture?.Dispose();
-                    _wgcCapture = null;
-                }
-
-                return success;
-            }
-            catch (Exception ex)
-            {
-                _logService.AddLog($"初始化 WGC 捕获时发生异常: {ex.Message}", LogLevel.Error);
-                _useWgcApi = false;
-                _wgcCapture?.Dispose();
-                _wgcCapture = null;
-                return false;
-            }
+            _logService.AddLog("使用传统 PrintWindow API，初始化成功");
+            return System.Threading.Tasks.Task.FromResult(true);
         }
 
         /// <summary>
         /// 捕获指定窗口的内容并转换为OpenCV Mat对象
-        /// 优先使用 WGC API，失败时回退到 PrintWindow API
+        /// 使用 PrintWindow API
         /// </summary>
         /// <param name="hWnd">目标窗口句柄</param>
         /// <returns>窗口内容的Mat图像</returns>
         /// <exception cref="Win32Exception">Windows API调用失败时抛出</exception>
         public Mat CaptureWindowContent(nint hWnd)
         {
-            // 尝试使用 WGC API
-            if (_useWgcApi && _wgcCapture != null)
-            {
-                // 先尝试获取最新帧
-                var frame = _wgcCapture.GetLatestFrame();
-                if (frame != null)
-                {
-                    return frame;
-                }
-                
-                // 如果没有帧，尝试手动捕获
-                _logService.AddLog("尝试手动捕获 WGC 帧...");
-                frame = _wgcCapture.CaptureFrame();
-                if (frame != null)
-                {
-                    return frame;
-                }
-                
-                _logService.AddLog("WGC API 未返回帧，回退到 PrintWindow API", LogLevel.Warning);
-            }
-
-            // 回退到传统的 PrintWindow API
             return CaptureWindowContentLegacy(hWnd);
         }
 
         /// <summary>
-        /// 使用传统 PrintWindow API 捕获窗口内容
+        /// 使用 PrintWindow API 捕获窗口内容
         /// </summary>
-        private Mat CaptureWindowContentLegacy(nint hWnd)
+        public Mat CaptureWindowContentLegacy(nint hWnd)
         {
             if (!GetWindowRect(hWnd, out RECT windowRect))
             {
@@ -474,17 +408,6 @@ namespace Sai2Capture.Services
             }
         }
 
-        /// <summary>
-        /// 停止 WGC 捕获会话
-        /// </summary>
-        public void StopWgcCapture()
-        {
-            if (_wgcCapture != null)
-            {
-                _logService.AddLog("停止 WGC 捕获会话");
-                _wgcCapture.StopCapture();
-            }
-        }
 
         /// <summary>
         /// 释放资源
@@ -492,13 +415,6 @@ namespace Sai2Capture.Services
         public void Dispose()
         {
             _logService.AddLog("释放窗口捕获服务资源");
-            
-            if (_wgcCapture != null)
-            {
-                _wgcCapture.Dispose();
-                _wgcCapture = null;
-            }
-
             GC.SuppressFinalize(this);
         }
     }

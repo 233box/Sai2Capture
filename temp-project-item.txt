@@ -1,0 +1,5 @@
+<ItemGroup>  
+<Content Include="Sounds\**">  
+<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>  
+</Content>  
+</ItemGroup> 
