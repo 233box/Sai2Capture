@@ -21,7 +21,7 @@
         <!-- Capture Settings Card -->
         <ui:Card Grid.Row="0" Margin="0,0,0,16">
             <StackPanel>
-                <TextBlock Text="窗口选择" Style="{StaticResource CardTitleStyle}"/>
+                <TextBlock Text="SAI2窗口选择" Style="{StaticResource CardTitleStyle}"/>
 
                 <Grid>
                     <Grid.ColumnDefinitions>
@@ -46,7 +46,7 @@
                         Grid.Column="2"
                         Content="刷新"
                         Command="{Binding RefreshWindowListCommand}"
-                        ToolTip="刷新窗口列表"/>
+                        ToolTip="重新扫描系统进程，查找SAI2相关窗口"/>
                 </Grid>
             </StackPanel>
         </ui:Card>

@@ -41,6 +41,18 @@ namespace Sai2Capture.Services
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool PrintWindow(nint hWnd, nint hdcBlt, int nFlags);
 
+        [DllImport("user32.dll")]
+        private static extern uint GetWindowThreadProcessId(nint hWnd, out uint lpdwProcessId);
+
+        [DllImport("kernel32.dll")]
+        private static extern nint OpenProcess(uint dwDesiredAccess, bool bInheritHandle, uint dwProcessId);
+
+        [DllImport("kernel32.dll")]
+        private static extern bool CloseHandle(nint hObject);
+
+        [DllImport("kernel32.dll")]
+        private static extern int QueryFullProcessImageName(nint hProcess, int dwFlags, System.Text.StringBuilder lpExeName, ref int lpdwSize);
+
         [StructLayout(LayoutKind.Sequential)]
         public struct RECT
         {
@@ -49,6 +61,9 @@ namespace Sai2Capture.Services
             public int Right;
             public int Bottom;
         }
+
+        private const uint PROCESS_QUERY_INFORMATION = 0x0400;
+        private const uint PROCESS_VM_READ = 0x0010;
 
         private readonly SharedStateService _sharedState;
         private readonly LogService _logService;
@@ -65,6 +80,124 @@ namespace Sai2Capture.Services
             _sharedState = sharedState;
             _logService = logService;
             _logService.AddLog("窗口捕获服务已初始化");
+        }
+
+        /// <summary>
+        /// 获取进程可执行文件路径
+        /// </summary>
+        /// <param name="hWnd">窗口句柄</param>
+        /// <returns>可执行文件路径，获取失败时返回null</returns>
+        private string? GetProcessPath(nint hWnd)
+        {
+            try
+            {
+                if (GetWindowThreadProcessId(hWnd, out uint processId) == 0)
+                    return null;
+
+                nint hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, false, processId);
+                if (hProcess == IntPtr.Zero)
+                    return null;
+
+                try
+                {
+                    System.Text.StringBuilder pathBuilder = new System.Text.StringBuilder(1024);
+                    int size = pathBuilder.Capacity;
+                    
+                    if (QueryFullProcessImageName(hProcess, 0, pathBuilder, ref size) != 0)
+                    {
+                        return pathBuilder.ToString();
+                    }
+                    return null;
+                }
+                finally
+                {
+                    CloseHandle(hProcess);
+                }
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// 检查窗口是否与SAI2相关
+        /// 通过检查进程文件名来判断
+        /// </summary>
+        /// <param name="hWnd">窗口句柄</param>
+        /// <returns>如果是SAI2相关窗口返回true</returns>
+        private bool IsSai2RelatedWindow(nint hWnd)
+        {
+            try
+            {
+                string? processPath = GetProcessPath(hWnd);
+                if (string.IsNullOrEmpty(processPath))
+                    return false;
+
+                string exeName = System.IO.Path.GetFileNameWithoutExtension(processPath);
+                
+                // 检查是否为SAI2相关进程名
+                return exeName.Equals("sai", StringComparison.OrdinalIgnoreCase) ||
+                       exeName.Equals("sai2", StringComparison.OrdinalIgnoreCase) ||
+                       exeName.Contains("sai", StringComparison.OrdinalIgnoreCase) ||
+                       processPath.Contains("PaintToolSAI", StringComparison.OrdinalIgnoreCase);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 枚举SAI2相关的可见窗口标题
+        /// 使用Windows API EnumWindows遍历窗口
+        /// 仅返回与SAI2进程相关的可见窗口
+        /// </summary>
+        /// <returns>SAI2相关窗口标题列表</returns>
+        public List<string> EnumSai2WindowTitles()
+        {
+            _logService.AddLog("扫描系统进程，查找SAI2相关窗口");
+            List<string> sai2WindowTitles = new List<string>();
+            List<string> allProcessInfo = new List<string>();
+
+            EnumWindows((hWnd, _) =>
+            {
+                if (IsWindowVisible(hWnd))
+                {
+                    System.Text.StringBuilder sb = new System.Text.StringBuilder(256);
+                    GetWindowText(hWnd, sb, 256);
+                    string title = sb.ToString();
+                    
+                    if (!string.IsNullOrEmpty(title) && IsSai2RelatedWindow(hWnd))
+                    {
+                        sai2WindowTitles.Add(title);
+                        
+                        // 记录详细进程信息用于调试
+                        string? processPath = GetProcessPath(hWnd);
+                        string exeName = System.IO.Path.GetFileName(processPath ?? "未知");
+                        allProcessInfo.Add($"窗口: '{title}' - 进程: {exeName}");
+                    }
+                }
+                return true;
+            }, IntPtr.Zero);
+
+            // 记录所有找到的SAI2相关窗口信息
+            if (allProcessInfo.Count > 0)
+            {
+                _logService.AddLog($"找到 {allProcessInfo.Count} 个SAI2相关窗口:");
+                foreach (string info in allProcessInfo)
+                {
+                    _logService.AddLog($"  {info}");
+                }
+            }
+            else
+            {
+                _logService.AddLog("未找到SAI2相关窗口，请确保SAI2程序正在运行", LogLevel.Warning);
+            }
+
+            _sharedState.WindowTitles = sai2WindowTitles;
+            _logService.AddLog($"SAI2窗口枚举完成，找到 {sai2WindowTitles.Count} 个SAI2相关窗口");
+            return sai2WindowTitles;
         }
 
         /// <summary>

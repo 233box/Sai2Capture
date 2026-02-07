@@ -129,13 +129,13 @@ namespace Sai2Capture.ViewModels
         /// <summary>
         /// 初始化各服务组件
         /// 1. 初始化捕获服务的Dispatcher
-        /// 2. 枚举可用窗口标题列表
+        /// 2. 枚举SAI2相关窗口标题列表
         /// 3. 加载并应用用户设置
         /// </summary>
         private void InitializeServices()
         {
             _captureService.Initialize(System.Windows.Application.Current.Dispatcher);
-            WindowTitles = new ObservableCollection<string>(_windowCaptureService.EnumWindowTitles());
+            WindowTitles = new ObservableCollection<string>(_windowCaptureService.EnumSai2WindowTitles());
             _settingsService.LoadSettings();
 
             // 同步设置
@@ -351,14 +351,14 @@ namespace Sai2Capture.ViewModels
 
         /// <summary>
         /// 刷新窗口列表命令
-        /// 重新枚举系统中所有可用的窗口标题
+        /// 重新扫描系统进程，查找SAI2相关的窗口标题
         /// </summary>
         [RelayCommand]
         private void RefreshWindowList()
         {
             var currentSelection = SelectedWindowTitle;
-            WindowTitles = new ObservableCollection<string>(_windowCaptureService.EnumWindowTitles());
-            AddLog($"窗口列表已刷新，共 {WindowTitles.Count} 个窗口");
+            WindowTitles = new ObservableCollection<string>(_windowCaptureService.EnumSai2WindowTitles());
+            AddLog($"SAI2窗口列表已刷新，共 {WindowTitles.Count} 个SAI2相关窗口");
 
             // 如果之前的选择仍然存在，保持选择
             if (!string.IsNullOrEmpty(currentSelection) && WindowTitles.Contains(currentSelection))
