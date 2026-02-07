@@ -1,3 +1,4 @@
+# 此文档由AI生成，部分内容可能存在不准确或错误，敬请谅解。
 # Sai2Capture Developer Documentation
 
 ## 🏗️ 项目概述
