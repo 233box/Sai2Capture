@@ -47,7 +47,7 @@
             <!-- 保存设置 -->
             <ui:Card Margin="0,0,0,16">
                 <StackPanel>
-                    <TextBlock Text="保存设置" Style="{StaticResource CardTitleStyle}"/>
+                    <TextBlock Text="截图和视频保存设置" Style="{StaticResource CardTitleStyle}"/>
 
                     <Grid>
                         <Grid.ColumnDefinitions>
@@ -66,7 +66,7 @@
                             Text="{Binding SavePath}"
                             FontWeight="Normal"
                             Margin="0,0,12,0"
-                            ToolTip="截图保存的文件夹路径"/>
+                            ToolTip="截图和视频保存的文件夹路径"/>
                         <ui:Button
                             Grid.Column="2"
                             Content="浏览"

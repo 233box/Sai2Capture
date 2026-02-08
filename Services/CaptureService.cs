@@ -21,6 +21,7 @@ namespace Sai2Capture.Services
         private readonly WindowCaptureService _windowCaptureService;
         private readonly UtilityService _utilityService;
         private readonly LogService _logService;
+        private readonly SettingsService _settingsService;
         private Thread? _captureThread;
         private Dispatcher? _dispatcher;
 
@@ -52,12 +53,14 @@ namespace Sai2Capture.Services
             SharedStateService sharedState,
             WindowCaptureService windowCaptureService,
             UtilityService utilityService,
-            LogService logService)
+            LogService logService,
+            SettingsService settingsService)
         {
             _sharedState = sharedState;
             _windowCaptureService = windowCaptureService;
             _utilityService = utilityService;
             _logService = logService;
+            _settingsService = settingsService;
         }
         
         /// <summary>
@@ -110,14 +113,14 @@ namespace Sai2Capture.Services
                 if (!_sharedState.IsInitialized)
                 {
                     _logService.AddLog("首次启动，创建输出目录和视频写入器");
-                    
-                    // 使用绝对路径确保文件保存在正确的位置
-                    var baseDir = System.AppDomain.CurrentDomain.BaseDirectory;
-                    _logService.AddLog($"应用程序基础目录: {baseDir}");
-                    
-                    _sharedState.OutputFolder = System.IO.Path.Combine(baseDir, "output_frames");
+
+                    // 使用用户设置的保存路径
+                    var userSavePath = _settingsService.SavePath;
+                    _logService.AddLog($"用户设置的保存路径: {userSavePath}");
+
+                    _sharedState.OutputFolder = userSavePath;
                     _logService.AddLog($"输出文件夹完整路径: {_sharedState.OutputFolder}");
-                    
+
                     // 确保输出目录存在
                     if (!System.IO.Directory.Exists(_sharedState.OutputFolder))
                     {

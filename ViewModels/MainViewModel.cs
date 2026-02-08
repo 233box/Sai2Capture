@@ -681,9 +681,18 @@ namespace Sai2Capture.ViewModels
         {
             try
             {
+                // 使用固定的日志导出目录，而不是用户设置的保存路径
+                var logExportPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
+                
+                // 确保日志目录存在
+                if (!Directory.Exists(logExportPath))
+                {
+                    Directory.CreateDirectory(logExportPath);
+                }
+                
                 var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
                 var fileName = $"Sai2Capture_Log_{timestamp}.txt";
-                var filePath = Path.Combine(SavePath ?? Environment.GetFolderPath(Environment.SpecialFolder.Desktop), fileName);
+                var filePath = Path.Combine(logExportPath, fileName);
 
                 File.WriteAllText(filePath, LogContent);
                 AddLog($"日志已导出到: {filePath}");
