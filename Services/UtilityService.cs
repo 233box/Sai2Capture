@@ -43,20 +43,20 @@ namespace Sai2Capture.Services
         /// 自动递增索引直到找到不存在的文件名
         /// </summary>
         /// <param name="folder">目标文件夹</param>
-        /// <param name="baseName">文件名基础部分(默认"output")</param>
-        /// <param name="extension">文件扩展名(默认".mp4")</param>
+        /// <param name="baseName">文件名基础部分 (默认"output")</param>
+        /// <param name="extension">文件扩展名 (默认".mp4")</param>
         /// <returns>唯一的文件路径</returns>
         public string GetUniqueVideoPath(string folder, string baseName = "output", string extension = ".mp4")
         {
             string timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
             int index = 0;
-            
+
             while (true)
             {
-                string fileName = index == 0 
+                string fileName = index == 0
                     ? $"{baseName}_{timestamp}{extension}"
                     : $"{baseName}_{timestamp}_{index}{extension}";
-                
+
                 string path = Path.Combine(folder, fileName);
                 if (!File.Exists(path))
                 {
@@ -86,13 +86,13 @@ namespace Sai2Capture.Services
                 // 停止之前的定时器
                 StopPreview();
 
-                _logService.AddLog($"启动预览窗口: {windowTitle}");
+                _logService.AddLog($"启动预览窗口：{windowTitle}");
                 nint hwnd = _windowCaptureService.FindWindowByTitle(windowTitle);
-                
+
                 // 初始化捕获会话用于预览
                 _logService.AddLog("为预览初始化捕获会话");
                 bool captureInitialized = await _windowCaptureService.InitializeCaptureAsync(hwnd);
-                
+
                 if (captureInitialized)
                 {
                     _logService.AddLog("预览将使用 PrintWindow API 进行截图");
@@ -105,13 +105,13 @@ namespace Sai2Capture.Services
 
                 // 窗口关闭时停止定时器
                 previewWindow.Closed += (sender, e) => StopPreview();
-                
+
                 _logService.AddLog("预览已启动", LogLevel.Info);
             }
             catch (Exception ex)
             {
-                _logService.AddLog($"启动预览失败: {ex.Message}", LogLevel.Error);
-                System.Windows.MessageBox.Show($"找不到指定窗口: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                _logService.AddLog($"启动预览失败：{ex.Message}", LogLevel.Error);
+                System.Windows.MessageBox.Show($"找不到指定窗口：{ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -133,6 +133,8 @@ namespace Sai2Capture.Services
         }
 
         private System.Windows.Controls.Image? _embeddedPreviewImage;
+        private string? _previewWindowTitle;
+        private bool _lastPreviewWindowState;
 
         /// <summary>
         /// 启动嵌入式预览
@@ -140,7 +142,7 @@ namespace Sai2Capture.Services
         /// </summary>
         /// <param name="windowTitle">要预览的窗口标题</param>
         /// <param name="previewImage">预览图像控件</param>
-        public async void StartEmbeddedPreview(string windowTitle, System.Windows.Controls.Image previewImage)
+        public void StartEmbeddedPreview(string windowTitle, System.Windows.Controls.Image previewImage)
         {
             if (string.IsNullOrEmpty(windowTitle) || previewImage == null)
             {
@@ -154,29 +156,21 @@ namespace Sai2Capture.Services
                 StopEmbeddedPreview();
 
                 _embeddedPreviewImage = previewImage;
-                _logService.AddLog($"启动嵌入式预览: {windowTitle}");
-                
-                nint hwnd = _windowCaptureService.FindWindowByTitle(windowTitle);
+                _previewWindowTitle = windowTitle;
+                _lastPreviewWindowState = false;
+                _logService.AddLog($"启动嵌入式预览：{windowTitle}");
 
-                // 初始化捕获会话用于预览
-                _logService.AddLog("为嵌入式预览初始化捕获会话");
-                bool captureInitialized = await _windowCaptureService.InitializeCaptureAsync(hwnd);
-
-                if (captureInitialized)
-                {
-                    _logService.AddLog("嵌入式预览将使用 PrintWindow API 进行截图");
-                }
-
+                // 启动定时器，定时查找窗口并更新预览（支持窗口未找到时重试）
                 _previewTimer = new System.Windows.Threading.DispatcherTimer();
                 _previewTimer.Interval = TimeSpan.FromMilliseconds(50);
-                _previewTimer.Tick += (sender, e) => UpdateEmbeddedPreview(hwnd);
+                _previewTimer.Tick += (sender, e) => UpdateEmbeddedPreviewWithRetry();
                 _previewTimer.Start();
 
                 _logService.AddLog("嵌入式预览已启动", LogLevel.Info);
             }
             catch (Exception ex)
             {
-                _logService.AddLog($"启动嵌入式预览失败: {ex.Message}", LogLevel.Error);
+                _logService.AddLog($"启动嵌入式预览失败：{ex.Message}", LogLevel.Error);
             }
         }
 
@@ -198,14 +192,41 @@ namespace Sai2Capture.Services
         }
 
         /// <summary>
-        /// 更新嵌入式预览内容
-        /// 捕获指定窗口内容并直接更新预览控件
+        /// 更新嵌入式预览内容（带重试机制）
+        /// 每次都会重新查找窗口，支持窗口启动后自动连接
+        /// 只在状态改变时发送日志
         /// </summary>
-        /// <param name="hwnd">目标窗口句柄</param>
-        private void UpdateEmbeddedPreview(nint hwnd)
+        private void UpdateEmbeddedPreviewWithRetry()
         {
+            if (string.IsNullOrEmpty(_previewWindowTitle) || _embeddedPreviewImage == null)
+                return;
+
             try
             {
+                // 使用静默模式查找窗口，不记录日志
+                nint hwnd = _windowCaptureService.FindWindowByTitle(_previewWindowTitle, silent: true);
+
+                if (hwnd == nint.Zero)
+                {
+                    // 窗口未找到
+                    if (_lastPreviewWindowState)
+                    {
+                        // 状态改变：从找到变为未找到
+                        _logService.AddLog($"预览窗口未找到：{_previewWindowTitle}", LogLevel.Warning);
+                        _lastPreviewWindowState = false;
+                    }
+                    // 窗口未找到，等待下次定时器触发
+                    return;
+                }
+
+                // 窗口找到了
+                if (!_lastPreviewWindowState)
+                {
+                    // 状态改变：从未找到变为找到
+                    _logService.AddLog($"预览窗口已连接：{_previewWindowTitle}", LogLevel.Info);
+                    _lastPreviewWindowState = true;
+                }
+
                 Mat image = _windowCaptureService.CaptureWindowContent(hwnd);
                 var bitmap = MatToBitmapSource(image);
 
@@ -216,7 +237,12 @@ namespace Sai2Capture.Services
             }
             catch (Exception ex)
             {
-                _logService.AddLog($"嵌入式预览更新失败: {ex.Message}", LogLevel.Error);
+                // 只在状态改变时记录错误
+                if (_lastPreviewWindowState)
+                {
+                    _logService.AddLog($"预览更新异常：{ex.Message}", LogLevel.Error);
+                    _lastPreviewWindowState = false;
+                }
             }
         }
 
@@ -224,7 +250,7 @@ namespace Sai2Capture.Services
         /// 根据缩放级别更新裁剪窗口大小
         /// 不同缩放级别对应不同的裁剪像素值
         /// </summary>
-        /// <param name="zoomLevel">缩放级别("100%", "125%", etc.)</param>
+        /// <param name="zoomLevel">缩放级别 ("100%", "125%", etc.)</param>
         public void UpdateCutWindow(string zoomLevel)
         {
             _sharedState.CutWindow = zoomLevel switch
@@ -239,7 +265,7 @@ namespace Sai2Capture.Services
 
         /// <summary>
         /// 切换窗口置顶状态
-        /// 修改目标窗口的Topmost属性
+        /// 修改目标窗口的 Topmost 属性
         /// </summary>
         /// <param name="window">目标窗口对象</param>
         public void ToggleTopmost(System.Windows.Window window)
@@ -263,7 +289,7 @@ namespace Sai2Capture.Services
 
         /// <summary>
         /// 更新预览窗口内容
-        /// 捕获指定窗口内容并转换为WPF图像显示
+        /// 捕获指定窗口内容并转换为 WPF 图像显示
         /// </summary>
         /// <param name="hwnd">目标窗口句柄</param>
         /// <param name="previewWindow">预览窗口对象</param>
@@ -273,32 +299,33 @@ namespace Sai2Capture.Services
             {
                 Mat image = _windowCaptureService.CaptureWindowContent(hwnd);
                 var bitmap = MatToBitmapSource(image);
-                
+
                 if (previewWindow.Content is System.Windows.Controls.Image imageControl)
                 {
                     imageControl.Source = bitmap;
                 }
-                
+
                 // _logService.AddLog("预览窗口内容已更新", LogLevel.Info);
             }
             catch (Exception ex)
             {
-                _logService.AddLog($"预览更新失败: {ex.Message}", LogLevel.Error);
+                _logService.AddLog($"预览更新失败：{ex.Message}", LogLevel.Error);
             }
         }
+
         /// <summary>
-        /// 将OpenCV Mat转换为WPF BitmapSource
-        /// 使用内存中的PNG格式转换，避免文件I/O操作
+        /// 将 OpenCV Mat 转换为 WPF BitmapSource
+        /// 使用内存中的 PNG 格式转换，避免文件 I/O 操作
         /// </summary>
-        /// <param name="image">OpenCV Mat图像</param>
-        /// <returns>WPF BitmapSource对象</returns>
+        /// <param name="image">OpenCV Mat 图像</param>
+        /// <returns>WPF BitmapSource 对象</returns>
         private BitmapSource MatToBitmapSource(Mat image)
         {
             try
             {
                 using (var memoryStream = new System.IO.MemoryStream())
                 {
-                    // 使用内存中的PNG编码而不是文件
+                    // 使用内存中的 PNG 编码而不是文件
                     Cv2.ImEncode(".png", image, out var imageData);
                     memoryStream.Write(imageData, 0, imageData.Length);
                     memoryStream.Seek(0, SeekOrigin.Begin);
@@ -315,8 +342,8 @@ namespace Sai2Capture.Services
             }
             catch (Exception ex)
             {
-                _logService.AddLog($"Mat转BitmapSource失败: {ex.Message}", LogLevel.Error);
-                
+                _logService.AddLog($"Mat 转 BitmapSource 失败：{ex.Message}", LogLevel.Error);
+
                 // 创建一个默认的空图像
                 return new BitmapImage();
             }

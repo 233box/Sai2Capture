@@ -351,6 +351,13 @@ namespace Sai2Capture
                 _hotkeyService.Dispose();
                 _hotkeyService = null;
             }
+
+            // 停止画布轮询定时器
+            var viewModel = DataContext as MainViewModel;
+            if (viewModel != null)
+            {
+                viewModel.StopCanvasPolling();
+            }
         }
     }
 }

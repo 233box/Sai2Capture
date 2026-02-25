@@ -38,7 +38,9 @@ namespace Sai2Capture.ViewModels
         private readonly LogService _logService;
         private readonly HotkeyViewModel _hotkeyViewModel;
         private readonly System.Windows.Threading.DispatcherTimer _statusTimer;
+        private readonly System.Windows.Threading.DispatcherTimer _canvasPollingTimer;
         private System.Windows.Controls.ScrollViewer? _logScrollViewer;
+        private string? _lastKnownWindowTitle;
 
         /// <summary>
         /// 可用窗口标题列表
@@ -123,13 +125,43 @@ namespace Sai2Capture.ViewModels
             };
             _statusTimer.Tick += UpdateStatus;
 
+            // 初始化画布尺寸轮询定时器（每 2 秒检查一次）
+            _canvasPollingTimer = new System.Windows.Threading.DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(2)
+            };
+            _canvasPollingTimer.Tick += CanvasPollingTimer_Tick;
+
             InitializeServices();
+        }
+
+        /// <summary>
+        /// 画布尺寸轮询定时器回调
+        /// </summary>
+        private void CanvasPollingTimer_Tick(object? sender, EventArgs e)
+        {
+            UpdateCanvasSize();
         }
 
         /// <summary>
         /// 热键视图模型
         /// </summary>
         public HotkeyViewModel HotkeyViewModel => _hotkeyViewModel;
+
+        /// <summary>
+        /// 停止画布尺寸轮询
+        /// 在窗口关闭时调用
+        /// </summary>
+        public void StopCanvasPolling()
+        {
+            _canvasPollingTimer?.Stop();
+        }
+
+        /// <summary>
+        /// SAI2 画布尺寸显示文本
+        /// </summary>
+        [ObservableProperty]
+        private string _canvasSizeDisplay = "未检测到 SAI2";
 
         /// <summary>
         /// 日志更新事件处理
@@ -166,11 +198,15 @@ namespace Sai2Capture.ViewModels
             // 获取 SAI2 画布尺寸
             UpdateCanvasSize();
 
+            // 启动画布尺寸轮询（每 2 秒检查一次）
+            _canvasPollingTimer.Start();
+
             // 初始化日志
             AddLog("应用程序启动");
             AddLog($"设置文件路径：{_settingsService.GetSettingsFilePath()}");
             AddLog($"加载设置 - 窗口：{SelectedWindowTitle}, 间隔：{CaptureInterval}秒");
             AddLog($"保存路径：{SavePath}");
+            AddLog("画布尺寸监控已启动");
 
             // 初始化状态
             Status = "未录制";
@@ -179,6 +215,7 @@ namespace Sai2Capture.ViewModels
         /// <summary>
         /// 更新 SAI2 画布尺寸
         /// 从窗口标题获取 .sai2 文件路径并解析
+        /// 只在窗口标题变化时才重新解析
         /// </summary>
         private void UpdateCanvasSize()
         {
@@ -190,41 +227,86 @@ namespace Sai2Capture.ViewModels
                     sai2Processes = System.Diagnostics.Process.GetProcessesByName("sai");
                 }
 
+                if (sai2Processes.Length == 0)
+                {
+                    // 未找到 SAI2 进程
+                    CanvasSizeDisplay = "未检测到 SAI2";
+                    return;
+                }
+
+                bool foundCanvas = false;
+
                 foreach (var proc in sai2Processes)
                 {
                     try
                     {
                         var title = proc.MainWindowTitle;
+                        
                         if (!string.IsNullOrEmpty(title))
                         {
                             // 从标题中提取 .sai2 文件路径
                             var parts = title.Split(new[] { " - " }, StringSplitOptions.None);
+                            
                             if (parts.Length >= 2)
                             {
                                 var potentialPath = parts[parts.Length - 1].Trim();
+                                
                                 if (potentialPath.EndsWith(".sai2", StringComparison.OrdinalIgnoreCase) && File.Exists(potentialPath))
                                 {
+                                    // 检查窗口标题是否变化（已检测到画布的情况下）
+                                    if (foundCanvas && _lastKnownWindowTitle == title)
+                                    {
+                                        continue;
+                                    }
+
                                     if (Sai2FileParser.TryParseCanvasSize(potentialPath, out int width, out int height))
                                     {
+                                        // 检查尺寸是否变化
+                                        bool sizeChanged = (_captureService.SharedState.CanvasWidth != width || 
+                                                           _captureService.SharedState.CanvasHeight != height);
+                                        
                                         _captureService.SharedState.CanvasWidth = width;
                                         _captureService.SharedState.CanvasHeight = height;
-                                        AddLog($"🎨 SAI2 画布尺寸：{width} x {height}");
-                                        Status = $"SAI2 画布：{width} x {height}";
+                                        CanvasSizeDisplay = $"SAI2 画布：{width} x {height}";
+                                        
+                                        // 只在尺寸变化时输出日志
+                                        if (sizeChanged)
+                                        {
+                                            AddLog($"SAI2 画布尺寸：{width} x {height}");
+                                            Status = $"SAI2 画布：{width} x {height}";
+                                        }
+                                        
+                                        _lastKnownWindowTitle = title;
+                                        foundCanvas = true;
                                         return;
+                                    }
+                                    else
+                                    {
+                                        AddLog($"SAI2 文件解析失败：{potentialPath}", "WARNING");
                                     }
                                 }
                             }
+
+                            // 更新最后已知窗口标题
+                            _lastKnownWindowTitle = title;
                         }
                     }
-                    catch
+                    catch (Exception ex)
                     {
-                        // 忽略单个进程的错误
+                        AddLog($"检查 SAI2 窗口失败：{ex.Message}", "WARNING");
                     }
                 }
+
+                // 找到 SAI2 但无法解析画布尺寸
+                if (!foundCanvas)
+                {
+                    CanvasSizeDisplay = "SAI2 已运行（未检测到画布）";
+                }
             }
-            catch
+            catch (Exception ex)
             {
-                // 忽略
+                CanvasSizeDisplay = "未检测到 SAI2";
+                AddLog($"更新画布尺寸失败：{ex.Message}", "WARNING");
             }
         }
 
@@ -247,6 +329,7 @@ namespace Sai2Capture.ViewModels
             }
 
             _statusTimer.Start();
+            _canvasPollingTimer.Start();
             _captureService.StartCapture(SelectedWindowTitle, true, CaptureInterval);
         }
 
@@ -279,6 +362,7 @@ namespace Sai2Capture.ViewModels
         {
             AddLog("停止捕获");
             _statusTimer.Stop();
+            _canvasPollingTimer.Stop();
             _captureService.StopCapture();
             Status = "未录制";
         }

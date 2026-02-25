@@ -1,4 +1,4 @@
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 using OpenCvSharp;
 using System;
 using System.Collections.Generic;
@@ -11,7 +11,7 @@ namespace Sai2Capture.Services
 {
     /// <summary>
     /// 窗口捕获服务
-    /// 封装Windows API和图像处理逻辑，
+    /// 封装 Windows API 和图像处理逻辑
     /// 主要功能：
     /// 1. 枚举可见窗口及其标题
     /// 2. 定位特定窗口并捕获其内容（使用 WGC API）
@@ -19,7 +19,7 @@ namespace Sai2Capture.Services
     /// </summary>
     public partial class WindowCaptureService : ObservableObject, IDisposable
     {
-    // Windows API P/Invoke声明
+    // Windows API P/Invoke 声明
         [DllImport("user32.dll")]
         private static extern nint FindWindow(string? lpClassName, string lpWindowName);
 
@@ -88,14 +88,14 @@ namespace Sai2Capture.Services
         public void SetSelfWindowHandle(nint windowHandle)
         {
             _selfWindowHandle = windowHandle;
-            _logService.AddLog($"已设置程序自身窗口句柄: 0x{windowHandle:X}");
+            _logService.AddLog($"已设置程序自身窗口句柄：0x{windowHandle:X}");
         }
 
         /// <summary>
         /// 获取进程可执行文件路径
         /// </summary>
         /// <param name="hWnd">窗口句柄</param>
-        /// <returns>可执行文件路径，获取失败时返回null</returns>
+        /// <returns>可执行文件路径，获取失败时返回 null</returns>
         private string? GetProcessPath(nint hWnd)
         {
             try
@@ -111,7 +111,7 @@ namespace Sai2Capture.Services
                 {
                     System.Text.StringBuilder pathBuilder = new System.Text.StringBuilder(1024);
                     int size = pathBuilder.Capacity;
-                    
+
                     if (QueryFullProcessImageName(hProcess, 0, pathBuilder, ref size) != 0)
                     {
                         return pathBuilder.ToString();
@@ -130,11 +130,11 @@ namespace Sai2Capture.Services
         }
 
         /// <summary>
-        /// 检查窗口是否与SAI2相关
+        /// 检查窗口是否与 SAI2 相关
         /// 通过检查进程文件名来判断
         /// </summary>
         /// <param name="hWnd">窗口句柄</param>
-        /// <returns>如果是SAI2相关窗口返回true</returns>
+        /// <returns>如果是 SAI2 相关窗口返回 true</returns>
         private bool IsSai2RelatedWindow(nint hWnd)
         {
             try
@@ -144,8 +144,8 @@ namespace Sai2Capture.Services
                     return false;
 
                 string exeName = System.IO.Path.GetFileNameWithoutExtension(processPath);
-                
-                // 检查是否为SAI2相关进程名
+
+                // 检查是否为 SAI2 相关进程
                 return exeName.Equals("sai", StringComparison.OrdinalIgnoreCase) ||
                        exeName.Equals("sai2", StringComparison.OrdinalIgnoreCase) ||
                        exeName.Contains("sai", StringComparison.OrdinalIgnoreCase) ||
@@ -158,15 +158,15 @@ namespace Sai2Capture.Services
         }
 
         /// <summary>
-        /// 枚举SAI2相关的可见窗口标题
-        /// 使用Windows API EnumWindows遍历窗口
-        /// 仅返回与SAI2进程相关的可见窗口
+        /// 枚举 SAI2 相关的可见窗口标题
+        /// 使用 Windows API EnumWindows 遍历窗口
+        /// 仅返回与 SAI2 进程相关的可见窗口
         /// 排除当前程序自己的窗口
         /// </summary>
-        /// <returns>SAI2相关窗口标题列表</returns>
+        /// <returns>SAI2 相关窗口标题列表</returns>
         public List<string> EnumSai2WindowTitles()
         {
-            _logService.AddLog("扫描系统进程，查找SAI2相关窗口");
+            _logService.AddLog("扫描系统进程，查找 SAI2 相关窗口");
             List<string> sai2WindowTitles = new List<string>();
             List<string> allProcessInfo = new List<string>();
 
@@ -191,16 +191,16 @@ namespace Sai2Capture.Services
                         // 记录详细进程信息用于调试
                         string? processPath = GetProcessPath(hWnd);
                         string exeName = System.IO.Path.GetFileName(processPath ?? "未知");
-                        allProcessInfo.Add($"窗口: '{title}' - 进程: {exeName}");
+                        allProcessInfo.Add($"窗口：'{title}' - 进程：{exeName}");
                     }
                 }
                 return true;
             }, IntPtr.Zero);
 
-            // 记录所有找到的SAI2相关窗口信息
+            // 记录所有找到的 SAI2 相关窗口信息
             if (allProcessInfo.Count > 0)
             {
-                _logService.AddLog($"找到 {allProcessInfo.Count} 个SAI2相关窗口:");
+                _logService.AddLog($"找到 {allProcessInfo.Count} 个 SAI2 相关窗口:");
                 foreach (string info in allProcessInfo)
                 {
                     _logService.AddLog($"  {info}");
@@ -208,17 +208,17 @@ namespace Sai2Capture.Services
             }
             else
             {
-                _logService.AddLog("未找到SAI2相关窗口，请确保SAI2程序正在运行", LogLevel.Warning);
+                _logService.AddLog("未找到 SAI2 相关窗口，请确保 SAI2 程序正在运行", LogLevel.Warning);
             }
 
             _sharedState.WindowTitles = sai2WindowTitles;
-            _logService.AddLog($"SAI2窗口枚举完成，找到 {sai2WindowTitles.Count} 个SAI2相关窗口");
+            _logService.AddLog($"SAI2 窗口枚举完成，找到{sai2WindowTitles.Count} 个 SAI2 相关窗口");
             return sai2WindowTitles;
         }
 
         /// <summary>
         /// 枚举当前所有可见窗口的标题
-        /// 使用Windows API EnumWindows遍历窗口
+        /// 使用 Windows API EnumWindows 遍历窗口
         /// 仅返回具有非空标题的可见窗口
         /// 排除当前程序自己的窗口
         /// </summary>
@@ -249,27 +249,37 @@ namespace Sai2Capture.Services
             }, IntPtr.Zero);
 
             _sharedState.WindowTitles = windowTitles;
-            _logService.AddLog($"枚举完成，找到 {windowTitles.Count} 个可见窗口");
+            _logService.AddLog($"枚举完成，找到{windowTitles.Count} 个可见窗口");
             return windowTitles;
         }
 
         /// <summary>
         /// 根据窗口标题查找窗口句柄
-        /// 使用Windows API FindWindow进行精确匹配
+        /// 使用 Windows API FindWindow 进行精确匹配
         /// </summary>
         /// <param name="windowTitle">目标窗口标题</param>
-        /// <returns>窗口句柄</returns>
-        /// <exception cref="Exception">窗口未找到时抛出异常</exception>
-        public nint FindWindowByTitle(string windowTitle)
+        /// <param name="silent">静默模式：true 时不记录日志，不抛异常，未找到时返回 IntPtr.Zero</param>
+        /// <returns>窗口句柄，未找到时返回 IntPtr.Zero（静默模式）或抛异常（非静默模式）</returns>
+        public nint FindWindowByTitle(string windowTitle, bool silent = false)
         {
-            _logService.AddLog($"查找窗口: '{windowTitle}'");
+            if (!silent)
+            {
+                _logService.AddLog($"查找窗口：'{windowTitle}'");
+            }
             nint hWnd = FindWindow(null, windowTitle);
             if (hWnd == IntPtr.Zero)
             {
-                _logService.AddLog($"未找到窗口: '{windowTitle}'", LogLevel.Error);
-                throw new Exception($"Window with title '{windowTitle}' not found");
+                if (!silent)
+                {
+                    _logService.AddLog($"未找到窗口：'{windowTitle}'", LogLevel.Error);
+                    throw new Exception($"Window with title '{windowTitle}' not found");
+                }
+                return IntPtr.Zero;
             }
-            _logService.AddLog($"找到窗口句柄: 0x{hWnd:X}");
+            if (!silent)
+            {
+                _logService.AddLog($"找到窗口句柄：0x{hWnd:X}");
+            }
             return hWnd;
         }
 
@@ -284,12 +294,12 @@ namespace Sai2Capture.Services
         }
 
         /// <summary>
-        /// 捕获指定窗口的内容并转换为OpenCV Mat对象
+        /// 捕获指定窗口的内容并转换为 OpenCV Mat 对象
         /// 使用 PrintWindow API
         /// </summary>
         /// <param name="hWnd">目标窗口句柄</param>
-        /// <returns>窗口内容的Mat图像</returns>
-        /// <exception cref="Win32Exception">Windows API调用失败时抛出</exception>
+        /// <returns>窗口内容的 Mat 图像</returns>
+        /// <exception cref="Win32Exception">Windows API 调用失败时抛出</exception>
         public Mat CaptureWindowContent(nint hWnd)
         {
             return CaptureWindowContentLegacy(hWnd);
@@ -302,14 +312,12 @@ namespace Sai2Capture.Services
         {
             if (!GetWindowRect(hWnd, out RECT windowRect))
             {
-                _logService.AddLog($"获取窗口矩形失败: {Marshal.GetLastWin32Error()}", LogLevel.Error);
+                _logService.AddLog($"获取窗口矩形失败：{Marshal.GetLastWin32Error()}", LogLevel.Error);
                 throw new Win32Exception(Marshal.GetLastWin32Error());
             }
 
             int width = windowRect.Right - windowRect.Left;
             int height = windowRect.Bottom - windowRect.Top;
-
-            // _logService.AddLog($"使用 PrintWindow API 捕获窗口 - 尺寸: {width}x{height}");
 
             using var bitmap = new System.Drawing.Bitmap(width, height);
             using (var graphics = Graphics.FromImage(bitmap))
@@ -319,7 +327,7 @@ namespace Sai2Capture.Services
                 {
                     if (!PrintWindow(hWnd, hdc, 0))
                     {
-                        _logService.AddLog($"PrintWindow 调用失败: {Marshal.GetLastWin32Error()}", LogLevel.Error);
+                        _logService.AddLog($"PrintWindow 调用失败：{Marshal.GetLastWin32Error()}", LogLevel.Error);
                         throw new Win32Exception(Marshal.GetLastWin32Error());
                     }
                 }
@@ -329,14 +337,14 @@ namespace Sai2Capture.Services
                 }
             }
 
-            // 手动将Bitmap转换为Mat
+            // 手动将 Bitmap 转换为 Mat
             var rect = new System.Drawing.Rectangle(0, 0, bitmap.Width, bitmap.Height);
             var bitmapData = bitmap.LockBits(rect, System.Drawing.Imaging.ImageLockMode.ReadOnly, bitmap.PixelFormat);
-            
+
             try
             {
                 var mat = new Mat(bitmap.Height, bitmap.Width, MatType.CV_8UC4, bitmapData.Scan0);
-                // 转换BGR到RGB
+                // 转换 BGR 到 RGB
                 Cv2.CvtColor(mat, mat, ColorConversionCodes.BGRA2BGR);
                 return mat.Clone();
             }
@@ -378,18 +386,17 @@ namespace Sai2Capture.Services
 
             if (shouldSave)
             {
-                // _logService.AddLog($"保存帧 #{_sharedState.SavedCount + 1} - 原因: {reason}");
                 SaveFrame(currentImage);
             }
         }
 
         /// <summary>
         /// 比较两幅图像是否相同
-        /// 使用OpenCV绝对差值计算差异像素数
+        /// 使用 OpenCV 绝对差值计算差异像素数
         /// </summary>
-        /// <param name="img1">第一幅图像(null视为不同)</param>
+        /// <param name="img1">第一幅图像 (null 视为不同)</param>
         /// <param name="img2">第二幅图像</param>
-        /// <returns>当图像尺寸相同且所有像素相同时返回true</returns>
+        /// <returns>当图像尺寸相同且所有像素相同时返回 true</returns>
         private bool ImagesEqual(Mat? img1, Mat img2)
         {
             if (img1 == null) return false;
@@ -398,7 +405,7 @@ namespace Sai2Capture.Services
 
             using Mat diff = new Mat();
             Cv2.Absdiff(img1, img2, diff);
-            
+
             // 对于多通道图像，需要先转换为灰度图再计数非零像素
             if (diff.Channels() > 1)
             {
@@ -416,7 +423,7 @@ namespace Sai2Capture.Services
         /// 保存帧到视频文件并更新状态
         /// 1. 写入视频帧
         /// 2. 缓存最后一帧作为比较基准
-        /// 3. 增加已保存帧计数器
+        /// 3. 增加已保存帧计数
         /// </summary>
         /// <param name="frame">要保存的帧</param>
         private void SaveFrame(Mat frame)
@@ -429,7 +436,7 @@ namespace Sai2Capture.Services
             }
             else
             {
-                _logService.AddLog("警告: VideoWriter 未打开，无法保存帧", LogLevel.Warning);
+                _logService.AddLog("警告：VideoWriter 未打开，无法保存帧", LogLevel.Warning);
             }
         }
 

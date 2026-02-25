@@ -55,13 +55,13 @@ namespace Sai2Capture.Services
                     // 读取画布尺寸
                     // 根据实际分析，偏移 0x14 是宽度，0x18 是高度
                     fs.Seek(0x14, SeekOrigin.Begin);
-                    
+
                     var widthBytes = new byte[4];
                     var heightBytes = new byte[4];
-                    
+
                     fs.Read(widthBytes, 0, 4);
                     fs.Read(heightBytes, 0, 4);
-                    
+
                     width = BitConverter.ToInt32(widthBytes, 0);
                     height = BitConverter.ToInt32(heightBytes, 0);
 
