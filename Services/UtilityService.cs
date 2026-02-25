@@ -191,7 +191,7 @@ namespace Sai2Capture.Services
                     imageControl.Source = bitmap;
                 }
                 
-                _logService.AddLog("预览窗口内容已更新", LogLevel.Info);
+                // _logService.AddLog("预览窗口内容已更新", LogLevel.Info);
             }
             catch (Exception ex)
             {

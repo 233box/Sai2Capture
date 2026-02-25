@@ -27,6 +27,39 @@ namespace Sai2Capture
 
             // 获取设置服务
             _settingsService = Ioc.Default.GetService<SettingsService>();
+
+            // 获取窗口捕获服务并设置自己的窗口句柄
+            var windowCaptureService = Ioc.Default.GetService<WindowCaptureService>();
+            if (windowCaptureService != null)
+            {
+                var windowHandle = new WindowInteropHelper(this).Handle;
+                if (windowHandle != IntPtr.Zero)
+                {
+                    windowCaptureService.SetSelfWindowHandle(windowHandle);
+                }
+                else
+                {
+                    // 如果窗口句柄还没有准备好，在窗口加载时再设置
+                    this.SourceInitialized += (s, e) =>
+                    {
+                        var handle = new WindowInteropHelper(this).Handle;
+                        if (handle != IntPtr.Zero)
+                        {
+                            windowCaptureService.SetSelfWindowHandle(handle);
+                        }
+                    };
+                }
+
+                // 始终在Loaded事件中再次确保窗口句柄已设置
+                this.Loaded += (s, e) =>
+                {
+                    var handle = new WindowInteropHelper(this).Handle;
+                    if (handle != IntPtr.Zero)
+                    {
+                        windowCaptureService.SetSelfWindowHandle(handle);
+                    }
+                };
+            }
             
             // 恢复窗口大小和位置
             RestoreWindowSettings();

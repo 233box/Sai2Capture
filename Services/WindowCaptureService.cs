@@ -67,6 +67,7 @@ namespace Sai2Capture.Services
 
         private readonly SharedStateService _sharedState;
         private readonly LogService _logService;
+        private nint? _selfWindowHandle;
 
         /// <summary>
         /// 初始化窗口捕获服务
@@ -78,6 +79,16 @@ namespace Sai2Capture.Services
             _sharedState = sharedState;
             _logService = logService;
             _logService.AddLog("窗口捕获服务已初始化");
+        }
+
+        /// <summary>
+        /// 设置当前程序的主窗口句柄，用于在窗口扫描时排除自己
+        /// </summary>
+        /// <param name="windowHandle">程序主窗口句柄</param>
+        public void SetSelfWindowHandle(nint windowHandle)
+        {
+            _selfWindowHandle = windowHandle;
+            _logService.AddLog($"已设置程序自身窗口句柄: 0x{windowHandle:X}");
         }
 
         /// <summary>
@@ -150,6 +161,7 @@ namespace Sai2Capture.Services
         /// 枚举SAI2相关的可见窗口标题
         /// 使用Windows API EnumWindows遍历窗口
         /// 仅返回与SAI2进程相关的可见窗口
+        /// 排除当前程序自己的窗口
         /// </summary>
         /// <returns>SAI2相关窗口标题列表</returns>
         public List<string> EnumSai2WindowTitles()
@@ -162,14 +174,20 @@ namespace Sai2Capture.Services
             {
                 if (IsWindowVisible(hWnd))
                 {
+                    // 排除当前程序自己的窗口
+                    if (_selfWindowHandle.HasValue && hWnd == _selfWindowHandle.Value)
+                    {
+                        return true; // 跳过自己的窗口
+                    }
+
                     System.Text.StringBuilder sb = new System.Text.StringBuilder(256);
                     GetWindowText(hWnd, sb, 256);
                     string title = sb.ToString();
-                    
+
                     if (!string.IsNullOrEmpty(title) && IsSai2RelatedWindow(hWnd))
                     {
                         sai2WindowTitles.Add(title);
-                        
+
                         // 记录详细进程信息用于调试
                         string? processPath = GetProcessPath(hWnd);
                         string exeName = System.IO.Path.GetFileName(processPath ?? "未知");
@@ -202,6 +220,7 @@ namespace Sai2Capture.Services
         /// 枚举当前所有可见窗口的标题
         /// 使用Windows API EnumWindows遍历窗口
         /// 仅返回具有非空标题的可见窗口
+        /// 排除当前程序自己的窗口
         /// </summary>
         /// <returns>可见窗口标题列表</returns>
         public List<string> EnumWindowTitles()
@@ -212,6 +231,12 @@ namespace Sai2Capture.Services
             {
                 if (IsWindowVisible(hWnd))
                 {
+                    // 排除当前程序自己的窗口
+                    if (_selfWindowHandle.HasValue && hWnd == _selfWindowHandle.Value)
+                    {
+                        return true; // 跳过自己的窗口
+                    }
+
                     System.Text.StringBuilder sb = new System.Text.StringBuilder(256);
                     GetWindowText(hWnd, sb, 256);
                     string title = sb.ToString();
@@ -353,7 +378,7 @@ namespace Sai2Capture.Services
 
             if (shouldSave)
             {
-                _logService.AddLog($"保存帧 #{_sharedState.SavedCount + 1} - 原因: {reason}");
+                // _logService.AddLog($"保存帧 #{_sharedState.SavedCount + 1} - 原因: {reason}");
                 SaveFrame(currentImage);
             }
         }

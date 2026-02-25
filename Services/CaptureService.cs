@@ -370,8 +370,8 @@ namespace Sai2Capture.Services
                             Status = $"已捕获帧 #{_sharedState.FrameNumber}";
                         });
 
-                        // 每10帧记录一次日志
-                        if (_sharedState.FrameNumber % 10 == 0)
+                        // 每1000帧记录一次日志
+                        if (_sharedState.FrameNumber % 1000 == 0)
                         {
                             _logService.AddLog($"捕获进度: {_sharedState.FrameNumber} 帧, 已保存: {_sharedState.SavedCount} 帧");
                         }
