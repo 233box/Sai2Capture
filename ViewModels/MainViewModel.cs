@@ -17,12 +17,12 @@ using System.Windows.Forms;
 // 1.  极简模式/悬浮窗
 //     - 录制开始后，主界面可以最小化到系统托盘，或者变成一个半透明的悬浮小控件（显示录制时长和停止按钮），不遮挡 SAI2 的操作区域。
 // 2.  状态指示灯
-//     - 明显的红色闪烁圆点或文字，显示“正在录制”状态。
+//     - 明显的红色闪烁圆点或文字，显示"正在录制"状态。
 namespace Sai2Capture.ViewModels
 {
     /// <summary>
     /// 主窗口视图模型
-    /// 协调各服务组件，处理UI交互逻辑
+    /// 协调各服务组件，处理 UI 交互逻辑
     /// 包含以下核心功能：
     /// 1. 窗口捕获控制
     /// 2. 视频生成管理
@@ -42,7 +42,7 @@ namespace Sai2Capture.ViewModels
 
         /// <summary>
         /// 可用窗口标题列表
-        /// 通过EnumWindowTitles获取的系统窗口集合
+        /// 通过 EnumWindowTitles 获取的系统窗口集合
         /// </summary>
         [ObservableProperty]
         private ObservableCollection<string> _windowTitles = new();
@@ -60,7 +60,7 @@ namespace Sai2Capture.ViewModels
             // 当窗口标题变更时，重新启动预览
             if (!string.IsNullOrWhiteSpace(value))
             {
-                // 通知MainPage重启预览
+                // 通知 MainPage 重启预览
                 RestartPreviewRequested?.Invoke();
             }
         }
@@ -71,9 +71,9 @@ namespace Sai2Capture.ViewModels
         public event Action? RestartPreviewRequested;
 
         /// <summary>
-        /// 帧捕获间隔时间(秒)
+        /// 帧捕获间隔时间 (秒)
         /// 控制两次捕获之间的等待时间
-        /// 默认值：0.1秒(10FPS)
+        /// 默认值：0.1 秒 (10FPS)
         /// </summary>
         [ObservableProperty]
         public double _captureInterval = 0.1;
@@ -136,7 +136,7 @@ namespace Sai2Capture.ViewModels
         /// </summary>
         private void OnLogUpdated(object? sender, LogEventArgs e)
         {
-            // 确保在UI线程更新显示
+            // 确保在 UI 线程更新显示
             System.Windows.Application.Current?.Dispatcher.Invoke(() =>
             {
                 UpdateLogDisplay();
@@ -145,9 +145,10 @@ namespace Sai2Capture.ViewModels
 
         /// <summary>
         /// 初始化各服务组件
-        /// 1. 初始化捕获服务的Dispatcher
-        /// 2. 枚举SAI2相关窗口标题列表
+        /// 1. 初始化捕获服务的 Dispatcher
+        /// 2. 枚举 SAI2 相关窗口标题列表
         /// 3. 加载并应用用户设置
+        /// 4. 获取 SAI2 画布尺寸
         /// </summary>
         private void InitializeServices()
         {
@@ -162,14 +163,69 @@ namespace Sai2Capture.ViewModels
             SavePath = _settingsService.SavePath;
             Sai2Path = _settingsService.Sai2Path;
 
+            // 获取 SAI2 画布尺寸
+            UpdateCanvasSize();
+
             // 初始化日志
             AddLog("应用程序启动");
-            AddLog($"设置文件路径: {_settingsService.GetSettingsFilePath()}");
-            AddLog($"加载设置 - 窗口: {SelectedWindowTitle}, 间隔: {CaptureInterval}秒");
-            AddLog($"保存路径: {SavePath}");
+            AddLog($"设置文件路径：{_settingsService.GetSettingsFilePath()}");
+            AddLog($"加载设置 - 窗口：{SelectedWindowTitle}, 间隔：{CaptureInterval}秒");
+            AddLog($"保存路径：{SavePath}");
 
             // 初始化状态
             Status = "未录制";
+        }
+
+        /// <summary>
+        /// 更新 SAI2 画布尺寸
+        /// 从窗口标题获取 .sai2 文件路径并解析
+        /// </summary>
+        private void UpdateCanvasSize()
+        {
+            try
+            {
+                var sai2Processes = System.Diagnostics.Process.GetProcessesByName("sai2");
+                if (sai2Processes.Length == 0)
+                {
+                    sai2Processes = System.Diagnostics.Process.GetProcessesByName("sai");
+                }
+
+                foreach (var proc in sai2Processes)
+                {
+                    try
+                    {
+                        var title = proc.MainWindowTitle;
+                        if (!string.IsNullOrEmpty(title))
+                        {
+                            // 从标题中提取 .sai2 文件路径
+                            var parts = title.Split(new[] { " - " }, StringSplitOptions.None);
+                            if (parts.Length >= 2)
+                            {
+                                var potentialPath = parts[parts.Length - 1].Trim();
+                                if (potentialPath.EndsWith(".sai2", StringComparison.OrdinalIgnoreCase) && File.Exists(potentialPath))
+                                {
+                                    if (Sai2FileParser.TryParseCanvasSize(potentialPath, out int width, out int height))
+                                    {
+                                        _captureService.SharedState.CanvasWidth = width;
+                                        _captureService.SharedState.CanvasHeight = height;
+                                        AddLog($"🎨 SAI2 画布尺寸：{width} x {height}");
+                                        Status = $"SAI2 画布：{width} x {height}";
+                                        return;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        // 忽略单个进程的错误
+                    }
+                }
+            }
+            catch
+            {
+                // 忽略
+            }
         }
 
         /// <summary>
@@ -180,7 +236,7 @@ namespace Sai2Capture.ViewModels
         [RelayCommand]
         private void StartCapture()
         {
-            AddLog($"开始捕获 - 窗口: {SelectedWindowTitle}, 间隔: {CaptureInterval}秒");
+            AddLog($"开始捕获 - 窗口：{SelectedWindowTitle}, 间隔：{CaptureInterval}秒");
             AddLog($"_captureService.SharedState.IsInitialized = {_captureService.SharedState.IsInitialized}");
             AddLog($"_captureService.SharedState.Running = {_captureService.SharedState.Running}");
 
@@ -234,7 +290,7 @@ namespace Sai2Capture.ViewModels
         {
             try
             {
-                AddLog($"执行热键命令: {hotkeyId} -> {commandName}");
+                AddLog($"执行热键命令：{hotkeyId} -> {commandName}");
 
                 switch (commandName)
                 {
@@ -261,7 +317,7 @@ namespace Sai2Capture.ViewModels
             }
             catch (Exception ex)
             {
-                AddLog($"执行热键命令失败: {ex.Message}", "ERROR");
+                AddLog($"执行热键命令失败：{ex.Message}", "ERROR");
             }
         }
 
@@ -274,7 +330,7 @@ namespace Sai2Capture.ViewModels
             {
                 case "toggle_window_topmost":
                     // 切换窗口置顶状态
-                    // 这个需要在MainWindow中处理
+                    // 这个需要在 MainWindow 中处理
                     ToggleWindowTopmost();
                     break;
             }
@@ -287,7 +343,7 @@ namespace Sai2Capture.ViewModels
         {
             try
             {
-                // 通过Application.Current.MainWindow访问主窗口
+                // 通过 Application.Current.MainWindow 访问主窗口
                 if (System.Windows.Application.Current.MainWindow != null)
                 {
                     var mainWindow = System.Windows.Application.Current.MainWindow;
@@ -296,13 +352,13 @@ namespace Sai2Capture.ViewModels
                     // 手动更新置顶按钮状态以同步按钮样式
                     Sai2Capture.Styles.WindowTemplateHelper.UpdateWindowTopmostState(mainWindow);
 
-                    AddLog($"窗口置顶状态已切换为: {mainWindow.Topmost}");
+                    AddLog($"窗口置顶状态已切换为：{mainWindow.Topmost}");
                     Status = $"窗口已{ (mainWindow.Topmost ? "置顶" : "取消置顶") }";
                 }
             }
             catch (Exception ex)
             {
-                AddLog($"切换窗口置顶状态失败: {ex.Message}", "ERROR");
+                AddLog($"切换窗口置顶状态失败：{ex.Message}", "ERROR");
             }
         }
 
@@ -359,21 +415,21 @@ namespace Sai2Capture.ViewModels
 
         /// <summary>
         /// 获取捕获服务实例
-        /// 用于UI绑定的只读属性
+        /// 用于 UI 绑定的只读属性
         /// 提供对捕获进度和状态的访问
         /// </summary>
         public CaptureService CaptureService => _captureService;
 
         /// <summary>
         /// 刷新窗口列表命令
-        /// 重新扫描系统进程，查找SAI2相关的窗口标题
+        /// 重新扫描系统进程，查找 SAI2 相关的窗口标题
         /// </summary>
         [RelayCommand]
         private void RefreshWindowList()
         {
             var currentSelection = SelectedWindowTitle;
             WindowTitles = new ObservableCollection<string>(_windowCaptureService.EnumSai2WindowTitles());
-            AddLog($"SAI2窗口列表已刷新，共 {WindowTitles.Count} 个SAI2相关窗口");
+            AddLog($"SAI2 窗口列表已刷新，共 {WindowTitles.Count} 个 SAI2 相关窗口");
 
             // 如果之前的选择仍然存在，保持选择
             if (!string.IsNullOrEmpty(currentSelection) && WindowTitles.Contains(currentSelection))
@@ -393,16 +449,16 @@ namespace Sai2Capture.ViewModels
                 if (string.IsNullOrWhiteSpace(SelectedWindowTitle))
                 {
                     Status = "请先选择或输入窗口标题";
-                    AddLog("预览失败: 未选择窗口标题", "WARNING");
+                    AddLog("预览失败：未选择窗口标题", "WARNING");
                     return;
                 }
 
-                AddLog($"启动嵌入式预览: {SelectedWindowTitle}");
-                
+                AddLog($"启动嵌入式预览：{SelectedWindowTitle}");
+
                 // 停止之前的预览（如果有）
                 _utilityService.StopEmbeddedPreview();
-                
-                // 只有在提供了Image控件时才启动预览
+
+                // 只有在提供了 Image 控件时才启动预览
                 if (previewImage != null)
                 {
                     _utilityService.StartEmbeddedPreview(SelectedWindowTitle, previewImage);
@@ -410,8 +466,8 @@ namespace Sai2Capture.ViewModels
             }
             catch (Exception ex)
             {
-                Status = $"启动嵌入式预览错误: {ex.Message}";
-                AddLog($"启动嵌入式预览错误: {ex.Message}", "ERROR");
+                Status = $"启动嵌入式预览错误：{ex.Message}";
+                AddLog($"启动嵌入式预览错误：{ex.Message}", "ERROR");
             }
         }
 
@@ -427,7 +483,7 @@ namespace Sai2Capture.ViewModels
             }
             catch (Exception ex)
             {
-                AddLog($"停止嵌入式预览错误: {ex.Message}", "ERROR");
+                AddLog($"停止嵌入式预览错误：{ex.Message}", "ERROR");
             }
         }
 
@@ -456,14 +512,14 @@ namespace Sai2Capture.ViewModels
 
         /// <summary>
         /// 获取或设置保存路径
-        /// 默认为程序根目录下的output文件夹
+        /// 默认为程序根目录下的 output 文件夹
         /// </summary>
         [ObservableProperty]
         private string _savePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "output");
 
         /// <summary>
-        /// 获取或设置SAI2程序路径
-        /// 用于快速启动SAI2应用程序
+        /// 获取或设置 SAI2 程序路径
+        /// 用于快速启动 SAI2 应用程序
         /// </summary>
         [ObservableProperty]
         private string _sai2Path = "";
@@ -478,7 +534,7 @@ namespace Sai2Capture.ViewModels
         /// 日志统计信息
         /// </summary>
         [ObservableProperty]
-        private string _logStatistics = "日志行数: 0";
+        private string _logStatistics = "日志行数：0";
 
         /// <summary>
         /// 自动滚动日志
@@ -519,14 +575,14 @@ namespace Sai2Capture.ViewModels
 
             if (filterLevel.HasValue)
             {
-                LogStatistics = $"显示: {count} / 总计: {totalCount} / 1000 | 过滤: {LogFilterLevel}";
+                LogStatistics = $"显示：{count} / 总计：{totalCount} / 1000 | 过滤：{LogFilterLevel}";
             }
             else
             {
-                LogStatistics = $"日志行数: {totalCount} / 1000 | 最后更新: {DateTime.Now:yyyy-MM-dd HH:mm:ss}";
+                LogStatistics = $"日志行数：{totalCount} / 1000 | 最后更新：{DateTime.Now:yyyy-MM-dd HH:mm:ss}";
             }
 
-            // 过滤后也自动滚动到底部（确保在UI线程执行）
+            // 过滤后也自动滚动到底部（确保在 UI 线程执行）
             if (AutoScrollLog && _logScrollViewer != null)
             {
                 try
@@ -562,7 +618,7 @@ namespace Sai2Capture.ViewModels
         }
 
         /// <summary>
-        /// 浏览SAI2程序路径命令
+        /// 浏览 SAI2 程序路径命令
         /// </summary>
         [RelayCommand]
         private void BrowseSai2Path()
@@ -575,12 +631,12 @@ namespace Sai2Capture.ViewModels
             if (dialog.ShowDialog() == DialogResult.OK)
             {
                 Sai2Path = dialog.FileName;
-                AddLog($"已选择 SAI2 程序路径: {Sai2Path}");
+                AddLog($"已选择 SAI2 程序路径：{Sai2Path}");
             }
         }
 
         /// <summary>
-        /// 启动SAI2命令
+        /// 启动 SAI2 命令
         /// </summary>
         [RelayCommand]
         private void LaunchSai2()
@@ -595,11 +651,11 @@ namespace Sai2Capture.ViewModels
 
                 if (!File.Exists(Sai2Path))
                 {
-                    System.Windows.MessageBox.Show($"SAI2 程序文件不存在: {Sai2Path}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                    System.Windows.MessageBox.Show($"SAI2 程序文件不存在：{Sai2Path}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
                     return;
                 }
 
-                // 启动SAI2应用程序
+                // 启动 SAI2 应用程序
                 var processStartInfo = new ProcessStartInfo
                 {
                     FileName = Sai2Path,
@@ -607,11 +663,11 @@ namespace Sai2Capture.ViewModels
                 };
 
                 Process.Start(processStartInfo);
-                AddLog($"SAI2 已启动: {Sai2Path}");
+                AddLog($"SAI2 已启动：{Sai2Path}");
             }
             catch (Exception ex)
             {
-                var errorMessage = $"启动 SAI2 失败: {ex.Message}";
+                var errorMessage = $"启动 SAI2 失败：{ex.Message}";
                 AddLog(errorMessage, "ERROR");
                 System.Windows.MessageBox.Show(errorMessage, "启动失败", MessageBoxButton.OK, MessageBoxImage.Error);
             }
@@ -653,25 +709,25 @@ namespace Sai2Capture.ViewModels
             {
                 // 使用固定的日志导出目录，而不是用户设置的保存路径
                 var logExportPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
-                
+
                 // 确保日志目录存在
                 if (!Directory.Exists(logExportPath))
                 {
                     Directory.CreateDirectory(logExportPath);
                 }
-                
+
                 var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
                 var fileName = $"Sai2Capture_Log_{timestamp}.txt";
                 var filePath = Path.Combine(logExportPath, fileName);
 
                 File.WriteAllText(filePath, LogContent);
-                AddLog($"日志已导出到: {filePath}");
-                Status = $"日志已导出: {fileName}";
+                AddLog($"日志已导出到：{filePath}");
+                Status = $"日志已导出：{fileName}";
             }
             catch (Exception ex)
             {
-                AddLog($"导出日志失败: {ex.Message}", "ERROR");
-                Status = $"导出日志失败: {ex.Message}";
+                AddLog($"导出日志失败：{ex.Message}", "ERROR");
+                Status = $"导出日志失败：{ex.Message}";
             }
         }
     }

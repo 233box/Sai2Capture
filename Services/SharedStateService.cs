@@ -115,6 +115,20 @@ namespace Sai2Capture.Services
         public List<string> WindowTitles { get; set; } = new List<string>();
 
         /// <summary>
+        /// SAI2 画布宽度
+        /// 通过解析.sai2 文件获取
+        /// </summary>
+        [ObservableProperty]
+        private int _canvasWidth = 0;
+
+        /// <summary>
+        /// SAI2 画布高度
+        /// 通过解析.sai2 文件获取
+        /// </summary>
+        [ObservableProperty]
+        private int _canvasHeight = 0;
+
+        /// <summary>
         /// 重置所有捕获相关状态到初始值
         /// 在停止录制后调用，准备下一次录制
         /// </summary>

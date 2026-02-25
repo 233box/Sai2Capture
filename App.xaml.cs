@@ -24,21 +24,21 @@ namespace Sai2Capture
             services.AddSingleton<CaptureService>();
             services.AddSingleton<SettingsService>();
             services.AddSingleton<LogService>();
-            services.AddSingleton<HotkeyService>(); // 新增热键服务
-            services.AddSingleton<HotkeyViewModel>(); // 新增热键视图模型
+            services.AddSingleton<HotkeyService>();
+            services.AddSingleton<HotkeyViewModel>();
 
-            // 注册Dispatcher - 使用延迟初始化
+            // 注册 Dispatcher - 使用延迟初始化
             services.AddSingleton(provider =>
                 Current?.Dispatcher ?? System.Windows.Threading.Dispatcher.CurrentDispatcher);
 
-            // 注册ViewModel
+            // 注册 ViewModel
             services.AddSingleton<MainViewModel>();
         }
 
         protected override void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
-            
+
             var mainWindow = new MainWindow();
             mainWindow.DataContext = Ioc.Default.GetRequiredService<MainViewModel>();
             mainWindow.Show();
