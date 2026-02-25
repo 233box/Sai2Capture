@@ -127,9 +127,97 @@ namespace Sai2Capture.Services
                 _previewTimer = null;
                 _logService.AddLog("预览定时器已停止");
             }
-            
+
             // 预览捕获会话已停止
             _logService.AddLog("预览捕获会话已停止");
+        }
+
+        private System.Windows.Controls.Image? _embeddedPreviewImage;
+
+        /// <summary>
+        /// 启动嵌入式预览
+        /// 在主界面内显示指定窗口的实时预览
+        /// </summary>
+        /// <param name="windowTitle">要预览的窗口标题</param>
+        /// <param name="previewImage">预览图像控件</param>
+        public async void StartEmbeddedPreview(string windowTitle, System.Windows.Controls.Image previewImage)
+        {
+            if (string.IsNullOrEmpty(windowTitle) || previewImage == null)
+            {
+                _logService.AddLog("未选择窗口名称或预览控件为空", LogLevel.Error);
+                return;
+            }
+
+            try
+            {
+                // 停止之前的定时器
+                StopEmbeddedPreview();
+
+                _embeddedPreviewImage = previewImage;
+                _logService.AddLog($"启动嵌入式预览: {windowTitle}");
+                
+                nint hwnd = _windowCaptureService.FindWindowByTitle(windowTitle);
+
+                // 初始化捕获会话用于预览
+                _logService.AddLog("为嵌入式预览初始化捕获会话");
+                bool captureInitialized = await _windowCaptureService.InitializeCaptureAsync(hwnd);
+
+                if (captureInitialized)
+                {
+                    _logService.AddLog("嵌入式预览将使用 PrintWindow API 进行截图");
+                }
+
+                _previewTimer = new System.Windows.Threading.DispatcherTimer();
+                _previewTimer.Interval = TimeSpan.FromMilliseconds(50);
+                _previewTimer.Tick += (sender, e) => UpdateEmbeddedPreview(hwnd);
+                _previewTimer.Start();
+
+                _logService.AddLog("嵌入式预览已启动", LogLevel.Info);
+            }
+            catch (Exception ex)
+            {
+                _logService.AddLog($"启动嵌入式预览失败: {ex.Message}", LogLevel.Error);
+            }
+        }
+
+        /// <summary>
+        /// 停止嵌入式预览
+        /// 清理定时器资源
+        /// </summary>
+        public void StopEmbeddedPreview()
+        {
+            if (_previewTimer != null)
+            {
+                _previewTimer.Stop();
+                _previewTimer = null;
+                _logService.AddLog("嵌入式预览定时器已停止");
+            }
+
+            _embeddedPreviewImage = null;
+            _logService.AddLog("嵌入式预览已停止");
+        }
+
+        /// <summary>
+        /// 更新嵌入式预览内容
+        /// 捕获指定窗口内容并直接更新预览控件
+        /// </summary>
+        /// <param name="hwnd">目标窗口句柄</param>
+        private void UpdateEmbeddedPreview(nint hwnd)
+        {
+            try
+            {
+                Mat image = _windowCaptureService.CaptureWindowContent(hwnd);
+                var bitmap = MatToBitmapSource(image);
+
+                if (_embeddedPreviewImage != null)
+                {
+                    _embeddedPreviewImage.Source = bitmap;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logService.AddLog($"嵌入式预览更新失败: {ex.Message}", LogLevel.Error);
+            }
         }
 
         /// <summary>
@@ -200,29 +288,39 @@ namespace Sai2Capture.Services
         }
         /// <summary>
         /// 将OpenCV Mat转换为WPF BitmapSource
-        /// 通过临时文件方式实现格式转换
+        /// 使用内存中的PNG格式转换，避免文件I/O操作
         /// </summary>
         /// <param name="image">OpenCV Mat图像</param>
         /// <returns>WPF BitmapSource对象</returns>
         private BitmapSource MatToBitmapSource(Mat image)
         {
-            using (var memoryStream = new System.IO.MemoryStream())
+            try
             {
-                Cv2.ImWrite("temp.bmp", image);
-                var bytes = File.ReadAllBytes("temp.bmp");
-                memoryStream.Write(bytes, 0, bytes.Length);
-                File.Delete("temp.bmp");
-                memoryStream.Seek(0, SeekOrigin.Begin);
+                using (var memoryStream = new System.IO.MemoryStream())
+                {
+                    // 使用内存中的PNG编码而不是文件
+                    Cv2.ImEncode(".png", image, out var imageData);
+                    memoryStream.Write(imageData, 0, imageData.Length);
+                    memoryStream.Seek(0, SeekOrigin.Begin);
 
-                var bitmapImage = new BitmapImage();
-                bitmapImage.BeginInit();
-                bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
-                bitmapImage.StreamSource = memoryStream;
-                bitmapImage.EndInit();
-                bitmapImage.Freeze();
+                    var bitmapImage = new BitmapImage();
+                    bitmapImage.BeginInit();
+                    bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
+                    bitmapImage.StreamSource = memoryStream;
+                    bitmapImage.EndInit();
+                    bitmapImage.Freeze();
 
-                return bitmapImage;
+                    return bitmapImage;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logService.AddLog($"Mat转BitmapSource失败: {ex.Message}", LogLevel.Error);
+                
+                // 创建一个默认的空图像
+                return new BitmapImage();
             }
         }
+
     }
 }

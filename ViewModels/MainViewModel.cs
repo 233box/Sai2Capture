@@ -38,7 +38,6 @@ namespace Sai2Capture.ViewModels
         private readonly LogService _logService;
         private readonly HotkeyViewModel _hotkeyViewModel;
         private readonly System.Windows.Threading.DispatcherTimer _statusTimer;
-        private System.Windows.Window? _previewWindow;
         private System.Windows.Controls.ScrollViewer? _logScrollViewer;
 
         /// <summary>
@@ -56,6 +55,21 @@ namespace Sai2Capture.ViewModels
         [ObservableProperty]
         public string? _selectedWindowTitle = "导航器";
 
+        partial void OnSelectedWindowTitleChanged(string? value)
+        {
+            // 当窗口标题变更时，重新启动预览
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                // 通知MainPage重启预览
+                RestartPreviewRequested?.Invoke();
+            }
+        }
+
+        /// <summary>
+        /// 当需要重启预览时触发的事件
+        /// </summary>
+        public event Action? RestartPreviewRequested;
+
         /// <summary>
         /// 帧捕获间隔时间(秒)
         /// 控制两次捕获之间的等待时间
@@ -71,6 +85,7 @@ namespace Sai2Capture.ViewModels
         /// </summary>
         [ObservableProperty]
         public string _zoomLevel = "125%";
+
 
 
 
@@ -235,9 +250,6 @@ namespace Sai2Capture.ViewModels
                     case "RefreshWindowListCommand":
                         RefreshWindowListCommand.Execute(null);
                         break;
-                    case "PreviewWindowCommand":
-                        PreviewWindowCommand.Execute(null);
-                        break;
                     case "ExportLogCommand":
                         ExportLogCommand.Execute(null);
                         break;
@@ -371,13 +383,10 @@ namespace Sai2Capture.ViewModels
         }
 
         /// <summary>
-        /// 预览窗口命令
-        /// 创建一个新窗口实时预览指定窗口的内容
-        /// 如果预览窗口已存在，则激活并聚焦该窗口
-        /// 当窗口标题未选择时显示错误状态
+        /// 启动嵌入式预览
+        /// 在主界面左侧开始显示指定窗口的实时预览
         /// </summary>
-        [RelayCommand]
-        private void PreviewWindow()
+        public void StartEmbeddedPreview(System.Windows.Controls.Image? previewImage = null)
         {
             try
             {
@@ -388,65 +397,37 @@ namespace Sai2Capture.ViewModels
                     return;
                 }
 
-                // 如果预览窗口已存在且未关闭，则激活并聚焦
-                if (_previewWindow != null)
+                AddLog($"启动嵌入式预览: {SelectedWindowTitle}");
+                
+                // 停止之前的预览（如果有）
+                _utilityService.StopEmbeddedPreview();
+                
+                // 只有在提供了Image控件时才启动预览
+                if (previewImage != null)
                 {
-                    // 检查窗口是否仍然有效
-                    try
-                    {
-                        if (_previewWindow.IsLoaded)
-                        {
-                            _previewWindow.Activate();
-                            _previewWindow.Focus();
-                            AddLog($"聚焦到现有预览窗口: {SelectedWindowTitle}");
-
-                            // 如果窗口标题改变了，更新预览内容
-                            if (_previewWindow.Title != "窗口预览 - " + SelectedWindowTitle)
-                            {
-                                _previewWindow.Title = "窗口预览 - " + SelectedWindowTitle;
-                                _utilityService.StopPreview();
-                                _utilityService.StartPreview(SelectedWindowTitle, _previewWindow);
-                                AddLog($"更新预览窗口内容: {SelectedWindowTitle}");
-                            }
-                            return;
-                        }
-                    }
-                    catch
-                    {
-                        // 窗口已关闭或无效，继续创建新窗口
-                        _previewWindow = null;
-                    }
+                    _utilityService.StartEmbeddedPreview(SelectedWindowTitle, previewImage);
                 }
-
-                // 创建新的预览窗口（使用自定义样式）
-                AddLog($"打开预览窗口: {SelectedWindowTitle}");
-                _previewWindow = new System.Windows.Window
-                {
-                    Title = "窗口预览 - " + SelectedWindowTitle,
-                    Width = 640,
-                    Height = 480,
-                    Content = new System.Windows.Controls.Image()
-                };
-
-                // 应用自定义样式模板
-                Sai2Capture.Styles.WindowTemplateHelper.ApplyCustomWindowStyle(_previewWindow);
-
-                // 窗口关闭时清理引用
-                _previewWindow.Closed += (s, e) =>
-                {
-                    _utilityService.StopPreview();
-                    _previewWindow = null;
-                    AddLog("预览窗口已关闭");
-                };
-
-                _utilityService.StartPreview(SelectedWindowTitle, _previewWindow);
-                _previewWindow.Show();
             }
             catch (Exception ex)
             {
-                Status = $"预览窗口错误: {ex.Message}";
-                AddLog($"预览窗口错误: {ex.Message}", "ERROR");
-                _previewWindow = null;
+                Status = $"启动嵌入式预览错误: {ex.Message}";
+                AddLog($"启动嵌入式预览错误: {ex.Message}", "ERROR");
+            }
+        }
+
+        /// <summary>
+        /// 停止嵌入式预览
+        /// </summary>
+        public void StopEmbeddedPreview()
+        {
+            try
+            {
+                _utilityService.StopEmbeddedPreview();
+                AddLog("已停止嵌入式预览");
+            }
+            catch (Exception ex)
+            {
+                AddLog($"停止嵌入式预览错误: {ex.Message}", "ERROR");
             }
         }
 
@@ -454,7 +435,7 @@ namespace Sai2Capture.ViewModels
         /// 窗口关闭前处理
         /// 1. 保存当前所有设置值
         /// 2. 确保停止所有捕获操作
-        /// 3. 关闭预览窗口
+        /// 3. 停止嵌入式预览
         /// 4. 保留应用状态的完整性
         /// </summary>
         public void OnWindowClosing()
@@ -469,19 +450,8 @@ namespace Sai2Capture.ViewModels
 
             _captureService.StopCapture();
 
-            // 关闭预览窗口
-            if (_previewWindow != null)
-            {
-                try
-                {
-                    _previewWindow.Close();
-                }
-                catch
-                {
-                    // 窗口可能已经关闭
-                }
-                _previewWindow = null;
-            }
+            // 停止嵌入式预览
+            StopEmbeddedPreview();
         }
 
         /// <summary>

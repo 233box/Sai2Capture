@@ -13,13 +13,43 @@
             <converters:UniversalConverter x:Key="UniversalConverter" />
         </ResourceDictionary>
     </UserControl.Resources>
-    <Grid Margin="16">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="320"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- 左侧预览区域 -->
+        <Border Grid.Column="0" BorderBrush="#E5E5E5" BorderThickness="0,0,1,0" Background="#FAFAFA">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                
+                <!-- 预览标题 -->
+                <Border Grid.Row="0" Background="White" Padding="16,12,16,12" BorderBrush="#E5E5E5" BorderThickness="0,0,0,1">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="实时预览" FontWeight="SemiBold" FontSize="14" Foreground="#333333"/>
+                        <TextBlock x:Name="PreviewStatusText" Text="" Margin="8,0,0,0" FontSize="12" Foreground="#666666"/>
+                    </StackPanel>
+                </Border>
+                
+                <!-- 预览内容 -->
+                <Border Grid.Row="1" Margin="8,8,8,8" Background="White" BorderBrush="#E5E5E5" BorderThickness="1" CornerRadius="4">
+                    <Image x:Name="PreviewImage" Stretch="Uniform" Margin="4"/>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- 右侧主要内容区域 -->
+        <Grid Grid.Column="1" Margin="16">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
 
         <!-- Capture Settings Card -->
         <ui:Card Grid.Row="0" Margin="0,0,0,16">
@@ -73,12 +103,8 @@
                     Margin="0,0,12,0"/>
             </StackPanel>
             
-            <!-- 第二行：辅助功能按钮 -->
+            <!-- 辅助功能按钮 -->
             <StackPanel Orientation="Horizontal">
-                <ui:Button
-                    Content="预览窗口"
-                    Command="{Binding PreviewWindowCommand}"
-                    Margin="0,0,12,0"/>
                 <ui:Button
                     Content="启动 SAI2"
                     Command="{Binding LaunchSai2Command}"
@@ -90,10 +116,11 @@
 
         <!-- Status Display -->
         <ui:Card Grid.Row="3" Margin="0">
-            <TextBlock 
-                Text="{Binding Status}" 
+            <TextBlock
+                Text="{Binding Status}"
                 FontWeight="SemiBold"
                 HorizontalAlignment="Center"/>
         </ui:Card>
-    </Grid>
+        </Grid>
+        </Grid>
 </UserControl>
