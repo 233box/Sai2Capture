@@ -101,6 +101,14 @@ namespace Sai2Capture.Services
         private double _windowTop = -1;
 
         /// <summary>
+        /// 主页面预览区域宽度
+        /// 记录左侧预览窗格的宽度
+        /// 默认值：320
+        /// </summary>
+        [ObservableProperty]
+        private double _previewColumnWidth = 320;
+
+        /// <summary>
         /// 初始化设置服务
         /// </summary>
         /// <param name="sharedState">共享状态服务，用于配置同步</param>
@@ -152,6 +160,7 @@ namespace Sai2Capture.Services
                         WindowHeight = settings.WindowHeight > 0 ? settings.WindowHeight : WindowHeight;
                         WindowLeft = settings.WindowLeft;
                         WindowTop = settings.WindowTop;
+                        PreviewColumnWidth = settings.PreviewColumnWidth > 0 ? settings.PreviewColumnWidth : PreviewColumnWidth;
 
                         // 加载热键配置
                         if (settings.Hotkeys != null && settings.Hotkeys.Any())
@@ -224,7 +233,8 @@ namespace Sai2Capture.Services
                     WindowWidth = WindowWidth,
                     WindowHeight = WindowHeight,
                     WindowLeft = WindowLeft,
-                    WindowTop = WindowTop
+                    WindowTop = WindowTop,
+                    PreviewColumnWidth = PreviewColumnWidth
                 };
 
                 string json = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
@@ -347,6 +357,11 @@ namespace Sai2Capture.Services
             /// 窗口上边距
             /// </summary>
             public double WindowTop { get; set; }
+
+            /// <summary>
+            /// 主页面预览区域宽度
+            /// </summary>
+            public double PreviewColumnWidth { get; set; }
         }
     }
 }

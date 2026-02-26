@@ -5,6 +5,7 @@ using System.Windows.Media;
 using CommunityToolkit.Mvvm.DependencyInjection;
 using Sai2Capture.Services;
 using Sai2Capture.ViewModels;
+using Sai2Capture.Views;
 using System.Runtime.InteropServices;
 using System.Windows.Interop;
 
@@ -211,6 +212,10 @@ namespace Sai2Capture
         {
             base.OnClosed(e);
 
+            // 保存 MainPage 的预览区域宽度设置
+            var mainPage = FindChild<MainPage>(this);
+            mainPage?.SaveSettings();
+
             if (_hotkeyService != null)
             {
                 _hotkeyService.Dispose();
@@ -221,6 +226,27 @@ namespace Sai2Capture
             {
                 viewModel.StopCanvasPolling();
             }
+        }
+
+        /// <summary>
+        /// 在视觉树中查找子控件
+        /// </summary>
+        private static T? FindChild<T>(DependencyObject parent) where T : DependencyObject
+        {
+            if (parent == null) return null;
+
+            for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                var child = System.Windows.Media.VisualTreeHelper.GetChild(parent, i);
+                if (child is T result)
+                    return result;
+
+                var grandChild = FindChild<T>(child);
+                if (grandChild != null)
+                    return grandChild;
+            }
+
+            return null;
         }
     }
 }

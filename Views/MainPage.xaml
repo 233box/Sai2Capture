@@ -14,8 +14,9 @@
     </UserControl.Resources>
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="320"/>
-            <ColumnDefinition Width="*"/>
+            <ColumnDefinition x:Name="PreviewColumn" Width="320" MinWidth="200"/>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*" MinWidth="400"/>
         </Grid.ColumnDefinitions>
 
         <!-- 左侧预览区域 -->
@@ -41,8 +42,25 @@
             </Grid>
         </Border>
 
+        <!-- 可拖动分隔线 -->
+        <GridSplitter Grid.Column="1" Width="4" Background="#E5E5E5" HorizontalAlignment="Center">
+            <GridSplitter.Template>
+                <ControlTemplate TargetType="GridSplitter">
+                    <Border Background="Transparent">
+                        <Border x:Name="splitterBorder" Width="1" Background="#E5E5E5" VerticalAlignment="Stretch"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="splitterBorder" Property="Background" Value="#2196F3"/>
+                            <Setter TargetName="splitterBorder" Property="Width" Value="2"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </GridSplitter.Template>
+        </GridSplitter>
+
         <!-- 右侧主要内容区域 -->
-        <Grid Grid.Column="1" Margin="16">
+        <Grid Grid.Column="2" Margin="16">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
