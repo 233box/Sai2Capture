@@ -5,16 +5,19 @@
     <!-- 自定义窗口模板（完整功能版）-->
     <ControlTemplate x:Key="CustomWindowTemplate" TargetType="Window">
         <Border
+            x:Name="MainBorder"
             Background="White"
             CornerRadius="8"
             BorderBrush="{StaticResource WindowBorderBrush}"
             BorderThickness="1">
             <Border.Effect>
                 <DropShadowEffect
+                    x:Name="WindowShadow"
                     Color="Black"
-                    Opacity="0.2"
-                    BlurRadius="15"
-                    ShadowDepth="0"/>
+                    Opacity="0.15"
+                    BlurRadius="8"
+                    ShadowDepth="0"
+                    RenderingBias="Performance"/>
             </Border.Effect>
 
             <Grid>
@@ -146,9 +149,10 @@
             <Border.Effect>
                 <DropShadowEffect
                     Color="Black"
-                    Opacity="0.2"
-                    BlurRadius="15"
-                    ShadowDepth="0"/>
+                    Opacity="0.15"
+                    BlurRadius="8"
+                    ShadowDepth="0"
+                    RenderingBias="Performance"/>
             </Border.Effect>
 
             <Grid>

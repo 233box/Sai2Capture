@@ -480,43 +480,24 @@ namespace Sai2Capture.ViewModels
         {
             get
             {
-                if (_captureService.SharedState.Running)
-                    return RecordingState.Recording;
-                if (_captureService.SharedState.IsInitialized)
-                    return RecordingState.Paused;
+                var state = _captureService.SharedState;
+                if (state.Running) return RecordingState.Recording;
+                if (state.IsInitialized) return RecordingState.Paused;
                 return RecordingState.Stopped;
             }
         }
 
-        /// <summary>
-        /// 是否正在录制（包括录制中和暂停状态）
-        /// </summary>
         public bool IsRecording => CurrentRecordingState != RecordingState.Stopped;
-
-        /// <summary>
-        /// 是否处于暂停状态
-        /// </summary>
         public bool IsPaused => CurrentRecordingState == RecordingState.Paused;
-
-        /// <summary>
-        /// 是否正在录制中（非暂停状态）
-        /// </summary>
         public bool IsRecordingRunning => CurrentRecordingState == RecordingState.Recording;
 
-        /// <summary>
-        /// 主录制按钮的显示文本
-        /// </summary>
-        public string RecordButtonText =>
-            CurrentRecordingState switch
-            {
-                RecordingState.Paused => "▶️ 继续录制",
-                RecordingState.Recording => "⏸️ 暂停录制",
-                _ => "🟢 开始录制"
-            };
+        public string RecordButtonText => CurrentRecordingState switch
+        {
+            RecordingState.Paused => "▶️ 继续录制",
+            RecordingState.Recording => "⏸️ 暂停录制",
+            _ => "🟢 开始录制"
+        };
 
-        /// <summary>
-        /// 停止按钮是否可用
-        /// </summary>
         public bool CanStop => IsRecording;
 
         /// <summary>

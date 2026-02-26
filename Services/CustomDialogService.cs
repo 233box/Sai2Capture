@@ -2,352 +2,141 @@ using System;
 using System.Windows;
 using System.Windows.Controls;
 using Sai2Capture.Styles;
-using Orientation = System.Windows.Controls.Orientation;
-using HorizontalAlignment = System.Windows.HorizontalAlignment;
-using VerticalAlignment = System.Windows.VerticalAlignment;
-using Application = System.Windows.Application;
-using Button = System.Windows.Controls.Button;
-using TextBlock = System.Windows.Controls.TextBlock;
-using Grid = System.Windows.Controls.Grid;
-using RowDefinition = System.Windows.Controls.RowDefinition;
-using GridLength = System.Windows.GridLength;
-using GridUnitType = System.Windows.GridUnitType;
-using StackPanel = System.Windows.Controls.StackPanel;
-using Thickness = System.Windows.Thickness;
-using TextWrapping = System.Windows.TextWrapping;
-using Style = System.Windows.Style;
-using Panel = System.Windows.Controls.Panel;
+using WpfApplication = System.Windows.Application;
+using WpfHorizontalAlignment = System.Windows.HorizontalAlignment;
+using WpfOrientation = System.Windows.Controls.Orientation;
 
 namespace Sai2Capture.Services
 {
     /// <summary>
     /// 自定义对话框服务
     /// </summary>
-    public class CustomDialogService
+    public static class CustomDialogService
     {
         /// <summary>
         /// 显示确认对话框
         /// </summary>
-        /// <param name="owner">父窗口</param>
-        /// <param name="message">消息内容</param>
-        /// <param name="title">对话框标题</param>
-        /// <param name="buttonText">确认按钮文本（默认为"确认"）</param>
-        /// <param name="cancelText">取消按钮文本（默认为"取消"）</param>
-        /// <returns>true表示确认，false表示取消</returns>
-        public static bool ShowConfirmDialog(Window owner, string message, string title = "提示", 
+        public static bool ShowConfirmDialog(Window? owner, string message, string title = "提示",
             string buttonText = "确认", string cancelText = "取消")
         {
-            var dialog = new Window
-            {
-                Title = title,
-                Width = 400,
-                Height = 200,
-                Owner = owner,
-                WindowStartupLocation = owner != null 
-                    ? WindowStartupLocation.CenterOwner 
-                    : WindowStartupLocation.CenterScreen,
-                ShowInTaskbar = false,
-                ResizeMode = ResizeMode.NoResize
-            };
+            var dialog = CreateDialog(owner, message, title, 400, 200);
+            var buttonPanel = CreateButtonPanel(dialog);
 
-            // 应用自定义样式
-            WindowTemplateHelper.ApplyCustomDialogStyle(dialog);
+            var cancelButton = CreateButton(cancelText, "SecondaryButtonStyle", () => CloseDialog(dialog, false));
+            var confirmButton = CreateButton(buttonText, "DefaultButtonStyle", () => CloseDialog(dialog, true));
 
-            bool result = false;
-            bool isConfirmed = false;
-
-            // 创建对话框内容
-            var grid = new Grid();
-            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-
-            // 消息文本
-            var textBlock = new TextBlock
-            {
-                Text = message,
-                TextWrapping = TextWrapping.Wrap,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(16),
-                FontSize = 14
-            };
-            Grid.SetRow(textBlock, 0);
-            grid.Children.Add(textBlock);
-
-            // 按钮区域
-            var buttonPanel = new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                Margin = new Thickness(0, 0, 0, 16)
-            };
-            Grid.SetRow(buttonPanel, 1);
-            grid.Children.Add(buttonPanel);
-
-            // 取消按钮
-            var cancelButton = new Button
-            {
-                Content = cancelText,
-                Style = (Style)Application.Current.FindResource("SecondaryButtonStyle")
-            };
-            cancelButton.Click += (s, e) =>
-            {
-                result = false;
-                isConfirmed = true;
-                dialog.Close();
-            };
             buttonPanel.Children.Add(cancelButton);
-
-            // 确认按钮
-            var confirmButton = new Button
-            {
-                Content = buttonText,
-                Style = (Style)Application.Current.FindResource("DefaultButtonStyle")
-            };
-            confirmButton.Click += (s, e) =>
-            {
-                result = true;
-                isConfirmed = true;
-                dialog.Close();
-            };
             buttonPanel.Children.Add(confirmButton);
 
-            dialog.Content = grid;
-
-            // 设置按钮样式
-            dialog.Loaded += (s, e) =>
-            {
-                if (dialog.Template != null)
-                {
-                    var cancelBtn = dialog.Template.FindName("CancelButton", dialog) as Button;
-                    var confirmBtn = dialog.Template.FindName("ConfirmButton", dialog) as Button;
-
-                    if (cancelBtn != null && confirmBtn != null)
-                    {
-                        // 移除模板中的按钮，使用我们自定义的按钮
-                        var parentPanel = cancelBtn.Parent as Panel;
-                        if (parentPanel != null)
-                        {
-                            int cancelIndex = parentPanel.Children.IndexOf(cancelBtn);
-                            int confirmIndex = parentPanel.Children.IndexOf(confirmBtn);
-
-                            // 移除模板按钮
-                            parentPanel.Children.Remove(cancelBtn);
-                            parentPanel.Children.Remove(confirmBtn);
-
-                            // 添加自定义按钮到正确位置
-                            if (cancelIndex >= 0 && cancelIndex < parentPanel.Children.Count)
-                            {
-                                parentPanel.Children.Insert(cancelIndex, cancelButton);
-                            }
-                            else
-                            {
-                                parentPanel.Children.Add(cancelButton);
-                            }
-
-                            if (confirmIndex >= 0 && confirmIndex < parentPanel.Children.Count)
-                            {
-                                parentPanel.Children.Insert(confirmIndex, confirmButton);
-                            }
-                            else
-                            {
-                                parentPanel.Children.Add(confirmButton);
-                            }
-                        }
-                    }
-                }
-            };
-
-            // 设置回车键确认、ESC键取消
-            dialog.PreviewKeyDown += (s, e) =>
-            {
-                if (e.Key == System.Windows.Input.Key.Enter)
-                {
-                    result = true;
-                    isConfirmed = true;
-                    dialog.Close();
-                }
-                else if (e.Key == System.Windows.Input.Key.Escape)
-                {
-                    result = false;
-                    isConfirmed = true;
-                    dialog.Close();
-                }
-            };
-
-            dialog.Closed += (s, e) =>
-            {
-                if (!isConfirmed)
-                {
-                    result = false;
-                }
-            };
-
-            dialog.ShowDialog();
-            return result;
-        }
-
-        /// <summary>
-        /// 显示警告对话框
-        /// </summary>
-        /// <param name="owner">父窗口</param>
-        /// <param name="message">消息内容</param>
-        /// <param name="title">对话框标题</param>
-        /// <returns>true表示确认</returns>
-        public static bool ShowWarningDialog(Window owner, string message, string title = "警告")
-        {
-            return ShowConfirmDialog(owner, message, title, "确认");
-        }
-
-        /// <summary>
-        /// 显示确认对话框（与MessageBox兼容）
-        /// </summary>
-        public static bool ShowDialog(string message, string caption, string confirmText = "是", string cancelText = "否")
-        {
-            var owner = Application.Current.MainWindow;
-            return ShowConfirmDialog(owner, message, caption, confirmText, cancelText);
-        }
-
-        /// <summary>
-        /// 显示确认对话框（简化版）
-        /// </summary>
-        public static bool ShowDialog(string message, string caption = "提示")
-        {
-            return ShowDialog(message, caption, "确认", "取消");
+            SetupDialogKeyboard(dialog);
+            return dialog.ShowDialog() ?? false;
         }
 
         /// <summary>
         /// 显示三选项对话框
         /// </summary>
-        /// <param name="message">消息内容</param>
-        /// <param name="caption">对话框标题</param>
-        /// <param name="button1Text">第一个按钮文本</param>
-        /// <param name="button2Text">第二个按钮文本</param>
-        /// <param name="button3Text">第三个按钮文本</param>
-        /// <returns>按钮索引：0=第一个按钮, 1=第二个按钮, 2=第三个按钮, -1=关闭/ESC</returns>
+        /// <returns>按钮索引：0=第一个按钮，1=第二个按钮，2=第三个按钮，-1=关闭/ESC</returns>
         public static int ShowThreeButtonDialog(string message, string caption,
             string button1Text, string button2Text, string button3Text)
         {
-            var dialog = new Window
-            {
-                Title = caption,
-                Width = 400,
-                Height = 200,
-                Owner = Application.Current.MainWindow,
-                WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                ShowInTaskbar = false,
-                ResizeMode = ResizeMode.NoResize
-            };
-
-            // 应用自定义样式
-            WindowTemplateHelper.ApplyCustomDialogStyle(dialog);
+            var dialog = CreateDialog(WpfApplication.Current.MainWindow, message, caption, 400, 200);
+            var buttonPanel = CreateButtonPanel(dialog);
 
             int result = -1;
-            bool isConfirmed = false;
+            var button1 = CreateButton(button1Text, "DefaultButtonStyle", () => { result = 0; dialog.Close(); }, new Thickness(0, 0, 8, 0));
+            var button2 = CreateButton(button2Text, "DangerButtonStyle", () => { result = 1; dialog.Close(); }, new Thickness(8, 0, 8, 0));
+            var button3 = CreateButton(button3Text, "SecondaryButtonStyle", () => { result = 2; dialog.Close(); }, new Thickness(8, 0, 0, 0));
 
-            // 创建对话框内容
-            var grid = new Grid();
-            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-
-            // 消息文本 - 调整边距以容纳三个按钮
-            var textBlock = new TextBlock
-            {
-                Text = message,
-                TextWrapping = TextWrapping.Wrap,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(16, 16, 16, 8),
-                FontSize = 14
-            };
-            Grid.SetRow(textBlock, 0);
-            grid.Children.Add(textBlock);
-
-            // 按钮区域
-            var buttonPanel = new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                Margin = new Thickness(0, 0, 0, 16)
-            };
-            Grid.SetRow(buttonPanel, 1);
-            grid.Children.Add(buttonPanel);
-
-            // 第一个按钮 - 主要操作
-            var button1 = new Button
-            {
-                Content = button1Text,
-                Style = (Style)Application.Current.FindResource("DefaultButtonStyle"),
-                Margin = new Thickness(0, 0, 8, 0)
-            };
-            button1.Click += (s, e) =>
-            {
-                result = 0;
-                isConfirmed = true;
-                dialog.Close();
-            };
             buttonPanel.Children.Add(button1);
-
-            // 第二个按钮 - 危险操作
-            var button2 = new Button
-            {
-                Content = button2Text,
-                Style = Application.Current.FindResource("DangerButtonStyle") as Style ??
-                         (Style)Application.Current.FindResource("SecondaryButtonStyle"),
-                Margin = new Thickness(8, 0, 8, 0)
-            };
-            button2.Click += (s, e) =>
-            {
-                result = 1;
-                isConfirmed = true;
-                dialog.Close();
-            };
             buttonPanel.Children.Add(button2);
-
-            // 第三个按钮 - 次要操作
-            var button3 = new Button
-            {
-                Content = button3Text,
-                Style = (Style)Application.Current.FindResource("SecondaryButtonStyle"),
-                Margin = new Thickness(8, 0, 0, 0)
-            };
-            button3.Click += (s, e) =>
-            {
-                result = 2;
-                isConfirmed = true;
-                dialog.Close();
-            };
             buttonPanel.Children.Add(button3);
 
-            dialog.Content = grid;
-
-            // 键盘快捷键
             dialog.PreviewKeyDown += (s, e) =>
             {
-                if (e.Key == System.Windows.Input.Key.Enter)
-                {
-                    result = 0; // 默认第一个按钮
-                    isConfirmed = true;
-                    dialog.Close();
-                }
-                else if (e.Key == System.Windows.Input.Key.Escape)
-                {
-                    result = -1;
-                    isConfirmed = true;
-                    dialog.Close();
-                }
-            };
-
-            dialog.Closed += (s, e) =>
-            {
-                if (!isConfirmed)
-                {
-                    result = -1;
-                }
+                if (e.Key == System.Windows.Input.Key.Enter) { result = 0; dialog.Close(); }
+                else if (e.Key == System.Windows.Input.Key.Escape) { result = -1; dialog.Close(); }
             };
 
             dialog.ShowDialog();
             return result;
+        }
+
+        public static bool ShowDialog(string message, string caption, string confirmText = "是", string cancelText = "否")
+            => ShowConfirmDialog(WpfApplication.Current.MainWindow, message, caption, confirmText, cancelText);
+
+        public static bool ShowDialog(string message, string caption = "提示")
+            => ShowDialog(message, caption, "确认", "取消");
+
+        private static Window CreateDialog(Window? owner, string message, string title, int width, int height)
+        {
+            var dialog = new Window
+            {
+                Title = title,
+                Width = width,
+                Height = height,
+                Owner = owner,
+                WindowStartupLocation = owner != null ? WindowStartupLocation.CenterOwner : WindowStartupLocation.CenterScreen,
+                ShowInTaskbar = false,
+                ResizeMode = ResizeMode.NoResize
+            };
+            WindowTemplateHelper.ApplyCustomDialogStyle(dialog);
+
+            var grid = new Grid();
+            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            grid.Children.Add(new TextBlock
+            {
+                Text = message,
+                TextWrapping = TextWrapping.Wrap,
+                HorizontalAlignment = WpfHorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(16),
+                FontSize = 14
+            });
+
+            dialog.Content = grid;
+            return dialog;
+        }
+
+        private static StackPanel CreateButtonPanel(Window dialog)
+        {
+            var buttonPanel = new StackPanel
+            {
+                Orientation = WpfOrientation.Horizontal,
+                HorizontalAlignment = WpfHorizontalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 16)
+            };
+            Grid.SetRow(buttonPanel, 1);
+            ((Grid)dialog.Content).Children.Add(buttonPanel);
+            return buttonPanel;
+        }
+
+        private static System.Windows.Controls.Button CreateButton(string content, string styleKey, Action onClick, Thickness margin = default)
+        {
+            var button = new System.Windows.Controls.Button
+            {
+                Content = content,
+                Style = (Style)WpfApplication.Current.FindResource(styleKey),
+                Margin = margin == default ? new Thickness(0, 0, 8, 0) : margin
+            };
+            button.Click += (s, e) => onClick();
+            return button;
+        }
+
+        private static void CloseDialog(Window dialog, bool result)
+        {
+            dialog.DialogResult = result;
+            dialog.Close();
+        }
+
+        private static void SetupDialogKeyboard(Window dialog)
+        {
+            dialog.PreviewKeyDown += (s, e) =>
+            {
+                if (e.Key == System.Windows.Input.Key.Enter) { dialog.DialogResult = true; dialog.Close(); }
+                else if (e.Key == System.Windows.Input.Key.Escape) { dialog.DialogResult = false; dialog.Close(); }
+            };
         }
     }
 }

@@ -1,10 +1,7 @@
-using CommunityToolkit.Mvvm.ComponentModel;
-using OpenCvSharp;
 using System;
 using System.IO;
-using System.Windows;
+using OpenCvSharp;
 using System.Windows.Controls;
-using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
 namespace Sai2Capture.Services
@@ -12,7 +9,7 @@ namespace Sai2Capture.Services
     /// <summary>
     /// 实用工具服务
     /// </summary>
-    public partial class UtilityService : ObservableObject
+    public partial class UtilityService
     {
         private readonly SharedStateService _sharedState;
         private readonly WindowCaptureService _windowCaptureService;
@@ -22,10 +19,7 @@ namespace Sai2Capture.Services
         private string? _previewWindowTitle;
         private bool _lastPreviewWindowState;
 
-        public UtilityService(
-            SharedStateService sharedState,
-            WindowCaptureService windowCaptureService,
-            LogService logService)
+        public UtilityService(SharedStateService sharedState, WindowCaptureService windowCaptureService, LogService logService)
         {
             _sharedState = sharedState;
             _windowCaptureService = windowCaptureService;
@@ -39,18 +33,11 @@ namespace Sai2Capture.Services
         {
             string timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
             int index = 0;
-
             while (true)
             {
-                string fileName = index == 0
-                    ? $"{baseName}_{timestamp}{extension}"
-                    : $"{baseName}_{timestamp}_{index}{extension}";
-
+                string fileName = index == 0 ? $"{baseName}_{timestamp}{extension}" : $"{baseName}_{timestamp}_{index}{extension}";
                 string path = Path.Combine(folder, fileName);
-                if (!File.Exists(path))
-                {
-                    return path;
-                }
+                if (!File.Exists(path)) return path;
                 index++;
             }
         }
@@ -73,10 +60,7 @@ namespace Sai2Capture.Services
             _lastPreviewWindowState = false;
             _logService.AddLog($"启动嵌入式预览：{windowTitle}");
 
-            _previewTimer = new System.Windows.Threading.DispatcherTimer
-            {
-                Interval = TimeSpan.FromMilliseconds(50)
-            };
+            _previewTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1000) };
             _previewTimer.Tick += (s, e) => UpdateEmbeddedPreviewWithRetry();
             _previewTimer.Start();
 
@@ -104,13 +88,11 @@ namespace Sai2Capture.Services
         /// </summary>
         private void UpdateEmbeddedPreviewWithRetry()
         {
-            if (string.IsNullOrEmpty(_previewWindowTitle) || _embeddedPreviewImage == null)
-                return;
+            if (string.IsNullOrEmpty(_previewWindowTitle) || _embeddedPreviewImage == null) return;
 
             try
             {
                 nint hwnd = _windowCaptureService.FindWindowByTitle(_previewWindowTitle, silent: true);
-
                 if (hwnd == nint.Zero)
                 {
                     if (_lastPreviewWindowState)
@@ -131,9 +113,7 @@ namespace Sai2Capture.Services
                 var bitmap = MatToBitmapSource(image);
 
                 if (_embeddedPreviewImage != null)
-                {
                     _embeddedPreviewImage.Source = bitmap;
-                }
             }
             catch (Exception ex)
             {
@@ -161,33 +141,26 @@ namespace Sai2Capture.Services
         }
 
         /// <summary>
-        /// 切换窗口置顶状态
-        /// </summary>
-        public void ToggleTopmost(System.Windows.Window window)
-        {
-            window.Topmost = !window.Topmost;
-        }
-
-        /// <summary>
-        /// 将 OpenCV Mat 转换为 WPF BitmapSource
+        /// 将 OpenCV Mat 转换为 WPF BitmapSource（优化版）
         /// </summary>
         private BitmapSource MatToBitmapSource(Mat image)
         {
             try
             {
+                // 优化：使用更高效的转换方式
                 using var memoryStream = new MemoryStream();
-                Cv2.ImEncode(".png", image, out var imageData);
+                Cv2.ImEncode(".bmp", image, out var imageData);
                 memoryStream.Write(imageData, 0, imageData.Length);
                 memoryStream.Seek(0, SeekOrigin.Begin);
 
-                var bitmapImage = new BitmapImage();
-                bitmapImage.BeginInit();
-                bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
-                bitmapImage.StreamSource = memoryStream;
-                bitmapImage.EndInit();
-                bitmapImage.Freeze();
+                var bitmap = new BitmapImage();
+                bitmap.BeginInit();
+                bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                bitmap.StreamSource = memoryStream;
+                bitmap.EndInit();
+                bitmap.Freeze();
 
-                return bitmapImage;
+                return bitmap;
             }
             catch (Exception ex)
             {
