@@ -38,6 +38,8 @@ namespace Sai2Capture.Converters
                     return ConvertStringToDisplayText(value);
                 case "StringToEnabled":
                     return ConvertStringToEnabled(value);
+                case "StringToBool":
+                    return ConvertStringToBool(value);
                 case "CommandToTooltip":
                     return ConvertCommandToTooltip(value);
                 case "Invert":
@@ -69,6 +71,24 @@ namespace Sai2Capture.Converters
         }
 
         #region 转换方法
+
+        private static object ConvertStringToBool(object value)
+        {
+            if (value is string str)
+            {
+                return !string.IsNullOrEmpty(str);
+            }
+            return false;
+        }
+
+        private static object ConvertBackToBool(object value)
+        {
+            if (value is bool boolValue)
+            {
+                return boolValue ? "true" : string.Empty;
+            }
+            return string.Empty;
+        }
 
         private static object ConvertToVisibility(object value, bool visibleWhenTrue)
         {

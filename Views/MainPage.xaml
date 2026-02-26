@@ -107,17 +107,26 @@
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                     <ui:Button
                         Appearance="Primary"
-                        Content="开始/继续"
-                        Command="{Binding StartCaptureCommand}"
-                        Margin="0,0,12,0"/>
+                        Content="{Binding RecordButtonText}"
+                        Command="{Binding TogglePauseCommand}"
+                        Margin="0,0,12,0"
+                        IsEnabled="{Binding SelectedWindowTitle, Converter={StaticResource UniversalConverter}, ConverterParameter=StringToBool}"/>
                     <ui:Button
-                        Content="暂停"
-                        Command="{Binding PauseCaptureCommand}"
-                        Margin="0,0,12,0"/>
-                    <ui:Button
-                        Content="停止录制"
+                        Content="🔴 停止录制"
                         Command="{Binding StopCaptureCommand}"
-                        Margin="0,0,12,0"/>
+                        Appearance="Danger"
+                        IsEnabled="{Binding CanStop}">
+                        <ui:Button.Style>
+                            <Style TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
+                                <Setter Property="Foreground" Value="White"/>
+                                <Style.Triggers>
+                                    <Trigger Property="IsEnabled" Value="False">
+                                        <Setter Property="Foreground" Value="#9E9E9E"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ui:Button.Style>
+                    </ui:Button>
                 </StackPanel>
 
                 <!-- 辅助功能按钮 -->
