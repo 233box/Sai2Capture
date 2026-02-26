@@ -83,8 +83,7 @@ namespace Sai2Capture.Services
                 var sounds = new[]
                 {
                     "start_capture", "pause_capture", "stop_capture",
-                    "refresh_window_list", "preview_window",
-                    "toggle_window_topmost", "export_log", "default_beep"
+                    "toggle_window_topmost", "default_beep"
                 };
 
                 System.Diagnostics.Debug.WriteLine("=== 检查嵌入音效资源 ===");

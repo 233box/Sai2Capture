@@ -416,10 +416,7 @@ namespace Sai2Capture.Services
                     "start_capture" => "start_capture",         // 开始录制
                     "pause_capture" => "pause_capture",         // 暂停录制
                     "stop_capture" => "stop_capture",           // 停止录制
-                    "refresh_window_list" => "refresh_window_list", // 刷新列表
-                    "preview_window" => "preview_window",       // 预览窗口
                     "toggle_window_topmost" => "toggle_window_topmost", // 切换置顶
-                    "export_log" => "export_log",               // 导出日志
                     _ => "default_beep"                          // 默认
                 };
 

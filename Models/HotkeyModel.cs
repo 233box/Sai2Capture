@@ -105,40 +105,12 @@ namespace Sai2Capture.Models
                 },
                 new HotkeyModel
                 {
-                    Id = "refresh_window_list",
-                    Name = "刷新窗口列表",
-                    Description = "刷新可选择的窗口列表",
-                    DefaultKey = "F5",
-                    CurrentKey = "F5",
-                    CommandName = "RefreshWindowListCommand"
-                },
-                new HotkeyModel
-                {
-                    Id = "preview_window",
-                    Name = "预览窗口",
-                    Description = "打开/聚焦窗口预览",
-                    DefaultKey = "F4",
-                    CurrentKey = "F4",
-                    CommandName = "PreviewWindowCommand"
-                },
-                new HotkeyModel
-                {
                     Id = "toggle_window_topmost",
                     Name = "切换窗口置顶",
                     Description = "切换当前窗口是否置顶显示",
                     DefaultKey = "Ctrl+F4",
                     CurrentKey = "Ctrl+F4",
                     CommandName = "", // 需要单独处理
-                    RequiresModifier = true
-                },
-                new HotkeyModel
-                {
-                    Id = "export_log",
-                    Name = "导出日志",
-                    Description = "导出当前日志内容",
-                    DefaultKey = "Ctrl+E",
-                    CurrentKey = "Ctrl+E",
-                    CommandName = "ExportLogCommand",
                     RequiresModifier = true
                 }
             };
