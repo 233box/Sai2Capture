@@ -211,7 +211,6 @@ namespace Sai2Capture.Services
                 _logService.AddLog("未找到 SAI2 相关窗口，请确保 SAI2 程序正在运行", LogLevel.Warning);
             }
 
-            _sharedState.WindowTitles = sai2WindowTitles;
             _logService.AddLog($"SAI2 窗口枚举完成，找到{sai2WindowTitles.Count} 个 SAI2 相关窗口");
             return sai2WindowTitles;
         }
@@ -248,7 +247,6 @@ namespace Sai2Capture.Services
                 return true;
             }, IntPtr.Zero);
 
-            _sharedState.WindowTitles = windowTitles;
             _logService.AddLog($"枚举完成，找到{windowTitles.Count} 个可见窗口");
             return windowTitles;
         }
@@ -356,47 +354,20 @@ namespace Sai2Capture.Services
 
         /// <summary>
         /// 检查并保存有变化的帧
-        /// 在以下情况下保存帧：
-        /// 1. 视频写入器未初始化
-        /// 2. 首次启动捕获（仅第一帧）
-        /// 3. 当前帧与上一帧有差异
         /// </summary>
-        /// <param name="currentImage">当前捕获的帧</param>
         public void SaveIfModified(Mat currentImage)
         {
-            bool shouldSave = false;
-            string reason = "";
-
-            if (_sharedState.VideoWriter == null)
-            {
-                shouldSave = true;
-                reason = "视频写入器未初始化";
-            }
-            else if (_sharedState.LastImage == null)
-            {
-                // 没有上一帧，说明这是第一帧
-                shouldSave = true;
-                reason = "首次启动捕获（第一帧）";
-            }
-            else if (!ImagesEqual(_sharedState.LastImage, currentImage))
-            {
-                shouldSave = true;
-                reason = "帧内容发生变化";
-            }
+            bool shouldSave = _sharedState.VideoWriter == null
+                || _sharedState.LastImage == null
+                || !ImagesEqual(_sharedState.LastImage, currentImage);
 
             if (shouldSave)
-            {
                 SaveFrame(currentImage);
-            }
         }
 
         /// <summary>
         /// 比较两幅图像是否相同
-        /// 使用 OpenCV 绝对差值计算差异像素数
         /// </summary>
-        /// <param name="img1">第一幅图像 (null 视为不同)</param>
-        /// <param name="img2">第二幅图像</param>
-        /// <returns>当图像尺寸相同且所有像素相同时返回 true</returns>
         private bool ImagesEqual(Mat? img1, Mat img2)
         {
             if (img1 == null) return false;

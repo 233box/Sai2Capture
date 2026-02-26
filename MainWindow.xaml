@@ -14,14 +14,13 @@
     Background="Transparent"
     WindowStyle="None"
     AllowsTransparency="True"
-    ResizeMode="CanResize"
-    Closing="Window_Closing">
+    ResizeMode="CanResize">
 
     <!-- 主内容区域 -->
     <TabControl BorderThickness="0" Background="Transparent">
         <!-- 主页面标签页 -->
         <TabItem Header="主页面">
-            <views:MainPage DataContext="{Binding}" Loaded="MainPage_Loaded"/>
+            <views:MainPage DataContext="{Binding}"/>
         </TabItem>
 
         <!-- 设置标签页 -->

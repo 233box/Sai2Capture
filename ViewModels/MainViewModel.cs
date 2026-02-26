@@ -10,24 +10,22 @@ using System.Windows.Media;
 using System.IO;
 using System.Diagnostics;
 using System.Windows.Forms;
-/// TODO：
-// 可选是否为每一帧框选变化区域（感觉没用）
-// 1.  视频预览与回放
-//     - 录制结束后，直接在应用内播放生成的视频，确认无误
-// 1.  极简模式/悬浮窗
-//     - 录制开始后，主界面可以最小化到系统托盘，或者变成一个半透明的悬浮小控件（显示录制时长和停止按钮），不遮挡 SAI2 的操作区域。
-// 2.  状态指示灯
-//     - 明显的红色闪烁圆点或文字，显示"正在录制"状态。
+
 namespace Sai2Capture.ViewModels
 {
     /// <summary>
+    /// 录制状态枚举
+    /// </summary>
+    public enum RecordingState
+    {
+        Stopped,    // 未录制
+        Recording,  // 正在录制
+        Paused      // 已暂停
+    }
+
+    /// <summary>
     /// 主窗口视图模型
     /// 协调各服务组件，处理 UI 交互逻辑
-    /// 包含以下核心功能：
-    /// 1. 窗口捕获控制
-    /// 2. 视频生成管理
-    /// 3. 用户设置持久化
-    /// 4. 状态信息维护
     /// </summary>
     public partial class MainViewModel : ObservableObject
     {
@@ -312,18 +310,13 @@ namespace Sai2Capture.ViewModels
 
         /// <summary>
         /// 开始捕获窗口内容的命令
-        /// 使用 ComboBox 中显示的窗口标题（无论是选择还是输入）
-        /// 启动捕获服务并传递间隔参数
         /// </summary>
         [RelayCommand]
         private void StartCapture()
         {
             AddLog($"开始捕获 - 窗口：{SelectedWindowTitle}, 间隔：{CaptureInterval}秒");
-            AddLog($"_captureService.SharedState.IsInitialized = {_captureService.SharedState.IsInitialized}");
-            AddLog($"_captureService.SharedState.Running = {_captureService.SharedState.Running}");
 
-            // 只在未录制时重置计数器
-            if (_captureService.SharedState.IsInitialized == false && _captureService.SharedState.Running == false)
+            if (!_captureService.SharedState.IsInitialized && !_captureService.SharedState.Running)
             {
                 _elapsedSeconds = 0;
             }
@@ -331,13 +324,6 @@ namespace Sai2Capture.ViewModels
             _statusTimer.Start();
             _canvasPollingTimer.Start();
             _captureService.StartCapture(SelectedWindowTitle, true, CaptureInterval);
-
-            // 立即通知按钮状态更新
-            OnPropertyChanged(nameof(IsRecording));
-            OnPropertyChanged(nameof(IsRecordingRunning));
-            OnPropertyChanged(nameof(IsPaused));
-            OnPropertyChanged(nameof(RecordButtonText));
-            OnPropertyChanged(nameof(CanStop));
         }
 
         /// <summary>
@@ -349,28 +335,23 @@ namespace Sai2Capture.ViewModels
         {
             if (IsPaused)
             {
-                // 继续录制
                 AddLog("继续捕获", "WARNING");
                 _captureService.StartCapture(SelectedWindowTitle, false, CaptureInterval);
                 _statusTimer.Start();
             }
             else if (IsRecording)
             {
-                // 暂停录制
                 AddLog("暂停捕获", "WARNING");
                 _captureService.PauseCapture();
                 _statusTimer.Stop();
             }
             else
             {
-                // 未录制状态，开始录制
                 StartCaptureCommand.Execute(null);
-                return; // StartCaptureCommand 已经触发了属性通知
+                return;
             }
 
-            // 通知按钮状态更新
             OnPropertyChanged(nameof(IsRecording));
-            OnPropertyChanged(nameof(IsRecordingRunning));
             OnPropertyChanged(nameof(IsPaused));
             OnPropertyChanged(nameof(RecordButtonText));
             OnPropertyChanged(nameof(CanStop));
@@ -379,8 +360,6 @@ namespace Sai2Capture.ViewModels
         /// <summary>
         /// 停止捕获命令
         /// 完全停止窗口捕获过程
-        /// 释放资源并完成视频文件保存
-        /// 重置所有状态到初始值
         /// </summary>
         [RelayCommand]
         private void StopCapture()
@@ -390,14 +369,6 @@ namespace Sai2Capture.ViewModels
             _canvasPollingTimer.Stop();
             _captureService.StopCapture();
             Status = "未录制";
-            
-            // 通知状态更新
-            OnPropertyChanged(nameof(IsRecording));
-            OnPropertyChanged(nameof(IsRecordingRunning));
-            OnPropertyChanged(nameof(IsPaused));
-            OnPropertyChanged(nameof(RecordButtonText));
-            OnPropertyChanged(nameof(RecordButtonCommandName));
-            OnPropertyChanged(nameof(CanStop));
         }
 
         /// <summary>
@@ -495,34 +466,53 @@ namespace Sai2Capture.ViewModels
                 {
                     _status = value;
                     OnPropertyChanged();
+                    OnPropertyChanged(nameof(CurrentRecordingState));
+                    OnPropertyChanged(nameof(RecordButtonText));
+                    OnPropertyChanged(nameof(CanStop));
                 }
+            }
+        }
+
+        /// <summary>
+        /// 当前录制状态
+        /// </summary>
+        public RecordingState CurrentRecordingState
+        {
+            get
+            {
+                if (_captureService.SharedState.Running)
+                    return RecordingState.Recording;
+                if (_captureService.SharedState.IsInitialized)
+                    return RecordingState.Paused;
+                return RecordingState.Stopped;
             }
         }
 
         /// <summary>
         /// 是否正在录制（包括录制中和暂停状态）
         /// </summary>
-        public bool IsRecording => _captureService.SharedState.Running || _captureService.SharedState.IsInitialized;
+        public bool IsRecording => CurrentRecordingState != RecordingState.Stopped;
 
         /// <summary>
         /// 是否处于暂停状态
         /// </summary>
-        public bool IsPaused => _captureService.SharedState.IsInitialized && !_captureService.SharedState.Running;
+        public bool IsPaused => CurrentRecordingState == RecordingState.Paused;
 
         /// <summary>
         /// 是否正在录制中（非暂停状态）
         /// </summary>
-        public bool IsRecordingRunning => _captureService.SharedState.Running;
+        public bool IsRecordingRunning => CurrentRecordingState == RecordingState.Recording;
 
         /// <summary>
         /// 主录制按钮的显示文本
         /// </summary>
-        public string RecordButtonText => IsPaused ? "▶️ 继续录制" : (IsRecordingRunning ? "⏸️ 暂停录制" : "🟢 开始录制");
-
-        /// <summary>
-        /// 主录制按钮的命令参数（true=开始/继续，false=暂停）
-        /// </summary>
-        public string RecordButtonCommandName => IsPaused ? "ContinueCaptureCommand" : "StartCaptureCommand";
+        public string RecordButtonText =>
+            CurrentRecordingState switch
+            {
+                RecordingState.Paused => "▶️ 继续录制",
+                RecordingState.Recording => "⏸️ 暂停录制",
+                _ => "🟢 开始录制"
+            };
 
         /// <summary>
         /// 停止按钮是否可用
@@ -540,31 +530,19 @@ namespace Sai2Capture.ViewModels
 
             if (sharedState.Running)
             {
-                // 只在录制时递增计数器（每秒递增一次）
                 _elapsedSeconds++;
                 var minutes = _elapsedSeconds / 10 / 60;
                 var seconds = (_elapsedSeconds / 10) % 60;
                 var elapsedStr = $"{minutes:D2}:{seconds:D2}";
-
                 Status = $"正在录制（当前已经过：{elapsedStr}，有效捕获：{sharedState.SavedCount}）";
             }
             else if (sharedState.FrameNumber > 0)
             {
-                // 暂停时不递增计数器，只显示当前值
                 var minutes = _elapsedSeconds / 10 / 60;
                 var seconds = (_elapsedSeconds / 10) % 60;
                 var elapsedStr = $"{minutes:D2}:{seconds:D2}";
-
                 Status = $"已暂停（当前已经过：{elapsedStr}，有效捕获：{sharedState.SavedCount}）";
             }
-
-            // 通知录制状态相关属性已更改
-            OnPropertyChanged(nameof(IsRecording));
-            OnPropertyChanged(nameof(IsRecordingRunning));
-            OnPropertyChanged(nameof(IsPaused));
-            OnPropertyChanged(nameof(RecordButtonText));
-            OnPropertyChanged(nameof(RecordButtonCommandName));
-            OnPropertyChanged(nameof(CanStop));
         }
 
 
