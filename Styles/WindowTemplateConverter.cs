@@ -1,16 +1,13 @@
-using System;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Shapes;
 using System.Windows.Shell;
 using Application = System.Windows.Application;
-using Button = System.Windows.Controls.Button;
 using Border = System.Windows.Controls.Border;
-using TextBlock = System.Windows.Controls.TextBlock;
+using Button = System.Windows.Controls.Button;
 using Path = System.Windows.Shapes.Path;
+using TextBlock = System.Windows.Controls.TextBlock;
 
 namespace Sai2Capture.Styles
 {

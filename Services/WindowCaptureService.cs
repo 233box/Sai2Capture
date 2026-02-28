@@ -1,11 +1,7 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using OpenCvSharp;
-using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
-using System.Windows;
-using System.Windows.Interop;
 
 namespace Sai2Capture.Services
 {
@@ -19,7 +15,7 @@ namespace Sai2Capture.Services
     /// </summary>
     public partial class WindowCaptureService : ObservableObject, IDisposable
     {
-    // Windows API P/Invoke 声明
+        // Windows API P/Invoke 声明
         [DllImport("user32.dll")]
         private static extern nint FindWindow(string? lpClassName, string lpWindowName);
 

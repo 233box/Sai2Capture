@@ -1,7 +1,6 @@
-using System.Windows;
-using System.Windows.Controls;
 using CommunityToolkit.Mvvm.DependencyInjection;
 using Sai2Capture.Services;
+using System.Windows;
 using WpfUserControl = System.Windows.Controls.UserControl;
 
 namespace Sai2Capture.Views

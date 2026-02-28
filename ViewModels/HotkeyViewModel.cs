@@ -3,9 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using Sai2Capture.Models;
 using Sai2Capture.Services;
 using Sai2Capture.Views;
-using System;
 using System.Collections.ObjectModel;
-using System.Linq;
 
 namespace Sai2Capture.ViewModels
 {

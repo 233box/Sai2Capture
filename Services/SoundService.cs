@@ -1,5 +1,3 @@
-using System;
-using System.IO;
 using System.Media;
 using System.Reflection;
 
@@ -25,7 +23,7 @@ namespace Sai2Capture.Services
             {
                 var resourceName = $"Sai2Capture.Sounds.{soundName}.wav";
                 var resourceStream = _assembly.GetManifestResourceStream(resourceName);
-                
+
                 if (resourceStream == null)
                 {
                     resourceName = "Sai2Capture.Sounds.default_beep.wav";

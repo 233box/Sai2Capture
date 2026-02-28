@@ -1,7 +1,6 @@
-using System;
+using Sai2Capture.Styles;
 using System.Windows;
 using System.Windows.Controls;
-using Sai2Capture.Styles;
 using WpfApplication = System.Windows.Application;
 using WpfHorizontalAlignment = System.Windows.HorizontalAlignment;
 using WpfOrientation = System.Windows.Controls.Orientation;

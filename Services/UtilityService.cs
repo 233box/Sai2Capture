@@ -1,7 +1,5 @@
-using System;
-using System.IO;
 using OpenCvSharp;
-using System.Windows.Controls;
+using System.IO;
 using System.Windows.Media.Imaging;
 
 namespace Sai2Capture.Services

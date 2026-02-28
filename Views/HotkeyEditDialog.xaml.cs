@@ -1,6 +1,6 @@
-using System.Windows;
 using Sai2Capture.Models;
 using Sai2Capture.ViewModels;
+using System.Windows;
 
 namespace Sai2Capture.Views
 {
@@ -10,7 +10,7 @@ namespace Sai2Capture.Views
     public partial class HotkeyEditDialog : Sai2Capture.Styles.CustomDialogWindow
     {
         private readonly HotkeyViewModel _viewModel;
-        
+
         /// <summary>
         /// 正在编辑的热键项
         /// </summary>

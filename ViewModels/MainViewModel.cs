@@ -1,15 +1,10 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Sai2Capture.Services;
-using System;
 using System.Collections.ObjectModel;
-using System.Linq;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Media;
-using System.IO;
 using System.Diagnostics;
-using System.Windows.Forms;
+using System.IO;
+using System.Windows;
 
 namespace Sai2Capture.ViewModels
 {
@@ -239,16 +234,16 @@ namespace Sai2Capture.ViewModels
                     try
                     {
                         var title = proc.MainWindowTitle;
-                        
+
                         if (!string.IsNullOrEmpty(title))
                         {
                             // 从标题中提取 .sai2 文件路径
                             var parts = title.Split(new[] { " - " }, StringSplitOptions.None);
-                            
+
                             if (parts.Length >= 2)
                             {
                                 var potentialPath = parts[parts.Length - 1].Trim();
-                                
+
                                 if (potentialPath.EndsWith(".sai2", StringComparison.OrdinalIgnoreCase) && File.Exists(potentialPath))
                                 {
                                     // 检查窗口标题是否变化（已检测到画布的情况下）
@@ -260,20 +255,20 @@ namespace Sai2Capture.ViewModels
                                     if (Sai2FileParser.TryParseCanvasSize(potentialPath, out int width, out int height))
                                     {
                                         // 检查尺寸是否变化
-                                        bool sizeChanged = (_captureService.SharedState.CanvasWidth != width || 
+                                        bool sizeChanged = (_captureService.SharedState.CanvasWidth != width ||
                                                            _captureService.SharedState.CanvasHeight != height);
-                                        
+
                                         _captureService.SharedState.CanvasWidth = width;
                                         _captureService.SharedState.CanvasHeight = height;
                                         CanvasSizeDisplay = $"SAI2 画布：{width} x {height}";
-                                        
+
                                         // 只在尺寸变化时输出日志
                                         if (sizeChanged)
                                         {
                                             AddLog($"SAI2 画布尺寸：{width} x {height}");
                                             Status = $"SAI2 画布：{width} x {height}";
                                         }
-                                        
+
                                         _lastKnownWindowTitle = title;
                                         foundCanvas = true;
                                         return;
@@ -441,7 +436,7 @@ namespace Sai2Capture.ViewModels
                     Sai2Capture.Styles.WindowTemplateHelper.UpdateWindowTopmostState(mainWindow);
 
                     AddLog($"窗口置顶状态已切换为：{mainWindow.Topmost}");
-                    Status = $"窗口已{ (mainWindow.Topmost ? "置顶" : "取消置顶") }";
+                    Status = $"窗口已{(mainWindow.Topmost ? "置顶" : "取消置顶")}";
                 }
             }
             catch (Exception ex)

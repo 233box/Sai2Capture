@@ -127,7 +127,7 @@ namespace Sai2Capture.Models
             int keyCode = 0;
 
             var parts = keyString.ToUpper().Split('+');
-            
+
             foreach (var part in parts)
             {
                 switch (part)

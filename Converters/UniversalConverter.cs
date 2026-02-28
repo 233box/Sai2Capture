@@ -1,4 +1,3 @@
-using System;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
@@ -94,7 +93,7 @@ namespace Sai2Capture.Converters
         {
             if (value is bool boolValue)
             {
-                return visibleWhenTrue ? 
+                return visibleWhenTrue ?
                     (boolValue ? Visibility.Visible : Visibility.Collapsed) :
                     (boolValue ? Visibility.Collapsed : Visibility.Visible);
             }
@@ -105,7 +104,7 @@ namespace Sai2Capture.Converters
         {
             if (value is Visibility visibility)
             {
-                return visibleWhenTrue ? 
+                return visibleWhenTrue ?
                     (visibility == Visibility.Visible) :
                     (visibility == Visibility.Collapsed);
             }
