@@ -313,38 +313,57 @@ namespace Sai2Capture.Services
             int width = windowRect.Right - windowRect.Left;
             int height = windowRect.Bottom - windowRect.Top;
 
-            using var bitmap = new System.Drawing.Bitmap(width, height);
-            using (var graphics = Graphics.FromImage(bitmap))
+            if (width <= 0 || height <= 0)
             {
-                IntPtr hdc = graphics.GetHdc();
-                try
-                {
-                    if (!PrintWindow(hWnd, hdc, 0))
-                    {
-                        _logService.AddLog($"PrintWindow 调用失败：{Marshal.GetLastWin32Error()}", LogLevel.Error);
-                        throw new Win32Exception(Marshal.GetLastWin32Error());
-                    }
-                }
-                finally
-                {
-                    graphics.ReleaseHdc(hdc);
-                }
+                _logService.AddLog($"无效的窗口尺寸：{width}x{height}", LogLevel.Error);
+                throw new Exception($"无效的窗口尺寸：{width}x{height}");
             }
 
-            // 手动将 Bitmap 转换为 Mat
-            var rect = new System.Drawing.Rectangle(0, 0, bitmap.Width, bitmap.Height);
-            var bitmapData = bitmap.LockBits(rect, System.Drawing.Imaging.ImageLockMode.ReadOnly, bitmap.PixelFormat);
+            System.Drawing.Bitmap? bitmap = null;
+            Graphics? graphics = null;
+            IntPtr hdc = IntPtr.Zero;
 
             try
             {
-                var mat = new Mat(bitmap.Height, bitmap.Width, MatType.CV_8UC4, bitmapData.Scan0);
-                // 转换 BGR 到 RGB
-                Cv2.CvtColor(mat, mat, ColorConversionCodes.BGRA2BGR);
-                return mat.Clone();
+                bitmap = new System.Drawing.Bitmap(width, height);
+                graphics = Graphics.FromImage(bitmap);
+                hdc = graphics.GetHdc();
+
+                if (!PrintWindow(hWnd, hdc, 0))
+                {
+                    int errorCode = Marshal.GetLastWin32Error();
+                    _logService.AddLog($"PrintWindow 调用失败：{errorCode}", LogLevel.Error);
+                    throw new Win32Exception(errorCode);
+                }
+
+                graphics.ReleaseHdc(hdc);
+                hdc = IntPtr.Zero;
+
+                // 手动将 Bitmap 转换为 Mat
+                var rect = new System.Drawing.Rectangle(0, 0, bitmap.Width, bitmap.Height);
+                var bitmapData = bitmap.LockBits(rect, System.Drawing.Imaging.ImageLockMode.ReadOnly, bitmap.PixelFormat);
+
+                try
+                {
+                    var tempMat = new Mat(bitmap.Height, bitmap.Width, MatType.CV_8UC4, bitmapData.Scan0);
+                    // 转换 BGR 到 RGB，创建新 Mat 避免资源泄漏
+                    var resultMat = new Mat();
+                    Cv2.CvtColor(tempMat, resultMat, ColorConversionCodes.BGRA2BGR);
+                    return resultMat;
+                }
+                finally
+                {
+                    bitmap.UnlockBits(bitmapData);
+                }
             }
             finally
             {
-                bitmap.UnlockBits(bitmapData);
+                if (hdc != IntPtr.Zero && graphics != null)
+                {
+                    try { graphics.ReleaseHdc(hdc); } catch { }
+                }
+                graphics?.Dispose();
+                bitmap?.Dispose();
             }
         }
 

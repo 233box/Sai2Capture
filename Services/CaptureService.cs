@@ -302,7 +302,22 @@ namespace Sai2Capture.Services
                     image = null;
                     try
                     {
+                        // 检查窗口句柄是否有效
+                        if (_sharedState.Hwnd == nint.Zero)
+                        {
+                            _logService.AddLog("窗口句柄无效，退出捕获循环", LogLevel.Error);
+                            break;
+                        }
+
                         image = _windowCaptureService.CaptureWindowContent(_sharedState.Hwnd);
+                        
+                        if (image == null || image.Empty())
+                        {
+                            _logService.AddLog("捕获到空图像，跳过此帧", LogLevel.Warning);
+                            image?.Dispose();
+                            continue;
+                        }
+
                         _windowCaptureService.SaveIfModified(image);
 
                         _dispatcher?.Invoke(() =>
@@ -313,15 +328,29 @@ namespace Sai2Capture.Services
                         if (_sharedState.FrameNumber % 1000 == 0)
                         {
                             _logService.AddLog($"捕获进度：{_sharedState.FrameNumber} 帧，已保存：{_sharedState.SavedCount} 帧");
+                            _logService.AddLog($"内存状态：LastImage={(_sharedState.LastImage != null ? "存在" : "null")}, VideoWriter={(_sharedState.VideoWriter != null ? "存在" : "null")}");
                         }
 
                         _sharedState.FrameNumber++;
                         Thread.Sleep((int)(_sharedState.Interval * 1000));
                     }
+                    catch (AccessViolationException ex)
+                    {
+                        errorCount++;
+                        _logService.AddLog($"[严重] 访问违规错误 (总计：{errorCount}): {ex.Message}", LogLevel.Error);
+                        _logService.AddLog($"[严重] 堆栈跟踪：{ex.StackTrace}", LogLevel.Error);
+                        
+                        _dispatcher?.Invoke(() =>
+                        {
+                            Status = $"访问违规：{ex.Message}";
+                        });
+                        Thread.Sleep(1000);
+                    }
                     catch (Exception ex)
                     {
                         errorCount++;
                         _logService.AddLog($"捕获错误 (总计：{errorCount}): {ex.Message}", LogLevel.Error);
+                        _logService.AddLog($"错误详情：{ex.GetType().FullName} - {ex.StackTrace}", LogLevel.Error);
 
                         _dispatcher?.Invoke(() =>
                         {
@@ -332,7 +361,14 @@ namespace Sai2Capture.Services
                     finally
                     {
                         // 确保每帧都被释放，防止内存泄漏
-                        image?.Dispose();
+                        try
+                        {
+                            image?.Dispose();
+                        }
+                        catch (Exception ex)
+                        {
+                            _logService.AddLog($"释放帧图像失败：{ex.Message}", LogLevel.Warning);
+                        }
                         image = null;
                     }
                 }
@@ -343,6 +379,7 @@ namespace Sai2Capture.Services
             {
                 _logService.AddLog($"捕获循环致命错误：{ex.Message}", LogLevel.Error);
                 _logService.AddLog($"异常堆栈：{ex.StackTrace}", LogLevel.Error);
+                _logService.AddLog($"异常类型：{ex.GetType().FullName}", LogLevel.Error);
 
                 _dispatcher?.Invoke(() =>
                 {
@@ -352,7 +389,14 @@ namespace Sai2Capture.Services
             finally
             {
                 // 确保退出循环时释放最后一帧
-                image?.Dispose();
+                try
+                {
+                    image?.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    _logService.AddLog($"释放最后一帧失败：{ex.Message}", LogLevel.Warning);
+                }
             }
         }
     }
