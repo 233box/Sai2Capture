@@ -14,14 +14,28 @@
 
   <PropertyGroup>
     <PlatformTarget>x64</PlatformTarget>
+    <!-- 单文件发布配置 -->
+    <PublishSingleFile>true</PublishSingleFile>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <SelfContained>true</SelfContained>
+    <!-- 将所有内容包含到单文件中 -->
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <PublishReadyToRun>false</PublishReadyToRun>
   </PropertyGroup>
 
-  <!-- 优化OpenCV运行时，仅包含x64架构 -->
+  <!-- 优化 OpenCV 运行时，仅包含 x64 架构 -->
   <ItemGroup>
     <Content Remove="runtimes\win-x86\**" />
     <Content Remove="runtimes\win-arm64\**" />
     <None Remove="runtimes\win-x86\**" />
     <None Remove="runtimes\win-arm64\**" />
+  </ItemGroup>
+
+  <!-- 将 Sounds 文件夹嵌入到单文件中 -->
+  <ItemGroup>
+    <None Update="Sounds\*.wav">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
   <ItemGroup>

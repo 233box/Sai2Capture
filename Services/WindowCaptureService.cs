@@ -398,6 +398,11 @@ namespace Sai2Capture.Services
             if (_sharedState.VideoWriter != null && _sharedState.VideoWriter.IsOpened())
             {
                 _sharedState.VideoWriter.Write(frame);
+                
+                // 释放旧的 LastImage，防止内存泄漏
+                _sharedState.LastImage?.Dispose();
+                
+                // 克隆当前帧作为下一帧的比较基准
                 _sharedState.LastImage = frame.Clone();
                 _sharedState.SavedCount++;
             }

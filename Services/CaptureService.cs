@@ -293,14 +293,16 @@ namespace Sai2Capture.Services
         {
             _logService.AddLog("捕获循环开始");
             int errorCount = 0;
+            Mat? image = null;
 
             try
             {
                 while (_sharedState.Running)
                 {
+                    image = null;
                     try
                     {
-                        var image = _windowCaptureService.CaptureWindowContent(_sharedState.Hwnd);
+                        image = _windowCaptureService.CaptureWindowContent(_sharedState.Hwnd);
                         _windowCaptureService.SaveIfModified(image);
 
                         _dispatcher?.Invoke(() =>
@@ -327,6 +329,12 @@ namespace Sai2Capture.Services
                         });
                         Thread.Sleep(1000);
                     }
+                    finally
+                    {
+                        // 确保每帧都被释放，防止内存泄漏
+                        image?.Dispose();
+                        image = null;
+                    }
                 }
 
                 _logService.AddLog($"捕获循环结束 - 总帧数：{_sharedState.FrameNumber}, 已保存：{_sharedState.SavedCount} 帧，错误次数：{errorCount}");
@@ -340,6 +348,11 @@ namespace Sai2Capture.Services
                 {
                     Status = $"捕获致命错误：{ex.Message}";
                 });
+            }
+            finally
+            {
+                // 确保退出循环时释放最后一帧
+                image?.Dispose();
             }
         }
     }
