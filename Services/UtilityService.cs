@@ -107,7 +107,14 @@ namespace Sai2Capture.Services
                     _lastPreviewWindowState = true;
                 }
 
-                Mat image = _windowCaptureService.CaptureWindowContent(hwnd);
+                using Mat image = _windowCaptureService.CaptureWindowContent(hwnd);
+                
+                // 检查图像是否有效
+                if (image == null || image.IsDisposed || image.Empty())
+                {
+                    return;
+                }
+                
                 var bitmap = MatToBitmapSource(image);
 
                 if (_embeddedPreviewImage != null)

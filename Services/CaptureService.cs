@@ -310,12 +310,21 @@ namespace Sai2Capture.Services
                         }
 
                         image = _windowCaptureService.CaptureWindowContent(_sharedState.Hwnd);
-                        
+
                         if (image == null || image.Empty())
                         {
                             _logService.AddLog("捕获到空图像，跳过此帧", LogLevel.Warning);
                             image?.Dispose();
+                            image = null;
                             continue;
+                        }
+
+                        // 在调用 SaveIfModified 之前检查 LastImage 是否已释放
+                        // 防止在暂停/停止操作后访问已释放的对象
+                        if (_sharedState.LastImage?.IsDisposed == true)
+                        {
+                            _logService.AddLog("LastImage 已被释放，重置为 null", LogLevel.Warning);
+                            _sharedState.LastImage = null;
                         }
 
                         _windowCaptureService.SaveIfModified(image);
@@ -328,7 +337,7 @@ namespace Sai2Capture.Services
                         if (_sharedState.FrameNumber % 1000 == 0)
                         {
                             _logService.AddLog($"捕获进度：{_sharedState.FrameNumber} 帧，已保存：{_sharedState.SavedCount} 帧");
-                            _logService.AddLog($"内存状态：LastImage={(_sharedState.LastImage != null ? "存在" : "null")}, VideoWriter={(_sharedState.VideoWriter != null ? "存在" : "null")}");
+                            _logService.AddLog($"内存状态：LastImage={(_sharedState.LastImage != null && !_sharedState.LastImage.IsDisposed ? "存在" : "null")}, VideoWriter={(_sharedState.VideoWriter != null ? "存在" : "null")}");
                         }
 
                         _sharedState.FrameNumber++;
@@ -339,7 +348,7 @@ namespace Sai2Capture.Services
                         errorCount++;
                         _logService.AddLog($"[严重] 访问违规错误 (总计：{errorCount}): {ex.Message}", LogLevel.Error);
                         _logService.AddLog($"[严重] 堆栈跟踪：{ex.StackTrace}", LogLevel.Error);
-                        
+
                         _dispatcher?.Invoke(() =>
                         {
                             Status = $"访问违规：{ex.Message}";
@@ -363,7 +372,10 @@ namespace Sai2Capture.Services
                         // 确保每帧都被释放，防止内存泄漏
                         try
                         {
-                            image?.Dispose();
+                            if (image != null && !image.IsDisposed)
+                            {
+                                image.Dispose();
+                            }
                         }
                         catch (Exception ex)
                         {
@@ -391,7 +403,10 @@ namespace Sai2Capture.Services
                 // 确保退出循环时释放最后一帧
                 try
                 {
-                    image?.Dispose();
+                    if (image != null && !image.IsDisposed)
+                    {
+                        image.Dispose();
+                    }
                 }
                 catch (Exception ex)
                 {

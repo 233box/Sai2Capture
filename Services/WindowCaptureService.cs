@@ -386,6 +386,14 @@ namespace Sai2Capture.Services
         private bool ImagesEqual(Mat? img1, Mat img2)
         {
             if (img1 == null) return false;
+            
+            // 检查图像是否已被释放
+            if (img1.IsDisposed || img2.IsDisposed)
+            {
+                _logService.AddLog("图像对象已被释放，跳过比较", LogLevel.Warning);
+                return false;
+            }
+            
             if (img1.Size() != img2.Size()) return false;
             if (img1.Channels() != img2.Channels()) return false;
 
@@ -417,10 +425,13 @@ namespace Sai2Capture.Services
             if (_sharedState.VideoWriter != null && _sharedState.VideoWriter.IsOpened())
             {
                 _sharedState.VideoWriter.Write(frame);
-                
+
                 // 释放旧的 LastImage，防止内存泄漏
-                _sharedState.LastImage?.Dispose();
-                
+                if (_sharedState.LastImage != null && !_sharedState.LastImage.IsDisposed)
+                {
+                    _sharedState.LastImage.Dispose();
+                }
+
                 // 克隆当前帧作为下一帧的比较基准
                 _sharedState.LastImage = frame.Clone();
                 _sharedState.SavedCount++;

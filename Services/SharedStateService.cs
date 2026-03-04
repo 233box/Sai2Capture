@@ -36,7 +36,10 @@ namespace Sai2Capture.Services
             OutputFolder = "";
             VideoPath = null;
 
-            LastImage?.Dispose();
+            if (LastImage != null && !LastImage.IsDisposed)
+            {
+                LastImage.Dispose();
+            }
             LastImage = null;
 
             if (VideoWriter != null)
