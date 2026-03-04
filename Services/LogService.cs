@@ -1,3 +1,4 @@
+using System.IO;
 using System.Text;
 
 namespace Sai2Capture.Services
@@ -8,42 +9,111 @@ namespace Sai2Capture.Services
     public class LogService
     {
         private readonly List<LogEntry> _logEntries = new();
+        private readonly object _lock = new();
         private const int MaxLogLines = 1000;
+        private readonly string _logFilePath;
+
+        public LogService()
+        {
+            // 日志文件路径：程序目录下的 crash.log
+            _logFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "crash.log");
+        }
 
         public event EventHandler<LogEventArgs>? LogUpdated;
 
         public void AddLog(string message, LogLevel level = LogLevel.Info)
         {
-            _logEntries.Add(new LogEntry { Timestamp = DateTime.Now, Level = level, Message = message });
-            if (_logEntries.Count > MaxLogLines) _logEntries.RemoveAt(0);
+            lock (_lock)
+            {
+                _logEntries.Add(new LogEntry { Timestamp = DateTime.Now, Level = level, Message = message });
+                if (_logEntries.Count > MaxLogLines) _logEntries.RemoveAt(0);
+                
+                // 同步写入文件（确保崩溃时日志不丢失）
+                try
+                {
+                    File.AppendAllText(_logFilePath, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [{level}] {message}{Environment.NewLine}");
+                }
+                catch
+                {
+                    // 文件写入失败时不抛出异常，避免影响主流程
+                }
+            }
             NotifyLogUpdated();
         }
 
         public void ClearLog()
         {
-            _logEntries.Clear();
+            lock (_lock)
+            {
+                _logEntries.Clear();
+            }
             NotifyLogUpdated();
         }
 
+        /// <summary>
+        /// 获取完整日志（用于 UI 显示）
+        /// </summary>
         public string GetFullLog(LogLevel? filterLevel = null)
         {
-            var entries = filterLevel.HasValue ? _logEntries.Where(e => e.Level == filterLevel.Value) : _logEntries;
-            var sb = new StringBuilder();
-            foreach (var entry in entries) sb.AppendLine(entry.ToString());
-            return sb.ToString();
+            lock (_lock)
+            {
+                var entries = filterLevel.HasValue ? _logEntries.Where(e => e.Level == filterLevel.Value).ToList() : _logEntries.ToList();
+                var sb = new StringBuilder();
+                foreach (var entry in entries) sb.AppendLine(entry.ToString());
+                return sb.ToString();
+            }
         }
 
+        /// <summary>
+        /// 获取日志行数
+        /// </summary>
         public int GetLineCount(LogLevel? filterLevel = null)
-            => filterLevel.HasValue ? _logEntries.Count(e => e.Level == filterLevel.Value) : _logEntries.Count;
+        {
+            lock (_lock)
+            {
+                return filterLevel.HasValue ? _logEntries.Count(e => e.Level == filterLevel.Value) : _logEntries.Count;
+            }
+        }
+
+        /// <summary>
+        /// 导出日志到文件
+        /// </summary>
+        public void ExportLogToFile(string filePath)
+        {
+            lock (_lock)
+            {
+                var sb = new StringBuilder();
+                foreach (var entry in _logEntries) sb.AppendLine(entry.ToString());
+                File.WriteAllText(filePath, sb.ToString());
+            }
+        }
+
+        /// <summary>
+        /// 获取日志文件路径
+        /// </summary>
+        public string GetLogFilePath() => _logFilePath;
 
         private void NotifyLogUpdated()
-            => LogUpdated?.Invoke(this, new LogEventArgs
+        {
+            LogEntry? lastEntry;
+            string fullLog;
+            int lineCount;
+            
+            lock (_lock)
             {
-                FullLog = GetFullLog(),
-                LineCount = _logEntries.Count,
+                lastEntry = _logEntries.LastOrDefault();
+                fullLog = GetFullLog();
+                lineCount = _logEntries.Count;
+            }
+            
+            LogUpdated?.Invoke(this, new LogEventArgs
+            {
+                FullLog = fullLog,
+                LineCount = lineCount,
                 LastUpdate = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
-                LastEntry = _logEntries.LastOrDefault()
+                LastEntry = lastEntry
             });
+        }
     }
 
     public class LogEntry
