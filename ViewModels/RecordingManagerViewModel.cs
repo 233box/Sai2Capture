@@ -28,14 +28,13 @@ namespace Sai2Capture.ViewModels
         public double CaptureInterval { get; set; }
         public int CanvasWidth { get; set; }
         public int CanvasHeight { get; set; }
-        public string DurationDisplay => EndTime.HasValue 
-            ? $"{(EndTime.Value - StartTime).TotalMinutes:F1} 分钟" 
+        public string DurationDisplay => EndTime.HasValue
+            ? $"{(EndTime.Value - StartTime).TotalMinutes:F1} 分钟"
             : "未完成";
-        public string SizeDisplay => FileSizeKB > 1024 
-            ? $"{FileSizeKB / 1024:F2} MB" 
+        public string SizeDisplay => FileSizeKB > 1024
+            ? $"{FileSizeKB / 1024:F2} MB"
             : $"{FileSizeKB:F2} KB";
         public string ResolutionDisplay => $"{CanvasWidth} x {CanvasHeight}";
-        public bool IsSelected { get; set; }
     }
 
     /// <summary>

@@ -162,25 +162,33 @@
                        Command="{Binding ResumeRecordingCommand}"
                        Appearance="Primary"
                        Width="180"
-                       Margin="0,0,12,0"
-                       IsEnabled="{Binding IsExporting, Converter={StaticResource UniversalConverter}, ConverterParameter=BoolInverted}"/>
-            
+                       Margin="0,0,12,0"/>
+
             <ui:Button Content="👁️ 预览"
                        Command="{Binding PreviewRecordingCommand}"
                        Width="100"
-                       Margin="0,0,12,0"
-                       IsEnabled="{Binding IsExporting, Converter={StaticResource UniversalConverter}, ConverterParameter=BoolInverted}"/>
-            
+                       Margin="0,0,12,0"/>
+
             <ui:Button Content="📂 打开位置"
                        Command="{Binding OpenFileLocationCommand}"
                        Width="100"
                        Margin="0,0,12,0"/>
-            
+
             <ui:Button Content="🗑️ 删除"
                        Command="{Binding DeleteRecordingCommand}"
                        Appearance="Danger"
-                       Width="100"
-                       IsEnabled="{Binding IsExporting, Converter={StaticResource UniversalConverter}, ConverterParameter=BoolInverted}"/>
+                       Width="100">
+                <ui:Button.Style>
+                    <Style TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
+                        <Setter Property="Foreground" Value="White"/>
+                        <Style.Triggers>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Foreground" Value="#9E9E9E"/>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </ui:Button.Style>
+            </ui:Button>
         </StackPanel>
     </Grid>
 </UserControl>
