@@ -10,6 +10,7 @@ using System.Text;
 using System.Windows;
 using MessageBox = System.Windows.MessageBox;
 using SaveFileDialog = Microsoft.Win32.SaveFileDialog;
+using System.Windows.Interop;
 
 namespace Sai2Capture.ViewModels
 {
@@ -330,13 +331,22 @@ namespace Sai2Capture.ViewModels
         {
             if (SelectedRecording == null) return;
 
-            var result = MessageBox.Show(
-                $"确定要删除录制文件 \"{SelectedRecording.FileName}\" 吗？\n\n此操作不可恢复！",
-                "确认删除",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Warning);
+            // 使用统一的确认对话框
+            var dialog = new ConfirmDialog(
+                $"确定要删除录制文件 \"{SelectedRecording.FileName}\" 吗？",
+                "此操作不可恢复！",
+                "确认删除");
 
-            if (result != MessageBoxResult.Yes) return;
+            // 获取主窗口作为所有者
+            var mainWindow = System.Windows.Application.Current.MainWindow;
+            if (mainWindow != null)
+            {
+                dialog.Owner = mainWindow;
+            }
+
+            dialog.ShowDialog();
+
+            if (!dialog.Confirmed) return;
 
             try
             {
@@ -387,7 +397,7 @@ namespace Sai2Capture.ViewModels
         }
 
         /// <summary>
-        /// 预览选中的录制文件（显示第一帧）
+        /// 预览选中的录制文件（支持播放控制和帧导航）
         /// </summary>
         [RelayCommand(CanExecute = nameof(CanPreviewRecording))]
         private void PreviewRecording()
@@ -396,37 +406,8 @@ namespace Sai2Capture.ViewModels
 
             try
             {
-                var metadata = _recordingDataService.LoadMetadata(SelectedRecording.FilePath);
-                if (metadata == null || metadata.Frames.Count == 0)
-                {
-                    MessageBox.Show("无法加载录制文件预览", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
-                    return;
-                }
-
-                // 读取第一帧用于预览
-                using var fileStream = new FileStream(SelectedRecording.FilePath, FileMode.Open, FileAccess.Read);
-                using var reader = new BinaryReader(fileStream);
-
-                var firstFrame = metadata.Frames.OrderBy(f => f.FrameIndex).FirstOrDefault();
-                if (firstFrame == null)
-                {
-                    MessageBox.Show("录制文件中无有效帧", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
-                    return;
-                }
-
-                fileStream.Position = firstFrame.DataOffset;
-                var dataLength = reader.ReadInt32();
-                var jpegData = reader.ReadBytes(dataLength);
-
-                using var frame = OpenCvSharp.Cv2.ImDecode(jpegData, OpenCvSharp.ImreadModes.Color);
-                if (frame == null || frame.Empty())
-                {
-                    MessageBox.Show("无法解码帧数据", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
-                    return;
-                }
-
-                // 显示预览窗口
-                var previewWindow = new RecordingPreviewWindow(frame);
+                // 显示预览窗口（传入文件路径）
+                var previewWindow = new RecordingPreviewWindow(SelectedRecording.FilePath);
                 previewWindow.Owner = System.Windows.Application.Current.MainWindow;
                 previewWindow.ShowDialog();
             }

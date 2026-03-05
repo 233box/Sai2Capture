@@ -21,7 +21,7 @@
         </Grid.RowDefinitions>
 
         <!-- 顶部工具栏 -->
-        <ui:Card Grid.Row="0" Margin="0,0,0,16" Padding="16,12">
+        <ui:Card Grid.Row="0" Margin="0,0,0,16">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -29,13 +29,12 @@
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Grid.Column="0" Orientation="Horizontal">
-                    <TextBlock Text="录制文件管理" 
-                               FontSize="18" 
-                               FontWeight="SemiBold"
+                    <TextBlock Text="录制文件管理"
+                               Style="{StaticResource CardTitleStyle}"
                                VerticalAlignment="Center"/>
-                    <TextBlock Text="{Binding StatusMessage}" 
+                    <TextBlock Text="{Binding StatusMessage}"
                                Margin="16,0,0,0"
-                               FontSize="14"
+                               FontSize="{StaticResource FontSizeNormal}"
                                Foreground="{DynamicResource ui:BodyForegroundSecondaryBrush}"
                                VerticalAlignment="Center"/>
                 </StackPanel>
@@ -49,7 +48,7 @@
         </ui:Card>
 
         <!-- 录制文件列表 -->
-        <ui:Card Grid.Row="1" Margin="0,0,0,16" Padding="0">
+        <ui:Card Grid.Row="1" Margin="0,0,0,16">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="*"/>
@@ -88,26 +87,26 @@
                         </Style>
                     </DataGrid.CellStyle>
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="文件名" 
-                                            Binding="{Binding FileName}" 
+                        <DataGridTextColumn Header="文件名"
+                                            Binding="{Binding FileName}"
                                             Width="200"/>
-                        <DataGridTextColumn Header="窗口标题" 
-                                            Binding="{Binding WindowTitle}" 
+                        <DataGridTextColumn Header="窗口标题"
+                                            Binding="{Binding WindowTitle}"
                                             Width="150"/>
-                        <DataGridTextColumn Header="开始时间" 
-                                            Binding="{Binding StartTime, StringFormat='yyyy-MM-dd HH:mm:ss'}" 
+                        <DataGridTextColumn Header="开始时间"
+                                            Binding="{Binding StartTime, StringFormat='yyyy-MM-dd HH:mm:ss'}"
                                             Width="140"/>
-                        <DataGridTextColumn Header="时长" 
-                                            Binding="{Binding DurationDisplay}" 
+                        <DataGridTextColumn Header="时长"
+                                            Binding="{Binding DurationDisplay}"
                                             Width="80"/>
-                        <DataGridTextColumn Header="帧数" 
-                                            Binding="{Binding TotalFrames}" 
+                        <DataGridTextColumn Header="帧数"
+                                            Binding="{Binding TotalFrames}"
                                             Width="70"/>
-                        <DataGridTextColumn Header="分辨率" 
-                                            Binding="{Binding ResolutionDisplay}" 
+                        <DataGridTextColumn Header="分辨率"
+                                            Binding="{Binding ResolutionDisplay}"
                                             Width="90"/>
-                        <DataGridTextColumn Header="文件大小" 
-                                            Binding="{Binding SizeDisplay}" 
+                        <DataGridTextColumn Header="文件大小"
+                                            Binding="{Binding SizeDisplay}"
                                             Width="90"/>
                     </DataGrid.Columns>
                 </DataGrid>
@@ -115,7 +114,7 @@
                 <!-- 空状态提示 -->
                 <TextBlock Grid.Row="0"
                            Text="暂无录制文件"
-                           FontSize="16"
+                           FontSize="{StaticResource FontSizeMedium}"
                            Foreground="{DynamicResource ui:BodyForegroundSecondaryBrush}"
                            HorizontalAlignment="Center"
                            VerticalAlignment="Center"
@@ -124,7 +123,7 @@
         </ui:Card>
 
         <!-- 导出设置 -->
-        <ui:Card Grid.Row="2" Margin="0,0,0,16" Padding="16,12"
+        <ui:Card Grid.Row="2" Margin="0,0,0,16"
                  Visibility="{Binding SelectedRecording, Converter={StaticResource UniversalConverter}, ConverterParameter=NullToCollapsed}">
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -135,7 +134,7 @@
 
                 <TextBlock Grid.Column="0"
                            Text="导出帧率："
-                           VerticalAlignment="Center"
+                           Style="{StaticResource LabelStyle}"
                            Margin="0,0,12,0"/>
 
                 <ui:NumberBox Grid.Column="1"
@@ -161,7 +160,7 @@
             <ui:Button Content="▶️ 从此文件继续录制"
                        Command="{Binding ResumeRecordingCommand}"
                        Appearance="Primary"
-                       Width="180"
+                       Width="160"
                        Margin="0,0,12,0"/>
 
             <ui:Button Content="👁️ 预览"

@@ -1,39 +1,210 @@
-<Window x:Class="Sai2Capture.Views.RecordingPreviewWindow"
+<styles:CustomDialogWindow x:Class="Sai2Capture.Views.RecordingPreviewWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+        xmlns:styles="clr-namespace:Sai2Capture.Styles"
+        xmlns:converters="clr-namespace:Sai2Capture.Converters"
         mc:Ignorable="d"
         Title="录制预览"
-        Height="500"
-        Width="700"
+        Height="600"
+        Width="900"
         WindowStartupLocation="CenterOwner"
-        ResizeMode="NoResize"
-        Background="#FAFAFA">
+        ResizeMode="CanResize"
+        MinHeight="400"
+        MinWidth="600"
+        Topmost="True">
+    <Window.Resources>
+        <ResourceDictionary>
+            <converters:UniversalConverter x:Key="UniversalConverter" />
+        </ResourceDictionary>
+    </Window.Resources>
+
     <Grid Margin="16">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- 预览图像 -->
-        <Border Grid.Row="0"
-                Background="#1A1A1A"
+        <!-- 顶部信息栏 -->
+        <Border Grid.Row="0" 
+                Background="{DynamicResource ui:CardBackgroundFillColorDefaultBrush}"
                 CornerRadius="8"
-                Margin="0,0,0,16">
-            <Image x:Name="PreviewImage"
-                   Stretch="Uniform"
-                   Margin="16"/>
+                Padding="16,12"
+                Margin="0,0,0,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock Text="{Binding FileName}"
+                               FontSize="16"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource ui:TextOnAccentFillColorPrimaryBrush}"
+                               VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding FrameInfoText}"
+                               Margin="24,0,0,0"
+                               FontSize="13"
+                               Foreground="{DynamicResource ui:TextFillColorSecondaryBrush}"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <TextBlock Text="播放速度："
+                               FontSize="12"
+                               Foreground="{DynamicResource ui:TextFillColorSecondaryBrush}"
+                               VerticalAlignment="Center"
+                               Margin="0,0,8,0"/>
+                    <ComboBox x:Name="SpeedComboBox"
+                              Width="80"
+                              SelectedIndex="1"
+                              SelectionChanged="SpeedComboBox_SelectionChanged"
+                              Margin="0,0,16,0">
+                        <ComboBoxItem Content="0.5x"/>
+                        <ComboBoxItem Content="1x"/>
+                        <ComboBoxItem Content="2x"/>
+                        <ComboBoxItem Content="4x"/>
+                        <ComboBoxItem Content="8x"/>
+                    </ComboBox>
+                </StackPanel>
+            </Grid>
         </Border>
 
-        <!-- 底部按钮 -->
-        <StackPanel Grid.Row="1"
-                    Orientation="Horizontal"
-                    HorizontalAlignment="Right">
-            <ui:Button Content="关闭"
-                       Click="CloseButton_Click"
-                       Width="100"/>
-        </StackPanel>
+        <!-- 预览区域 -->
+        <Border Grid.Row="1"
+                Background="#1A1A1A"
+                CornerRadius="8"
+                Margin="0,0,0,12"
+                BorderBrush="#333333"
+                BorderThickness="1">
+            <Grid>
+                <Image x:Name="PreviewImage"
+                       Stretch="Uniform"
+                       Margin="16"/>
+
+                <!-- 空状态提示 -->
+                <TextBlock x:Name="EmptyHintText"
+                           Text="加载中..."
+                           FontSize="14"
+                           Foreground="#888888"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           Visibility="Collapsed"/>
+            </Grid>
+        </Border>
+
+        <!-- 底部控制栏 -->
+        <Border Grid.Row="2"
+                Background="{DynamicResource ui:CardBackgroundFillColorDefaultBrush}"
+                CornerRadius="8"
+                Padding="16,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- 左侧帧信息 -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock x:Name="CurrentFrameInfoTextBlock"
+                               Text="{Binding CurrentFrameInfoText}"
+                               FontSize="12"
+                               Foreground="{DynamicResource ui:TextFillColorSecondaryBrush}"
+                               VerticalAlignment="Center"
+                               MinWidth="120"/>
+                    <TextBlock x:Name="PlaySpeedInfoTextBlock"
+                               Text=""
+                               FontSize="12"
+                               Foreground="{DynamicResource ui:TextFillColorSecondaryBrush}"
+                               VerticalAlignment="Center"
+                               Margin="16,0,0,0"/>
+                </StackPanel>
+
+                <!-- 中间播放控制 -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center">
+                    <ui:Button x:Name="FirstFrameButton"
+                               Content="⏮️"
+                               Width="40"
+                               Height="32"
+                               Margin="0,0,8,0"
+                               Click="FirstFrameButton_Click"
+                               ToolTip="第一帧"/>
+
+                    <ui:Button x:Name="PrevFrameButton"
+                               Content="◀️"
+                               Width="40"
+                               Height="32"
+                               Margin="0,0,8,0"
+                               Click="PrevFrameButton_Click"
+                               ToolTip="上一帧"/>
+
+                    <ui:Button x:Name="PlayPauseButton"
+                               Content="▶️"
+                               Width="50"
+                               Height="32"
+                               Margin="0,0,8,0"
+                               Appearance="Primary"
+                               Click="PlayPauseButton_Click"
+                               ToolTip="播放/暂停"/>
+
+                    <ui:Button x:Name="NextFrameButton"
+                               Content="▶️"
+                               Width="40"
+                               Height="32"
+                               Margin="0,0,8,0"
+                               Click="NextFrameButton_Click"
+                               ToolTip="下一帧"/>
+
+                    <ui:Button x:Name="LastFrameButton"
+                               Content="⏭️"
+                               Width="40"
+                               Height="32"
+                               Click="LastFrameButton_Click"
+                               ToolTip="最后一帧"/>
+                </StackPanel>
+
+                <!-- 右侧帧滑块 -->
+                <Grid Grid.Column="2" MinWidth="200">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Grid.Column="0"
+                               Text="{Binding CurrentFrameNumber}"
+                               FontSize="12"
+                               Foreground="{DynamicResource ui:TextFillColorSecondaryBrush}"
+                               VerticalAlignment="Center"
+                               Margin="0,0,8,0"
+                               MinWidth="30"
+                               TextAlignment="Right"/>
+
+                    <Slider x:Name="FrameSlider"
+                            Grid.Column="1"
+                            Minimum="1"
+                            Maximum="100"
+                            Value="1"
+                            Margin="8,0"
+                            VerticalAlignment="Center"
+                            PreviewMouseLeftButtonDown="FrameSlider_PreviewMouseLeftButtonDown"
+                            PreviewMouseLeftButtonUp="FrameSlider_PreviewMouseLeftButtonUp"
+                            ValueChanged="FrameSlider_ValueChanged"/>
+
+                    <TextBlock Grid.Column="2"
+                               Text="{Binding TotalFrames}"
+                               FontSize="12"
+                               Foreground="{DynamicResource ui:TextFillColorSecondaryBrush}"
+                               VerticalAlignment="Center"
+                               Margin="8,0,0,0"
+                               MinWidth="30"/>
+                </Grid>
+            </Grid>
+        </Border>
     </Grid>
-</Window>
+</styles:CustomDialogWindow>
