@@ -17,6 +17,12 @@ namespace Sai2Capture
             DataContext = Ioc.Default.GetRequiredService<MainViewModel>();
             InitializeComponent();
 
+            // 为录制管理页面设置独立的 ViewModel
+            if (FindName("RecordingManagerPageControl") is Views.RecordingManagerPage recordingManagerPage)
+            {
+                recordingManagerPage.DataContext = Ioc.Default.GetRequiredService<RecordingManagerViewModel>();
+            }
+
             SourceInitialized += MainWindow_SourceInitialized;
             Loaded += MainWindow_Loaded;
             Closing += MainWindow_Closing;

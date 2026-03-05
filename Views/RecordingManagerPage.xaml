@@ -1,0 +1,186 @@
+<UserControl x:Class="Sai2Capture.Views.RecordingManagerPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:converters="clr-namespace:Sai2Capture.Converters"
+             mc:Ignorable="d"
+             d:DesignHeight="600" d:DesignWidth="900">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <converters:UniversalConverter x:Key="UniversalConverter" />
+        </ResourceDictionary>
+    </UserControl.Resources>
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- 顶部工具栏 -->
+        <ui:Card Grid.Row="0" Margin="0,0,0,16" Padding="16,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock Text="录制文件管理" 
+                               FontSize="18" 
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding StatusMessage}" 
+                               Margin="16,0,0,0"
+                               FontSize="14"
+                               Foreground="{DynamicResource ui:BodyForegroundSecondaryBrush}"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <ui:Button Content="🔄 刷新列表"
+                               Command="{Binding RefreshFileListCommand}"
+                               Appearance="Primary"/>
+                </StackPanel>
+            </Grid>
+        </ui:Card>
+
+        <!-- 录制文件列表 -->
+        <ui:Card Grid.Row="1" Margin="0,0,0,16" Padding="0">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <DataGrid Grid.Row="0"
+                          ItemsSource="{Binding RecordingFiles}"
+                          SelectedItem="{Binding SelectedRecording}"
+                          AutoGenerateColumns="False"
+                          CanUserAddRows="False"
+                          CanUserDeleteRows="False"
+                          IsReadOnly="True"
+                          SelectionMode="Single"
+                          GridLinesVisibility="Horizontal"
+                          BorderThickness="0"
+                          Background="Transparent">
+                    <DataGrid.ColumnHeaderStyle>
+                        <Style TargetType="DataGridColumnHeader">
+                            <Setter Property="Padding" Value="12,8"/>
+                            <Setter Property="FontWeight" Value="SemiBold"/>
+                            <Setter Property="Background" Value="{DynamicResource ui:CardBackgroundFillColorDefaultBrush}"/>
+                            <Setter Property="BorderBrush" Value="{DynamicResource ui:BorderBrush}"/>
+                            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                        </Style>
+                    </DataGrid.ColumnHeaderStyle>
+                    <DataGrid.CellStyle>
+                        <Style TargetType="DataGridCell">
+                            <Setter Property="Padding" Value="12,8"/>
+                            <Setter Property="BorderThickness" Value="0"/>
+                            <Style.Triggers>
+                                <Trigger Property="IsSelected" Value="True">
+                                    <Setter Property="Background" Value="{DynamicResource ui:AccentFillColorDefaultBrush}"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGrid.CellStyle>
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="文件名" 
+                                            Binding="{Binding FileName}" 
+                                            Width="200"/>
+                        <DataGridTextColumn Header="窗口标题" 
+                                            Binding="{Binding WindowTitle}" 
+                                            Width="150"/>
+                        <DataGridTextColumn Header="开始时间" 
+                                            Binding="{Binding StartTime, StringFormat='yyyy-MM-dd HH:mm:ss'}" 
+                                            Width="140"/>
+                        <DataGridTextColumn Header="时长" 
+                                            Binding="{Binding DurationDisplay}" 
+                                            Width="80"/>
+                        <DataGridTextColumn Header="帧数" 
+                                            Binding="{Binding TotalFrames}" 
+                                            Width="70"/>
+                        <DataGridTextColumn Header="分辨率" 
+                                            Binding="{Binding ResolutionDisplay}" 
+                                            Width="90"/>
+                        <DataGridTextColumn Header="文件大小" 
+                                            Binding="{Binding SizeDisplay}" 
+                                            Width="90"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+
+                <!-- 空状态提示 -->
+                <TextBlock Grid.Row="0"
+                           Text="暂无录制文件"
+                           FontSize="16"
+                           Foreground="{DynamicResource ui:BodyForegroundSecondaryBrush}"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           Visibility="{Binding RecordingFiles.Count, Converter={StaticResource UniversalConverter}, ConverterParameter=IntToCollapsed}"/>
+            </Grid>
+        </ui:Card>
+
+        <!-- 导出设置 -->
+        <ui:Card Grid.Row="2" Margin="0,0,0,16" Padding="16,12"
+                 Visibility="{Binding SelectedRecording, Converter={StaticResource UniversalConverter}, ConverterParameter=NullToCollapsed}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0"
+                           Text="导出帧率："
+                           VerticalAlignment="Center"
+                           Margin="0,0,12,0"/>
+
+                <ui:NumberBox Grid.Column="1"
+                              Value="{Binding ExportFps}"
+                              Minimum="1"
+                              Maximum="60"
+                              SmallChange="1"
+                              Width="150"
+                              HorizontalAlignment="Left"/>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <ui:Button Content="🎬 导出视频"
+                               Command="{Binding ExportVideoCommand}"
+                               Appearance="Primary"
+                               Margin="12,0,0,0"
+                               IsEnabled="{Binding IsExporting, Converter={StaticResource UniversalConverter}, ConverterParameter=BoolInverted}"/>
+                </StackPanel>
+            </Grid>
+        </ui:Card>
+
+        <!-- 操作按钮 -->
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center">
+            <ui:Button Content="▶️ 从此文件继续录制"
+                       Command="{Binding ResumeRecordingCommand}"
+                       Appearance="Primary"
+                       Width="180"
+                       Margin="0,0,12,0"
+                       IsEnabled="{Binding IsExporting, Converter={StaticResource UniversalConverter}, ConverterParameter=BoolInverted}"/>
+            
+            <ui:Button Content="👁️ 预览"
+                       Command="{Binding PreviewRecordingCommand}"
+                       Width="100"
+                       Margin="0,0,12,0"
+                       IsEnabled="{Binding IsExporting, Converter={StaticResource UniversalConverter}, ConverterParameter=BoolInverted}"/>
+            
+            <ui:Button Content="📂 打开位置"
+                       Command="{Binding OpenFileLocationCommand}"
+                       Width="100"
+                       Margin="0,0,12,0"/>
+            
+            <ui:Button Content="🗑️ 删除"
+                       Command="{Binding DeleteRecordingCommand}"
+                       Appearance="Danger"
+                       Width="100"
+                       IsEnabled="{Binding IsExporting, Converter={StaticResource UniversalConverter}, ConverterParameter=BoolInverted}"/>
+        </StackPanel>
+    </Grid>
+</UserControl>

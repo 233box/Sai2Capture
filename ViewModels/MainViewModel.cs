@@ -30,10 +30,12 @@ namespace Sai2Capture.ViewModels
         private readonly SettingsService _settingsService;
         private readonly LogService _logService;
         private readonly HotkeyViewModel _hotkeyViewModel;
+        private readonly RecordingManagerViewModel _recordingManagerViewModel;
         private readonly System.Windows.Threading.DispatcherTimer _statusTimer;
         private readonly System.Windows.Threading.DispatcherTimer _canvasPollingTimer;
         private System.Windows.Controls.ScrollViewer? _logScrollViewer;
         private string? _lastKnownWindowTitle;
+        private string? _resumeFromFilePath;
 
         /// <summary>
         /// 可用窗口标题列表
@@ -93,13 +95,15 @@ namespace Sai2Capture.ViewModels
         /// <param name="settingsService">设置服务</param>
         /// <param name="logService">日志服务</param>
         /// <param name="hotkeyViewModel">热键视图模型</param>
+        /// <param name="recordingManagerViewModel">录制管理视图模型</param>
         public MainViewModel(
             WindowCaptureService windowCaptureService,
             UtilityService utilityService,
             CaptureService captureService,
             SettingsService settingsService,
             LogService logService,
-            HotkeyViewModel hotkeyViewModel)
+            HotkeyViewModel hotkeyViewModel,
+            RecordingManagerViewModel recordingManagerViewModel)
         {
             _windowCaptureService = windowCaptureService;
             _utilityService = utilityService;
@@ -107,6 +111,10 @@ namespace Sai2Capture.ViewModels
             _settingsService = settingsService;
             _logService = logService;
             _hotkeyViewModel = hotkeyViewModel;
+            _recordingManagerViewModel = recordingManagerViewModel;
+
+            // 订阅录制管理视图模型的续录请求
+            _recordingManagerViewModel.ResumeRecordingRequested += OnResumeRecordingRequested;
 
             // 订阅日志更新事件
             _logService.LogUpdated += OnLogUpdated;
@@ -318,7 +326,54 @@ namespace Sai2Capture.ViewModels
 
             _statusTimer.Start();
             _canvasPollingTimer.Start();
-            _captureService.StartCapture(SelectedWindowTitle, true, CaptureInterval);
+            
+            // 如果有续录文件，使用续录模式
+            _captureService.StartCapture(SelectedWindowTitle, true, CaptureInterval, _resumeFromFilePath);
+            _resumeFromFilePath = null; // 清除续录路径
+        }
+
+        /// <summary>
+        /// 从录制文件继续录制
+        /// </summary>
+        [RelayCommand]
+        private void StartCaptureFromFile()
+        {
+            var dialog = new Microsoft.Win32.OpenFileDialog
+            {
+                Filter = "录制文件 (*.sai2rec)|*.sai2rec|所有文件 (*.*)|*.*",
+                Title = "选择要续录的文件"
+            };
+
+            if (dialog.ShowDialog() != true) return;
+
+            _resumeFromFilePath = dialog.FileName;
+            
+            // 加载文件元数据
+            var recordingDataService = _captureService.GetType()
+                .GetField("_recordingDataService", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.GetValue(_captureService) as RecordingDataService;
+            
+            if (recordingDataService != null)
+            {
+                var metadata = recordingDataService.LoadMetadata(dialog.FileName);
+                if (metadata != null)
+                {
+                    var windowTitle = metadata.WindowTitle;
+                    var totalFrames = metadata.TotalFrames;
+
+                    AddLog($"从文件继续录制：{dialog.FileName}");
+                    AddLog($"原录制信息：{totalFrames} 帧，窗口：{windowTitle}");
+
+                    // 尝试使用原录制的窗口标题
+                    if (!string.IsNullOrEmpty(windowTitle) && WindowTitles.Contains(windowTitle))
+                    {
+                        SelectedWindowTitle = windowTitle;
+                    }
+                }
+            }
+
+            // 启动录制
+            StartCaptureCommand.Execute(null);
         }
 
         /// <summary>
@@ -838,6 +893,26 @@ namespace Sai2Capture.ViewModels
                 AddLog($"导出日志失败：{ex.Message}", "ERROR");
                 Status = $"导出日志失败：{ex.Message}";
             }
+        }
+
+        /// <summary>
+        /// 处理录制管理页面的续录请求
+        /// </summary>
+        private void OnResumeRecordingRequested(object? sender, ResumeRecordingEventArgs e)
+        {
+            _resumeFromFilePath = e.FilePath;
+            
+            // 设置窗口标题
+            if (!string.IsNullOrEmpty(e.WindowTitle) && WindowTitles.Contains(e.WindowTitle))
+            {
+                SelectedWindowTitle = e.WindowTitle;
+            }
+
+            AddLog($"准备从文件继续录制：{e.FilePath}");
+            AddLog($"原录制帧数：{e.ExistingFrames}");
+
+            // 启动录制
+            StartCaptureCommand.Execute(null);
         }
     }
 }

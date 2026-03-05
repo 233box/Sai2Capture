@@ -41,6 +41,7 @@ namespace Sai2Capture
 
             // 注册 ViewModel
             services.AddSingleton<MainViewModel>();
+            services.AddSingleton<RecordingManagerViewModel>();
         }
 
         protected override void OnStartup(StartupEventArgs e)

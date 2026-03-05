@@ -56,7 +56,7 @@ namespace Sai2Capture.Services
         /// <summary>
         /// 开始捕获指定窗口的内容
         /// </summary>
-        public void StartCapture(string? windowTitle, bool useExactMatch, double interval)
+        public void StartCapture(string? windowTitle, bool useExactMatch, double interval, string? resumeFromFilePath = null)
         {
             try
             {
@@ -102,7 +102,8 @@ namespace Sai2Capture.Services
                         _sharedState.Hwnd,
                         interval,
                         _sharedState.CanvasWidth,
-                        _sharedState.CanvasHeight);
+                        _sharedState.CanvasHeight,
+                        resumeFromFilePath);
 
                     _sharedState.IsInitialized = true;
                     _logService.AddLog("首次启动初始化完成，IsInitialized 标志已设置为 true");
@@ -161,14 +162,13 @@ namespace Sai2Capture.Services
             _logService.AddLog("捕获会话已完成");
 
             // 停止录制数据服务并保存结构化数据文件
-            var recordingDirectory = _recordingDataService.StopRecording();
+            var recordingFilePath = _recordingDataService.StopRecording();
 
-            if (!string.IsNullOrEmpty(recordingDirectory))
+            if (!string.IsNullOrEmpty(recordingFilePath))
             {
-                var dataFilePath = Path.Combine(recordingDirectory, "recording.json");
-                _logService.AddLog($"✓ 结构化数据文件已保存：{dataFilePath}");
-                _logService.AddLog($"  总帧数：{totalFrames}, 有效帧：{savedFrames}");
-                Status = $"捕获停止，数据已保存：{recordingDirectory}";
+                _logService.AddLog($"✓ 录制文件已保存：{recordingFilePath}", LogLevel.Warning);
+                _logService.AddLog($"  总帧数：{totalFrames}, 有效帧：{savedFrames}", LogLevel.Warning);
+                Status = $"捕获停止，数据已保存：{Path.GetFileName(recordingFilePath)}";
             }
             else
             {
@@ -238,7 +238,6 @@ namespace Sai2Capture.Services
                         }
 
                         _sharedState.FrameNumber++;
-                        _sharedState.SavedCount++;
                         Thread.Sleep((int)(_sharedState.Interval * 1000));
                     }
                     catch (AccessViolationException ex)

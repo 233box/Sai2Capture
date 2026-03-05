@@ -10,6 +10,12 @@ namespace Sai2Capture.Services
     /// 录制数据服务 - 将录制内容写入自定义二进制格式文件，并提供导出为视频的功能
     /// 文件格式：.sai2rec（SAI2 Recording）
     /// 文件结构：[文件头 29 字节][元数据 JSON][帧索引表][帧数据...]
+    /// 
+    /// 容错机制：
+    /// 1. 每 50 帧自动刷新到磁盘
+    /// 2. 每 10 秒自动备份元数据
+    /// 3. 支持从崩溃中恢复（通过读取已写入的帧索引）
+    /// 4. 支持断点续录（加载现有录制文件继续录制）
     /// </summary>
     public class RecordingDataService
     {
@@ -23,9 +29,15 @@ namespace Sai2Capture.Services
         private DateTime _recordingStartTime;
         private long _frameDataStartOffset;
         private readonly List<RecordingFrame> _frameIndex = new();
+        private System.Windows.Threading.DispatcherTimer? _autoSaveTimer;
+        private bool _isResuming = false;
+        private int _resumeBaseFrameIndex = 0;
 
         // JPEG 编码参数
         private readonly int _jpegQuality = 85;
+        
+        // 自动保存间隔（秒）
+        private const int AutoSaveIntervalSeconds = 10;
 
         public RecordingDataService(LogService logService, SettingsService settingsService)
         {
@@ -36,7 +48,7 @@ namespace Sai2Capture.Services
         /// <summary>
         /// 开始新的录制会话
         /// </summary>
-        public void StartRecording(string windowTitle, nint windowHandle, double captureInterval, int canvasWidth, int canvasHeight)
+        public void StartRecording(string windowTitle, nint windowHandle, double captureInterval, int canvasWidth, int canvasHeight, string? resumeFromFilePath = null)
         {
             lock (_lock)
             {
@@ -46,6 +58,13 @@ namespace Sai2Capture.Services
                 if (!Directory.Exists(recordingDirectory))
                 {
                     Directory.CreateDirectory(recordingDirectory);
+                }
+
+                // 如果是续录，使用原文件；否则创建新文件
+                if (!string.IsNullOrEmpty(resumeFromFilePath) && File.Exists(resumeFromFilePath))
+                {
+                    ResumeRecording(resumeFromFilePath, windowTitle, windowHandle, captureInterval, canvasWidth, canvasHeight);
+                    return;
                 }
 
                 var fileName = $"Recording_{_recordingStartTime:yyyyMMdd_HHmmss}.sai2rec";
@@ -80,6 +99,143 @@ namespace Sai2Capture.Services
                 };
 
                 _frameIndex.Clear();
+                _isResuming = false;
+                _resumeBaseFrameIndex = 0;
+
+                // 启动自动保存定时器
+                StartAutoSaveTimer();
+            }
+        }
+
+        /// <summary>
+        /// 从现有录制文件恢复并继续录制
+        /// </summary>
+        private void ResumeRecording(string recordingFilePath, string windowTitle, nint windowHandle, double captureInterval, int canvasWidth, int canvasHeight)
+        {
+            try
+            {
+                _recordingFilePath = recordingFilePath;
+                _isResuming = true;
+
+                // 读取现有文件的元数据
+                var existingMetadata = LoadMetadata(recordingFilePath);
+                if (existingMetadata == null)
+                {
+                    _logService.AddLog($"无法读取录制文件元数据：{recordingFilePath}", LogLevel.Error);
+                    throw new InvalidOperationException("无法读取录制文件元数据");
+                }
+
+                // 使用原文件的开始时间，保持时间连续性
+                _recordingStartTime = existingMetadata.StartTime;
+                _resumeBaseFrameIndex = existingMetadata.TotalFrames;
+
+                _logService.AddLog($"从文件恢复录制：{recordingFilePath}");
+                _logService.AddLog($"原录制信息：{existingMetadata.TotalFrames} 帧，开始时间：{existingMetadata.StartTime:yyyy-MM-dd HH:mm:ss}");
+
+                // 以追加模式打开文件
+                _fileStream = new FileStream(recordingFilePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+                _writer = new BinaryWriter(_fileStream);
+
+                // 读取现有帧索引
+                _frameIndex.Clear();
+                _frameIndex.AddRange(existingMetadata.Frames);
+
+                // 定位到帧数据末尾（文件末尾）
+                _fileStream.Seek(0, SeekOrigin.End);
+
+                // 更新元数据
+                _currentRecording = new RecordingMetadata
+                {
+                    StartTime = existingMetadata.StartTime,
+                    WindowTitle = windowTitle,
+                    WindowHandle = windowHandle,
+                    CaptureInterval = captureInterval,
+                    CanvasWidth = canvasWidth,
+                    CanvasHeight = canvasHeight,
+                    SoftwareVersion = "1.0.0",
+                    Quality = _jpegQuality,
+                    TotalFrames = existingMetadata.TotalFrames,
+                    ValidFrames = existingMetadata.ValidFrames
+                };
+
+                _frameDataStartOffset = RecordingFileFormat.HeaderLength;
+
+                _logService.AddLog($"续录模式：基础帧数 {_resumeBaseFrameIndex}，文件指针位置 {_fileStream.Position}");
+
+                // 启动自动保存定时器
+                StartAutoSaveTimer();
+            }
+            catch (Exception ex)
+            {
+                _logService.AddLog($"恢复录制失败：{ex.Message}", LogLevel.Error);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// 启动自动保存定时器
+        /// </summary>
+        private void StartAutoSaveTimer()
+        {
+            _autoSaveTimer?.Stop();
+            _autoSaveTimer = new System.Windows.Threading.DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(AutoSaveIntervalSeconds)
+            };
+            _autoSaveTimer.Tick += (s, e) => AutoSaveMetadata();
+            _autoSaveTimer.Start();
+            _logService.AddLog($"自动保存定时器已启动（间隔：{AutoSaveIntervalSeconds}秒）");
+        }
+
+        /// <summary>
+        /// 自动保存元数据到文件（用于崩溃恢复）
+        /// </summary>
+        private void AutoSaveMetadata()
+        {
+            lock (_lock)
+            {
+                if (_currentRecording == null || _writer == null || _fileStream == null)
+                    return;
+
+                try
+                {
+                    // 保存当前帧索引表的偏移量
+                    var currentPos = _fileStream.Position;
+
+                    // 写入临时元数据备份
+                    var metadataBackupOffset = _fileStream.Position;
+                    _currentRecording.EndTime = DateTime.Now;
+                    _currentRecording.TotalFrames = _frameIndex.Count;
+                    _currentRecording.ValidFrames = _frameIndex.Count(f => f.DataLength > 0);
+                    _currentRecording.Frames = _frameIndex;
+                    _currentRecording.MetadataOffset = metadataBackupOffset;
+
+                    var metadataJson = JsonSerializer.Serialize(_currentRecording, new JsonSerializerOptions
+                    {
+                        WriteIndented = false
+                    });
+                    var metadataBytes = Encoding.UTF8.GetBytes(metadataJson);
+
+                    // 写入备份元数据长度和元数据
+                    _writer.Write(metadataBytes.Length);
+                    _writer.Write(metadataBytes);
+                    _writer.Flush();
+
+                    // 更新文件头中的元数据偏移和帧数量
+                    _fileStream.Position = RecordingFileFormat.MetadataOffsetOffset;
+                    _writer.Write(metadataBackupOffset);
+                    _writer.Write((long)_frameIndex.Count);
+                    _writer.Flush();
+
+                    // 恢复文件指针位置
+                    _fileStream.Position = currentPos;
+
+                    _logService.AddLog($"自动保存元数据：{_frameIndex.Count} 帧，文件大小：{_fileStream.Length / 1024.0:F2} KB", LogLevel.Info);
+                }
+                catch (Exception ex)
+                {
+                    _logService.AddLog($"自动保存元数据失败：{ex.Message}", LogLevel.Warning);
+                }
             }
         }
 
@@ -128,15 +284,18 @@ namespace Sai2Capture.Services
                     var dataOffset = _fileStream.Position;
                     var timestampMs = (long)(DateTime.Now - _recordingStartTime).TotalMilliseconds;
 
+                    // 在续录模式下，帧索引需要加上基础帧数
+                    var actualFrameIndex = _isResuming ? (_resumeBaseFrameIndex + _frameIndex.Count) : frameIndex;
+
                     var frameEntry = new RecordingFrame
                     {
-                        FrameIndex = frameIndex,
+                        FrameIndex = actualFrameIndex,
                         TimestampMs = timestampMs,
                         DataOffset = dataOffset,
                         DataLength = frameData.Length,
                         Width = frame.Width,
                         Height = frame.Height,
-                        IsKeyFrame = isKeyFrame || frameIndex == 0,
+                        IsKeyFrame = isKeyFrame || _frameIndex.Count == 0,
                         Quality = _jpegQuality
                     };
                     _frameIndex.Add(frameEntry);
@@ -176,6 +335,10 @@ namespace Sai2Capture.Services
 
                 try
                 {
+                    // 停止自动保存定时器
+                    _autoSaveTimer?.Stop();
+                    _autoSaveTimer = null;
+
                     _currentRecording.EndTime = DateTime.Now;
                     _currentRecording.TotalFrames = _frameIndex.Count;
 
@@ -384,11 +547,16 @@ namespace Sai2Capture.Services
                     return null;
                 }
 
+                var fileInfo = new FileInfo(recordingFilePath);
+                _logService.AddLog($"加载元数据 - 文件：{recordingFilePath}, 大小：{fileInfo.Length} 字节", LogLevel.Info);
+
                 // 验证文件魔数
                 using var verifyStream = new FileStream(recordingFilePath, FileMode.Open, FileAccess.Read);
                 var magicBuffer = new byte[RecordingFileFormat.MagicLength];
                 verifyStream.Read(magicBuffer, 0, RecordingFileFormat.MagicLength);
                 var magicNumber = Encoding.ASCII.GetString(magicBuffer);
+
+                _logService.AddLog($"文件魔数：{magicNumber}", LogLevel.Info);
 
                 if (magicNumber != "SAI2REC01")
                 {
@@ -401,17 +569,84 @@ namespace Sai2Capture.Services
                 using var reader = new BinaryReader(verifyStream);
                 var metadataOffset = reader.ReadInt64();
 
+                _logService.AddLog($"元数据偏移量：{metadataOffset}, 文件大小：{fileInfo.Length}", LogLevel.Info);
+
+                // 如果元数据偏移量为 0 或超出文件范围，尝试从文件末尾恢复
+                if (metadataOffset <= 0 || metadataOffset >= fileInfo.Length)
+                {
+                    _logService.AddLog($"元数据偏移量无效，尝试从文件末尾恢复...", LogLevel.Warning);
+                    return TryRecoverMetadata(recordingFilePath, verifyStream);
+                }
+
                 // 读取元数据
                 verifyStream.Position = metadataOffset;
                 var metadataLength = reader.ReadInt32();
+                _logService.AddLog($"元数据长度：{metadataLength}", LogLevel.Info);
+
+                if (metadataLength <= 0 || metadataOffset + 4 + metadataLength > fileInfo.Length)
+                {
+                    _logService.AddLog($"元数据长度无效，尝试从文件末尾恢复...", LogLevel.Warning);
+                    return TryRecoverMetadata(recordingFilePath, verifyStream);
+                }
+
                 var metadataBytes = reader.ReadBytes(metadataLength);
                 var metadataJson = Encoding.UTF8.GetString(metadataBytes);
+
+                _logService.AddLog($"元数据 JSON 长度：{metadataJson.Length}", LogLevel.Info);
 
                 return JsonSerializer.Deserialize<RecordingMetadata>(metadataJson);
             }
             catch (Exception ex)
             {
                 _logService.AddLog($"加载元数据失败：{ex.Message}", LogLevel.Error);
+                _logService.AddLog($"异常堆栈：{ex.StackTrace}", LogLevel.Error);
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// 尝试从文件末尾恢复元数据（用于崩溃恢复）
+        /// </summary>
+        private RecordingMetadata? TryRecoverMetadata(string recordingFilePath, FileStream fileStream)
+        {
+            try
+            {
+                // 从文件末尾向前搜索元数据
+                // 元数据格式：[长度 4 字节][JSON 数据]
+                var buffer = new byte[4];
+                
+                // 尝试从文件末尾读取元数据长度
+                fileStream.Seek(-4, SeekOrigin.End);
+                fileStream.Read(buffer, 0, 4);
+                var metadataLength = BitConverter.ToInt32(buffer, 0);
+
+                _logService.AddLog($"恢复模式：从文件末尾读取的元数据长度：{metadataLength}", LogLevel.Info);
+
+                if (metadataLength <= 0 || metadataLength > fileStream.Length - 4)
+                {
+                    _logService.AddLog($"恢复失败：元数据长度无效", LogLevel.Error);
+                    return null;
+                }
+
+                // 读取元数据
+                fileStream.Seek(-(4 + metadataLength), SeekOrigin.End);
+                var metadataBytes = new byte[metadataLength];
+                fileStream.Read(metadataBytes, 0, metadataLength);
+                var metadataJson = Encoding.UTF8.GetString(metadataBytes);
+
+                _logService.AddLog($"恢复成功：元数据 JSON 长度：{metadataJson.Length}", LogLevel.Info);
+
+                var metadata = JsonSerializer.Deserialize<RecordingMetadata>(metadataJson);
+                if (metadata != null)
+                {
+                    _logService.AddLog($"恢复成功：总帧数 {metadata.TotalFrames}, 有效帧数 {metadata.ValidFrames}", LogLevel.Info);
+                }
+
+                return metadata;
+            }
+            catch (Exception ex)
+            {
+                _logService.AddLog($"恢复元数据失败：{ex.Message}", LogLevel.Error);
                 return null;
             }
         }
@@ -448,6 +683,10 @@ namespace Sai2Capture.Services
             {
                 try
                 {
+                    // 停止自动保存定时器
+                    _autoSaveTimer?.Stop();
+                    _autoSaveTimer = null;
+
                     _writer?.Close();
                     _fileStream?.Close();
 

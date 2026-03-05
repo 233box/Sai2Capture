@@ -23,6 +23,11 @@
             <views:MainPage DataContext="{Binding}"/>
         </TabItem>
 
+        <!-- 录制管理标签页 -->
+        <TabItem Header="录制管理">
+            <views:RecordingManagerPage x:Name="RecordingManagerPageControl"/>
+        </TabItem>
+
         <!-- 设置标签页 -->
         <TabItem Header="设置">
             <views:SettingsPage DataContext="{Binding}"/>
