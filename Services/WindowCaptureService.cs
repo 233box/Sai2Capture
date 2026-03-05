@@ -372,8 +372,7 @@ namespace Sai2Capture.Services
         /// </summary>
         public void SaveIfModified(Mat currentImage)
         {
-            bool shouldSave = _sharedState.VideoWriter == null
-                || _sharedState.LastImage == null
+            bool shouldSave = _sharedState.LastImage == null
                 || !ImagesEqual(_sharedState.LastImage, currentImage);
 
             if (shouldSave)
@@ -422,24 +421,15 @@ namespace Sai2Capture.Services
         /// <param name="frame">要保存的帧</param>
         private void SaveFrame(Mat frame)
         {
-            if (_sharedState.VideoWriter != null && _sharedState.VideoWriter.IsOpened())
+            // 释放旧的 LastImage，防止内存泄漏
+            if (_sharedState.LastImage != null && !_sharedState.LastImage.IsDisposed)
             {
-                _sharedState.VideoWriter.Write(frame);
-
-                // 释放旧的 LastImage，防止内存泄漏
-                if (_sharedState.LastImage != null && !_sharedState.LastImage.IsDisposed)
-                {
-                    _sharedState.LastImage.Dispose();
-                }
-
-                // 克隆当前帧作为下一帧的比较基准
-                _sharedState.LastImage = frame.Clone();
-                _sharedState.SavedCount++;
+                _sharedState.LastImage.Dispose();
             }
-            else
-            {
-                _logService.AddLog("警告：VideoWriter 未打开，无法保存帧", LogLevel.Warning);
-            }
+
+            // 克隆当前帧作为下一帧的比较基准
+            _sharedState.LastImage = frame.Clone();
+            _sharedState.SavedCount++;
         }
 
 

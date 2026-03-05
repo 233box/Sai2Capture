@@ -20,9 +20,6 @@ namespace Sai2Capture.Services
         [ObservableProperty] private int _canvasWidth = 0;
         [ObservableProperty] private int _canvasHeight = 0;
 
-        public VideoWriter? VideoWriter { get; set; }
-        public string? VideoPath { get; set; }
-
         /// <summary>
         /// 重置所有捕获相关状态到初始值
         /// </summary>
@@ -34,30 +31,12 @@ namespace Sai2Capture.Services
             IsInitialized = false;
             Hwnd = nint.Zero;
             OutputFolder = "";
-            VideoPath = null;
 
             if (LastImage != null && !LastImage.IsDisposed)
             {
                 LastImage.Dispose();
             }
             LastImage = null;
-
-            if (VideoWriter != null)
-            {
-                try
-                {
-                    VideoWriter.Release();
-                    VideoWriter.Dispose();
-                }
-                catch
-                {
-                    // 忽略已释放对象的异常
-                }
-                finally
-                {
-                    VideoWriter = null;
-                }
-            }
         }
     }
 }
