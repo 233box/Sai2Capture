@@ -419,9 +419,7 @@ namespace Sai2Capture.Services
             {
                 Fps = fps ?? 20,
                 Codec = VideoCodec.H264,
-                OutputWidth = 0,
-                OutputHeight = 0,
-                Quality = 80
+                QualityLevel = 2
             };
             return ExportToVideo(recordingFilePath, outputVideoPath, settings);
         }
@@ -476,18 +474,11 @@ namespace Sai2Capture.Services
                 double actualFps = settings.Fps > 0 ? settings.Fps : (1.0 / metadata.CaptureInterval);
                 if (actualFps <= 0) actualFps = 20;
 
-                // 计算输出尺寸
+                // 计算输出尺寸（始终使用原始分辨率）
                 int width = metadata.CanvasWidth > 0 ? metadata.CanvasWidth : metadata.Frames[0].Width;
                 int height = metadata.CanvasHeight > 0 ? metadata.CanvasHeight : metadata.Frames[0].Height;
 
-                // 如果配置了自定义分辨率，使用配置的分辨率
-                if (settings.OutputWidth > 0 && settings.OutputHeight > 0)
-                {
-                    width = settings.OutputWidth;
-                    height = settings.OutputHeight;
-                }
-
-                _logService.AddLog($"导出参数：{metadata.Frames.Count} 帧，{actualFps:F2} FPS, 尺寸：{width}x{height}, 编解码器：{settings.Codec}");
+                _logService.AddLog($"导出参数：{metadata.Frames.Count} 帧，{actualFps:F2} FPS, 尺寸：{width}x{height}, 编解码器：{settings.Codec}, 质量等级：{settings.QualityLevel}");
 
                 // 创建视频写入器
                 using var videoWriter = new VideoWriter();

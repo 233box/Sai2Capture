@@ -11,40 +11,38 @@ namespace Sai2Capture.Models
         public double Fps { get; set; } = 20;
 
         /// <summary>
-        /// 输出宽度（0 表示使用原始分辨率）
-        /// </summary>
-        public int OutputWidth { get; set; } = 0;
-
-        /// <summary>
-        /// 输出高度（0 表示使用原始分辨率）
-        /// </summary>
-        public int OutputHeight { get; set; } = 0;
-
-        /// <summary>
         /// 视频编解码器
         /// </summary>
         public VideoCodec Codec { get; set; } = VideoCodec.H264;
 
         /// <summary>
-        /// 视频质量（1-100，仅用于某些编解码器）
+        /// 视频质量等级（1-5，1 为最高质量，5 为最小文件）
         /// </summary>
-        public int Quality { get; set; } = 80;
+        public int QualityLevel { get; set; } = 2;
 
         /// <summary>
-        /// 是否保持原始分辨率
+        /// 质量等级描述
         /// </summary>
-        public bool KeepOriginalResolution => OutputWidth == 0 && OutputHeight == 0;
-
-        /// <summary>
-        /// 常见的预定义分辨率
-        /// </summary>
-        public static readonly (int Width, int Height)[] CommonResolutions = new[]
+        public string QualityDescription => QualityLevel switch
         {
-            (640, 480),    // VGA
-            (1280, 720),   // 720p
-            (1920, 1080),  // 1080p
-            (2560, 1440),  // 2K
-            (3840, 2160),  // 4K
+            1 => "最高质量（文件最大）",
+            2 => "高质量（推荐）",
+            3 => "中等质量",
+            4 => "较低质量",
+            5 => "最低质量（文件最小）",
+            _ => "高质量（推荐）"
+        };
+
+        /// <summary>
+        /// 常见的预定义质量等级
+        /// </summary>
+        public static readonly (int Level, string Description)[] QualityLevels = new[]
+        {
+            (1, "最高质量（文件最大）"),
+            (2, "高质量（推荐）"),
+            (3, "中等质量"),
+            (4, "较低质量"),
+            (5, "最低质量（文件最小）"),
         };
     }
 

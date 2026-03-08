@@ -5,6 +5,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
+using MessageBox = System.Windows.MessageBox;
 
 namespace Sai2Capture.ViewModels
 {
@@ -341,39 +342,42 @@ namespace Sai2Capture.ViewModels
             var dialog = new Microsoft.Win32.OpenFileDialog
             {
                 Filter = "录制文件 (*.sai2rec)|*.sai2rec|所有文件 (*.*)|*.*",
-                Title = "选择要续录的文件"
+                Title = "选择要续录的文件",
+                InitialDirectory = SavePath
             };
 
             if (dialog.ShowDialog() != true) return;
 
-            _resumeFromFilePath = dialog.FileName;
-            
             // 加载文件元数据
-            var recordingDataService = _captureService.GetType()
-                .GetField("_recordingDataService", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
-                ?.GetValue(_captureService) as RecordingDataService;
-            
-            if (recordingDataService != null)
+            var metadata = _captureService.LoadRecordingMetadata(dialog.FileName);
+            if (metadata != null)
             {
-                var metadata = recordingDataService.LoadMetadata(dialog.FileName);
-                if (metadata != null)
+                var windowTitle = metadata.WindowTitle;
+                var totalFrames = metadata.TotalFrames;
+
+                _resumeFromFilePath = dialog.FileName;
+
+                AddLog($"从文件继续录制：{dialog.FileName}");
+                AddLog($"原录制信息：{totalFrames} 帧，窗口：{windowTitle}");
+
+                // 尝试使用原录制的窗口标题
+                if (!string.IsNullOrEmpty(windowTitle) && WindowTitles.Contains(windowTitle))
                 {
-                    var windowTitle = metadata.WindowTitle;
-                    var totalFrames = metadata.TotalFrames;
-
-                    AddLog($"从文件继续录制：{dialog.FileName}");
-                    AddLog($"原录制信息：{totalFrames} 帧，窗口：{windowTitle}");
-
-                    // 尝试使用原录制的窗口标题
-                    if (!string.IsNullOrEmpty(windowTitle) && WindowTitles.Contains(windowTitle))
-                    {
-                        SelectedWindowTitle = windowTitle;
-                    }
+                    SelectedWindowTitle = windowTitle;
                 }
-            }
+                else if (!string.IsNullOrEmpty(windowTitle))
+                {
+                    AddLog($"注意：原录制窗口 \"{windowTitle}\" 未找到，请确保目标窗口已打开", "WARNING");
+                }
 
-            // 启动录制
-            StartCaptureCommand.Execute(null);
+                // 启动录制
+                StartCaptureCommand.Execute(null);
+            }
+            else
+            {
+                AddLog($"无法读取录制文件元数据：{dialog.FileName}", "ERROR");
+                MessageBox.Show("无法读取录制文件，请确保文件未损坏。", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         /// <summary>

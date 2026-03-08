@@ -35,11 +35,11 @@ namespace Sai2Capture.Views
                 .ToList();
             CodecComboBox.SelectedIndex = 0; // 默认 H.264
 
-            // 质量滑块值变化事件
-            QualitySlider.ValueChanged += (s, e) =>
-            {
-                QualityValueText.Text = $"{(int)QualitySlider.Value}%";
-            };
+            // 初始化质量等级列表
+            QualityComboBox.ItemsSource = VideoExportSettings.QualityLevels
+                .Select(q => q.Description)
+                .ToList();
+            QualityComboBox.SelectedIndex = 1; // 默认高质量（推荐）
         }
 
         private void ApplySettings(VideoExportSettings settings)
@@ -55,9 +55,16 @@ namespace Sai2Capture.Views
             }
 
             FpsNumberBox.Value = settings.Fps;
-            WidthNumberBox.Value = settings.OutputWidth;
-            HeightNumberBox.Value = settings.OutputHeight;
-            QualitySlider.Value = settings.Quality;
+
+            // 设置质量等级
+            for (int i = 0; i < QualityComboBox.Items.Count; i++)
+            {
+                if (QualityComboBox.Items[i]!.ToString() == settings.QualityDescription)
+                {
+                    QualityComboBox.SelectedIndex = i;
+                    break;
+                }
+            }
         }
 
         public VideoExportSettings GetSettings()
@@ -74,13 +81,21 @@ namespace Sai2Capture.Views
                 }
             }
 
+            // 获取质量等级
+            int qualityLevel = 2;
+            var selectedQualityDescription = QualityComboBox.SelectedItem?.ToString();
+            if (!string.IsNullOrEmpty(selectedQualityDescription))
+            {
+                var qualityOption = VideoExportSettings.QualityLevels
+                    .FirstOrDefault(q => q.Description == selectedQualityDescription);
+                qualityLevel = qualityOption.Level;
+            }
+
             return new VideoExportSettings
             {
                 Codec = selectedCodec,
                 Fps = FpsNumberBox.Value ?? 20,
-                OutputWidth = (int)(WidthNumberBox.Value ?? 0),
-                OutputHeight = (int)(HeightNumberBox.Value ?? 0),
-                Quality = (int)QualitySlider.Value
+                QualityLevel = qualityLevel
             };
         }
 

@@ -44,6 +44,10 @@ namespace Sai2Capture.Converters
                 case "Invert":
                 case "Not":
                     return ConvertInverse(value);
+                case "IntToCollapsed":
+                    return ConvertIntToCollapsed(value);
+                case "IntToVisible":
+                    return ConvertIntToVisible(value);
                 default:
                     return value;
             }
@@ -186,6 +190,32 @@ namespace Sai2Capture.Converters
                 return !boolValue;
             }
             return false;
+        }
+
+        /// <summary>
+        /// 整数转 Visibility：当 count == 0 时返回 Visible，否则返回 Collapsed
+        /// 用于空状态提示的显示/隐藏
+        /// </summary>
+        private static object ConvertIntToCollapsed(object value)
+        {
+            if (value is int count)
+            {
+                return count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            }
+            return Visibility.Collapsed;
+        }
+
+        /// <summary>
+        /// 整数转 Visibility：当 count > 0 时返回 Visible，否则返回 Collapsed
+        /// 用于有数据时的显示/隐藏
+        /// </summary>
+        private static object ConvertIntToVisible(object value)
+        {
+            if (value is int count)
+            {
+                return count > 0 ? Visibility.Visible : Visibility.Collapsed;
+            }
+            return Visibility.Collapsed;
         }
 
         #endregion

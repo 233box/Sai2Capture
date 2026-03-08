@@ -55,75 +55,14 @@
                            FontSize="13"/>
             </Grid>
 
-            <!-- 分辨率 -->
-            <TextBlock Text="输出分辨率（0 = 使用原始分辨率）"
-                       FontSize="13"
-                       FontWeight="SemiBold"
-                       Margin="0,0,0,8"/>
-            <Grid Margin="0,0,0,16">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <StackPanel Grid.Column="0" Margin="0,0,8,0">
-                    <TextBlock Text="宽度"
-                               FontSize="11"
-                               Foreground="{DynamicResource ui:BodyForegroundSecondaryBrush}"
-                               Margin="0,0,0,4"/>
-                    <ui:NumberBox x:Name="WidthNumberBox"
-                                  Minimum="0"
-                                  Maximum="7680"
-                                  SmallChange="100"
-                                  Value="0"
-                                  Padding="10,8"/>
-                </StackPanel>
-                <TextBlock Grid.Column="1"
-                           Text="×"
-                           FontSize="16"
-                           VerticalAlignment="Bottom"
-                           Margin="8,0,8,4"/>
-                <StackPanel Grid.Column="2" Margin="8,0,0,0">
-                    <TextBlock Text="高度"
-                               FontSize="11"
-                               Foreground="{DynamicResource ui:BodyForegroundSecondaryBrush}"
-                               Margin="0,0,0,4"/>
-                    <ui:NumberBox x:Name="HeightNumberBox"
-                                  Minimum="0"
-                                  Maximum="4320"
-                                  SmallChange="100"
-                                  Value="0"
-                                  Padding="10,8"/>
-                </StackPanel>
-            </Grid>
-
-            <!-- 质量 -->
+            <!-- 质量等级 -->
             <TextBlock Text="视频质量"
                        FontSize="13"
                        FontWeight="SemiBold"
                        Margin="0,0,0,8"/>
-            <Grid Margin="0,0,0,8">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <Slider x:Name="QualitySlider"
-                        Grid.Column="0"
-                        Minimum="50"
-                        Maximum="100"
-                        TickFrequency="5"
-                        IsSnapToTickEnabled="True"
-                        VerticalAlignment="Center"
-                        Margin="0,0,12,0"/>
-                <TextBlock Grid.Column="1"
-                           x:Name="QualityValueText"
-                           Text="80%"
-                           FontSize="13"
-                           FontWeight="SemiBold"
-                           VerticalAlignment="Center"
-                           Width="40"
-                           TextAlignment="Right"/>
-            </Grid>
+            <ComboBox x:Name="QualityComboBox"
+                      Margin="0,0,0,16"
+                      Padding="10,8"/>
         </StackPanel>
 
         <!-- 按钮区域 -->
@@ -137,7 +76,7 @@
                        Margin="0,0,12,0"
                        Click="CancelButton_Click"/>
             <ui:Button x:Name="ExportButton"
-                       Content="开始导出"
+                       Content="确定"
                        Appearance="Primary"
                        Width="120"
                        Click="ExportButton_Click"/>

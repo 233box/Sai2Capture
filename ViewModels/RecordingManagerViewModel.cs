@@ -88,38 +88,36 @@ namespace Sai2Capture.ViewModels
         private double _exportFps = 20;
 
         [ObservableProperty]
-        private int _exportOutputWidth = 0;
-
-        [ObservableProperty]
-        private int _exportOutputHeight = 0;
-
-        [ObservableProperty]
         private VideoCodec _exportCodec = VideoCodec.H264;
 
         [ObservableProperty]
-        private int _exportQuality = 80;
+        private int _exportQualityLevel = 2;
 
         [ObservableProperty]
         private string _savePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "output");
 
         [ObservableProperty]
-        private string _exportSummary = "H.264 | 20 FPS | 原始分辨率 | 80%";
+        private string _exportSummary = "H.264 | 20 FPS | 高质量";
 
         /// <summary>
         /// 更新导出摘要显示
         /// </summary>
         partial void OnExportFpsChanged(double value) => UpdateExportSummary();
-        partial void OnExportOutputWidthChanged(int value) => UpdateExportSummary();
-        partial void OnExportOutputHeightChanged(int value) => UpdateExportSummary();
         partial void OnExportCodecChanged(VideoCodec value) => UpdateExportSummary();
-        partial void OnExportQualityChanged(int value) => UpdateExportSummary();
+        partial void OnExportQualityLevelChanged(int value) => UpdateExportSummary();
 
         private void UpdateExportSummary()
         {
-            var resolution = (ExportOutputWidth == 0 && ExportOutputHeight == 0)
-                ? "原始分辨率"
-                : $"{ExportOutputWidth}×{ExportOutputHeight}";
-            ExportSummary = $"{ExportCodec} | {ExportFps} FPS | {resolution} | {ExportQuality}%";
+            var qualityText = ExportQualityLevel switch
+            {
+                1 => "最高质量",
+                2 => "高质量",
+                3 => "中等质量",
+                4 => "较低质量",
+                5 => "最低质量",
+                _ => "高质量"
+            };
+            ExportSummary = $"{ExportCodec} | {ExportFps} FPS | {qualityText}";
         }
 
         public RecordingManagerViewModel(
@@ -285,10 +283,8 @@ namespace Sai2Capture.ViewModels
                 var settings = new VideoExportSettings
                 {
                     Fps = ExportFps,
-                    OutputWidth = ExportOutputWidth,
-                    OutputHeight = ExportOutputHeight,
                     Codec = ExportCodec,
-                    Quality = ExportQuality
+                    QualityLevel = ExportQualityLevel
                 };
 
                 // 在新线程中执行导出
@@ -339,10 +335,8 @@ namespace Sai2Capture.ViewModels
             var dialog = new VideoExportSettingsDialog(new VideoExportSettings
             {
                 Fps = ExportFps,
-                OutputWidth = ExportOutputWidth,
-                OutputHeight = ExportOutputHeight,
                 Codec = ExportCodec,
-                Quality = ExportQuality
+                QualityLevel = ExportQualityLevel
             });
 
             var mainWindow = System.Windows.Application.Current.MainWindow;
@@ -355,12 +349,10 @@ namespace Sai2Capture.ViewModels
             {
                 // 应用用户选择的设置
                 ExportFps = dialog.Settings.Fps;
-                ExportOutputWidth = dialog.Settings.OutputWidth;
-                ExportOutputHeight = dialog.Settings.OutputHeight;
                 ExportCodec = dialog.Settings.Codec;
-                ExportQuality = dialog.Settings.Quality;
+                ExportQualityLevel = dialog.Settings.QualityLevel;
 
-                _logService.AddLog($"导出配置已更新：{ExportCodec} | {ExportFps} FPS | {ExportOutputWidth}x{ExportOutputHeight} | {ExportQuality}%");
+                _logService.AddLog($"导出配置已更新：{ExportCodec} | {ExportFps} FPS | {ExportQualityLevel}级");
             }
         }
 

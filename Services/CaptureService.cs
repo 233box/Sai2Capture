@@ -3,6 +3,7 @@ using OpenCvSharp;
 using System.IO;
 using System.Windows;
 using System.Windows.Threading;
+using Sai2Capture.Models;
 
 namespace Sai2Capture.Services
 {
@@ -178,6 +179,16 @@ namespace Sai2Capture.Services
 
             _sharedState.ResetCaptureState();
             _logService.AddLog("捕获状态已重置到初始值");
+        }
+
+        /// <summary>
+        /// 加载录制文件的元数据
+        /// </summary>
+        /// <param name="filePath">录制文件路径</param>
+        /// <returns>录制元数据，加载失败时返回 null</returns>
+        public RecordingMetadata? LoadRecordingMetadata(string filePath)
+        {
+            return _recordingDataService.LoadMetadata(filePath);
         }
 
         /// <summary>

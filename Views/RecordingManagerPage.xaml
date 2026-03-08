@@ -112,76 +112,108 @@
                 </DataGrid>
 
                 <!-- 空状态提示 -->
-                <TextBlock Grid.Row="0"
-                           Text="暂无录制文件"
-                           FontSize="{StaticResource FontSizeMedium}"
-                           Foreground="{DynamicResource ui:BodyForegroundSecondaryBrush}"
-                           HorizontalAlignment="Center"
-                           VerticalAlignment="Center"
-                           Visibility="{Binding RecordingFiles.Count, Converter={StaticResource UniversalConverter}, ConverterParameter=IntToCollapsed}"/>
+                <Grid Grid.Row="0" Visibility="{Binding RecordingFiles.Count, Converter={StaticResource UniversalConverter}, ConverterParameter=IntToCollapsed}">
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="32">
+                        <TextBlock Text="📼"
+                                   FontSize="48"
+                                   HorizontalAlignment="Center"
+                                   Margin="0,0,0,16"/>
+                        <TextBlock Text="暂无录制文件"
+                                   FontSize="16"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource ui:BodyForegroundSecondaryBrush}"
+                                   HorizontalAlignment="Center"
+                                   Margin="0,0,0,8"/>
+                        <TextBlock Text="录制文件将保存在主页面设置的输出目录中"
+                                   FontSize="13"
+                                   Foreground="{DynamicResource ui:BodyForegroundSecondaryBrush}"
+                                   HorizontalAlignment="Center"
+                                   TextWrapping="Wrap"
+                                   Margin="0,0,0,16"/>
+                        <TextBlock Text="请先到「主页面」开始录制，或点击下方「从文件继续录制」选择已有文件"
+                                   FontSize="13"
+                                   Foreground="{DynamicResource ui:BodyForegroundTertiaryBrush}"
+                                   HorizontalAlignment="Center"
+                                   TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Grid>
             </Grid>
         </ui:Card>
 
-        <!-- 导出设置 -->
+        <!-- 导出设置和操作按钮 -->
         <ui:Card Grid.Row="2" Margin="0,0,0,16"
                  Visibility="{Binding SelectedRecording, Converter={StaticResource UniversalConverter}, ConverterParameter=NullToCollapsed}">
             <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
 
-                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="导出配置："
-                               Style="{StaticResource LabelStyle}"
-                               VerticalAlignment="Center"
+                <!-- 导出配置显示 -->
+                <Grid Grid.Row="0" Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="导出配置："
+                                   Style="{StaticResource LabelStyle}"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,12,0"/>
+                        <TextBlock Text="{Binding ExportSummary}"
+                                   FontSize="{StaticResource FontSizeNormal}"
+                                   Foreground="{DynamicResource ui:BodyForegroundSecondaryBrush}"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <ui:Button Grid.Column="1"
+                               Content="⚙️ 修改配置"
+                               Command="{Binding ConfigureExportCommand}"
+                               Appearance="Secondary"/>
+                </Grid>
+
+                <!-- 操作按钮区域 -->
+                <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center">
+                    <ui:Button Content="📹 导出视频"
+                               Command="{Binding ExportVideoCommand}"
+                               Appearance="Primary"
+                               Width="120"
                                Margin="0,0,12,0"/>
-                    <TextBlock Text="{Binding ExportSummary}"
-                               FontSize="{StaticResource FontSizeNormal}"
-                               Foreground="{DynamicResource ui:BodyForegroundSecondaryBrush}"
-                               VerticalAlignment="Center"/>
-                </StackPanel>
 
-                <ui:Button Grid.Column="1"
-                           Content="⚙️ 导出设置"
-                           Command="{Binding ConfigureExportCommand}"
-                           Appearance="Primary"/>
+                    <ui:Button Content="▶️ 从此文件继续录制"
+                               Command="{Binding ResumeRecordingCommand}"
+                               Appearance="Secondary"
+                               Width="160"
+                               Margin="0,0,12,0"/>
+
+                    <ui:Button Content="👁️ 预览"
+                               Command="{Binding PreviewRecordingCommand}"
+                               Width="100"
+                               Margin="0,0,12,0"/>
+
+                    <ui:Button Content="📂 打开位置"
+                               Command="{Binding OpenFileLocationCommand}"
+                               Width="100"
+                               Margin="0,0,12,0"/>
+
+                    <ui:Button Content="🗑️ 删除"
+                               Command="{Binding DeleteRecordingCommand}"
+                               Appearance="Danger"
+                               Width="100">
+                        <ui:Button.Style>
+                            <Style TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
+                                <Setter Property="Foreground" Value="White"/>
+                                <Style.Triggers>
+                                    <Trigger Property="IsEnabled" Value="False">
+                                        <Setter Property="Foreground" Value="#9E9E9E"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ui:Button.Style>
+                    </ui:Button>
+                </StackPanel>
             </Grid>
         </ui:Card>
-
-        <!-- 操作按钮 -->
-        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center">
-            <ui:Button Content="▶️ 从此文件继续录制"
-                       Command="{Binding ResumeRecordingCommand}"
-                       Appearance="Primary"
-                       Width="160"
-                       Margin="0,0,12,0"/>
-
-            <ui:Button Content="👁️ 预览"
-                       Command="{Binding PreviewRecordingCommand}"
-                       Width="100"
-                       Margin="0,0,12,0"/>
-
-            <ui:Button Content="📂 打开位置"
-                       Command="{Binding OpenFileLocationCommand}"
-                       Width="100"
-                       Margin="0,0,12,0"/>
-
-            <ui:Button Content="🗑️ 删除"
-                       Command="{Binding DeleteRecordingCommand}"
-                       Appearance="Danger"
-                       Width="100">
-                <ui:Button.Style>
-                    <Style TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
-                        <Setter Property="Foreground" Value="White"/>
-                        <Style.Triggers>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Foreground" Value="#9E9E9E"/>
-                            </Trigger>
-                        </Style.Triggers>
-                    </Style>
-                </ui:Button.Style>
-            </ui:Button>
-        </StackPanel>
     </Grid>
 </UserControl>
