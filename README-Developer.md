@@ -20,7 +20,7 @@ Sai2Capture 是一个基于 C# WPF 的桌面应用程序，专门用于捕获 SA
 ```
 Sai2Capture/
 ├── Converters/          # 值转换器
-├── MemoryAnalysis/      # 内存分析工具
+├── Helpers/             # 辅助工具类
 ├── Models/              # 数据模型
 │   └── HotkeyModel.cs
 ├── Services/            # 核心业务服务
@@ -43,16 +43,20 @@ Sai2Capture/
 │   └── WindowTemplateConverter.cs
 ├── ViewModels/          # 视图模型
 │   ├── MainViewModel.cs
-│   └── HotkeyViewModel.cs
+│   ├── HotkeyViewModel.cs
+│   └── RecordingManagerViewModel.cs
 ├── Views/               # 用户界面
 │   ├── HotkeyCaptureDialog.xaml(.cs)
 │   ├── HotkeyEditDialog.xaml(.cs)
 │   ├── HotkeyErrorDialog.xaml(.cs)
 │   ├── LogPage.xaml(.cs)
 │   ├── MainPage.xaml(.cs)
-│   └── SettingsPage.xaml(.cs)
+│   ├── RecordingManagerPage.xaml(.cs)
+│   ├── RecordingPreviewWindow.xaml(.cs)
+│   ├── SettingsPage.xaml(.cs)
+│   └── ConfirmDialog.xaml(.cs)
 ├── Sounds/              # 嵌入式音效资源 (*.wav)
-├── sai2_dumps/          # SAI2 内存转储文件
+├── logs/                # 日志导出目录
 └── [Entry Points]       # 应用程序入口
     ├── App.xaml(.cs)
     ├── MainWindow.xaml(.cs)
