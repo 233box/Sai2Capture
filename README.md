@@ -5,10 +5,16 @@
 
 ## 🆕 最近更新
 
+### 2026-03-08
+
+- **结构化数据存储** - 新增 `.sai2rec` 录制格式，支持崩溃恢复和断点续录
+- **FFmpeg 视频导出** - 支持多种编解码器（H.264、H.265、VP9、AV1、MJPEG 等）
+- **质量等级选择** - 提供 5 档视频质量等级，平衡文件大小与画质
+- **录制管理功能** - 统一的录制文件管理和视频导出界面
+
 ### 2026-03-04
 
 - 优化了程序的异常处理机制
-- 下一次更新的目标：将录制内容写入结构化数据文件防止意外中断导致的视频损坏，并提供视频导出功能。
 
 ## ✨ 主要特性
 
@@ -88,11 +94,12 @@
 - **框架**: .NET 8.0 + WPF
 - **图像处理**: OpenCvSharp4 4.8.0
 - **窗口捕获**: Windows PrintWindow API
-- **视频编码**: OpenCvSharp4 VideoWriter
+- **视频编码**: FFmpeg（支持 H.264、H.265、VP9、AV1 等）+ OpenCvSharp4 VideoWriter
 - **依赖注入**: Microsoft.Extensions.DependencyInjection 8.0.0
 - **MVVM 框架**: CommunityToolkit.Mvvm 8.2.0
 - **UI 库**: WPF-UI 3.1.0
 - **设置管理**: 基于 JSON 的配置持久化，支持窗口状态记忆
+- **录制格式**: 自定义 `.sai2rec` 二进制格式（支持崩溃恢复和断点续录）
 
 ### 性能特点
 
@@ -108,6 +115,9 @@
 3. **画布监控** - 自动检测 SAI2 画布尺寸，支持 .sai2 文件路径解析
 4. **批量处理** - 设置完成后可重复使用相同的配置
 5. **故障排除** - 查看系统日志了解详细错误信息，支持按级别过滤
+6. **视频导出** - 支持多种编解码器选择，H.264 兼容性最好，H.265 压缩率更高
+7. **质量等级** - 根据需求选择质量等级（1-5），等级 2「高质量」为推荐设置
+8. **崩溃恢复** - 使用 `.sai2rec` 格式录制，意外中断后可继续录制
 
 ### 项目结构
 
@@ -119,8 +129,10 @@ Sai2Capture/
 ├── Services/                   # 核心服务层
 │   ├── CaptureService          # 录制控制服务
 │   ├── CustomDialogService     # 自定义对话框服务
+│   ├── FFmpegVideoEncoder      # FFmpeg 视频编码器
 │   ├── HotkeyService           # 全局热键服务
 │   ├── LogService              # 日志服务
+│   ├── RecordingDataService    # 录制数据服务（.sai2rec 格式）
 │   ├── Sai2FileParser          # SAI2 文件解析
 │   ├── SettingsService         # 设置管理服务
 │   ├── SharedStateService      # 全局状态管理
@@ -131,7 +143,7 @@ Sai2Capture/
 ├── ViewModels/                 # MVVM 视图模型
 ├── Views/                      # UI 视图
 ├── Sounds/                     # 音效资源（嵌入式）
-└── sai2_dumps/                 # SAI2 内存转储文件
+└── output/                     # 输出文件目录
 ```
 
 ## 🤝 反馈与建议

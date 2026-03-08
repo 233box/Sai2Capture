@@ -13,8 +13,11 @@ namespace Sai2Capture.Services
     {
         private const int WM_HOTKEY = 0x0312;
 
-        [DllImport("user32.dll")] private static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
-        [DllImport("user32.dll")] private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
+        [DllImport("user32.dll")]
+        private static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
+
+        [DllImport("user32.dll")]
+        private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
 
         private readonly LogService _logService;
         private readonly SettingsService _settingsService;
@@ -27,7 +30,8 @@ namespace Sai2Capture.Services
 
         public ObservableCollection<HotkeyModel> Hotkeys { get; private set; } = new();
 
-        [ObservableProperty] private bool _hotkeysEnabled = true;
+        [ObservableProperty]
+        private bool _hotkeysEnabled = true;
 
         public HotkeyService(LogService logService, SettingsService settingsService)
         {
@@ -48,7 +52,8 @@ namespace Sai2Capture.Services
             }
 
             _windowHandle = windowHandle;
-            if (_windowHandle == IntPtr.Zero) throw new ArgumentException("无效的窗口句柄");
+            if (_windowHandle == IntPtr.Zero)
+                throw new ArgumentException("无效的窗口句柄");
 
             LoadHotkeys();
             RegisterAllHotkeys();
@@ -108,9 +113,7 @@ namespace Sai2Capture.Services
                 if (shift) modifiers |= 0x0004;
 
                 int hotkeyId = _nextHotkeyId++;
-                bool success = RegisterHotKey(_windowHandle, hotkeyId, modifiers, (uint)keyCode);
-
-                if (success)
+                if (RegisterHotKey(_windowHandle, hotkeyId, modifiers, (uint)keyCode))
                 {
                     _registeredHotkeys[hotkeyId] = hotkey;
                     hotkey.PropertyChanged += (s, e) =>
@@ -202,17 +205,10 @@ namespace Sai2Capture.Services
         public void UpdateHotkey(string id, string newKey)
         {
             var hotkey = Hotkeys.FirstOrDefault(h => h.Id == id);
-            if (hotkey != null)
+            if (hotkey != null && HotkeyModel.ValidateKeyCombination(newKey))
             {
-                if (HotkeyModel.ValidateKeyCombination(newKey))
-                {
-                    hotkey.CurrentKey = newKey;
-                    _logService.AddLog($"更新热键 {hotkey.Name}: {newKey}");
-                }
-                else
-                {
-                    _logService.AddLog($"无效的热键格式：{newKey}", LogLevel.Warning);
-                }
+                hotkey.CurrentKey = newKey;
+                _logService.AddLog($"更新热键 {hotkey.Name}: {newKey}");
             }
         }
 

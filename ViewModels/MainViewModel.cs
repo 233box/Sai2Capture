@@ -5,6 +5,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
+using System.Windows.Threading;
 using MessageBox = System.Windows.MessageBox;
 
 namespace Sai2Capture.ViewModels
@@ -32,71 +33,34 @@ namespace Sai2Capture.ViewModels
         private readonly LogService _logService;
         private readonly HotkeyViewModel _hotkeyViewModel;
         private readonly RecordingManagerViewModel _recordingManagerViewModel;
-        private readonly System.Windows.Threading.DispatcherTimer _statusTimer;
-        private readonly System.Windows.Threading.DispatcherTimer _canvasPollingTimer;
+        private readonly DispatcherTimer _statusTimer;
+        private readonly DispatcherTimer _canvasPollingTimer;
         private System.Windows.Controls.ScrollViewer? _logScrollViewer;
         private string? _lastKnownWindowTitle;
         private string? _resumeFromFilePath;
 
-        /// <summary>
-        /// 可用窗口标题列表
-        /// 通过 EnumWindowTitles 获取的系统窗口集合
-        /// </summary>
         [ObservableProperty]
         private ObservableCollection<string> _windowTitles = new();
 
-        /// <summary>
-        /// 当前选中或输入的窗口标题
-        /// 支持从下拉列表选择或手动输入
-        /// 默认值："导航器"
-        /// </summary>
         [ObservableProperty]
         public string? _selectedWindowTitle = "导航器";
 
         partial void OnSelectedWindowTitleChanged(string? value)
         {
-            // 当窗口标题变更时，重新启动预览
             if (!string.IsNullOrWhiteSpace(value))
             {
-                // 通知 MainPage 重启预览
                 RestartPreviewRequested?.Invoke();
             }
         }
 
-        /// <summary>
-        /// 当需要重启预览时触发的事件
-        /// </summary>
         public event Action? RestartPreviewRequested;
 
-        /// <summary>
-        /// 帧捕获间隔时间 (秒)
-        /// 控制两次捕获之间的等待时间
-        /// 默认值：0.1 秒 (10FPS)
-        /// </summary>
         [ObservableProperty]
         public double _captureInterval = 0.1;
 
-        /// <summary>
-        /// 界面缩放级别
-        /// 支持值："100%""125%""150%""200%"
-        /// 默认值："125%"
-        /// </summary>
         [ObservableProperty]
         public string _zoomLevel = "125%";
 
-
-
-
-        /// <summary>
-        /// 初始化主视图模型
-        /// </summary>
-        /// <param name="windowCaptureService">窗口捕获服务</param>
-        /// <param name="utilityService">实用工具服务</param>
-        /// <param name="captureService">捕获服务</param>
-        /// <param name="settingsService">设置服务</param>
-        /// <param name="logService">日志服务</param>
-        /// <param name="hotkeyViewModel">热键视图模型</param>
-        /// <param name="recordingManagerViewModel">录制管理视图模型</param>
         public MainViewModel(
             WindowCaptureService windowCaptureService,
             UtilityService utilityService,
@@ -114,184 +78,105 @@ namespace Sai2Capture.ViewModels
             _hotkeyViewModel = hotkeyViewModel;
             _recordingManagerViewModel = recordingManagerViewModel;
 
-            // 订阅录制管理视图模型的续录请求
             _recordingManagerViewModel.ResumeRecordingRequested += OnResumeRecordingRequested;
-
-            // 订阅日志更新事件
             _logService.LogUpdated += OnLogUpdated;
 
-            // 初始化状态更新定时器
-            _statusTimer = new System.Windows.Threading.DispatcherTimer
-            {
-                Interval = TimeSpan.FromMilliseconds(100)
-            };
+            _statusTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
             _statusTimer.Tick += UpdateStatus;
 
-            // 初始化画布尺寸轮询定时器（每 2 秒检查一次）
-            _canvasPollingTimer = new System.Windows.Threading.DispatcherTimer
-            {
-                Interval = TimeSpan.FromSeconds(2)
-            };
-            _canvasPollingTimer.Tick += CanvasPollingTimer_Tick;
+            _canvasPollingTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+            _canvasPollingTimer.Tick += (s, e) => UpdateCanvasSize();
 
             InitializeServices();
         }
 
-        /// <summary>
-        /// 画布尺寸轮询定时器回调
-        /// </summary>
-        private void CanvasPollingTimer_Tick(object? sender, EventArgs e)
-        {
-            UpdateCanvasSize();
-        }
-
-        /// <summary>
-        /// 热键视图模型
-        /// </summary>
         public HotkeyViewModel HotkeyViewModel => _hotkeyViewModel;
 
-        /// <summary>
-        /// 停止画布尺寸轮询
-        /// 在窗口关闭时调用
-        /// </summary>
-        public void StopCanvasPolling()
-        {
-            _canvasPollingTimer?.Stop();
-        }
+        public void StopCanvasPolling() => _canvasPollingTimer?.Stop();
 
-        /// <summary>
-        /// SAI2 画布尺寸显示文本
-        /// </summary>
         [ObservableProperty]
         private string _canvasSizeDisplay = "未检测到 SAI2";
 
-        /// <summary>
-        /// 日志更新事件处理
-        /// </summary>
         private void OnLogUpdated(object? sender, LogEventArgs e)
         {
-            // 确保在 UI 线程更新显示
-            System.Windows.Application.Current?.Dispatcher.Invoke(() =>
-            {
-                UpdateLogDisplay();
-            });
+            System.Windows.Application.Current?.Dispatcher.Invoke(UpdateLogDisplay);
         }
 
-        /// <summary>
-        /// 初始化各服务组件
-        /// 1. 初始化捕获服务的 Dispatcher
-        /// 2. 枚举 SAI2 相关窗口标题列表
-        /// 3. 加载并应用用户设置
-        /// 4. 获取 SAI2 画布尺寸
-        /// </summary>
         private void InitializeServices()
         {
             _captureService.Initialize(System.Windows.Application.Current.Dispatcher);
             WindowTitles = new ObservableCollection<string>(_windowCaptureService.EnumSai2WindowTitles());
             _settingsService.LoadSettings();
 
-            // 同步设置
             SelectedWindowTitle = _settingsService.WindowName;
             CaptureInterval = _settingsService.CaptureInterval;
             ZoomLevel = _settingsService.ZoomLevel;
             SavePath = _settingsService.SavePath;
             Sai2Path = _settingsService.Sai2Path;
 
-            // 获取 SAI2 画布尺寸
             UpdateCanvasSize();
-
-            // 启动画布尺寸轮询（每 2 秒检查一次）
             _canvasPollingTimer.Start();
 
-            // 初始化日志
             AddLog("应用程序启动");
             AddLog($"设置文件路径：{_settingsService.GetSettingsFilePath()}");
             AddLog($"加载设置 - 窗口：{SelectedWindowTitle}, 间隔：{CaptureInterval}秒");
             AddLog($"保存路径：{SavePath}");
             AddLog("画布尺寸监控已启动");
 
-            // 初始化状态
             Status = "未录制";
         }
 
-        /// <summary>
-        /// 更新 SAI2 画布尺寸
-        /// 从窗口标题获取 .sai2 文件路径并解析
-        /// 只在窗口标题变化时才重新解析
-        /// </summary>
         private void UpdateCanvasSize()
         {
             try
             {
-                var sai2Processes = System.Diagnostics.Process.GetProcessesByName("sai2");
+                var sai2Processes = Process.GetProcessesByName("sai2");
                 if (sai2Processes.Length == 0)
                 {
-                    sai2Processes = System.Diagnostics.Process.GetProcessesByName("sai");
+                    sai2Processes = Process.GetProcessesByName("sai");
                 }
 
                 if (sai2Processes.Length == 0)
                 {
-                    // 未找到 SAI2 进程
                     CanvasSizeDisplay = "未检测到 SAI2";
                     return;
                 }
-
-                bool foundCanvas = false;
 
                 foreach (var proc in sai2Processes)
                 {
                     try
                     {
                         var title = proc.MainWindowTitle;
+                        if (string.IsNullOrEmpty(title)) continue;
 
-                        if (!string.IsNullOrEmpty(title))
+                        var parts = title.Split(new[] { " - " }, StringSplitOptions.None);
+                        if (parts.Length < 2) continue;
+
+                        var potentialPath = parts[parts.Length - 1].Trim();
+                        if (!potentialPath.EndsWith(".sai2", StringComparison.OrdinalIgnoreCase) || !File.Exists(potentialPath))
+                            continue;
+
+                        if (Sai2FileParser.TryParseCanvasSize(potentialPath, out int width, out int height))
                         {
-                            // 从标题中提取 .sai2 文件路径
-                            var parts = title.Split(new[] { " - " }, StringSplitOptions.None);
+                            bool sizeChanged = (_captureService.SharedState.CanvasWidth != width ||
+                                               _captureService.SharedState.CanvasHeight != height);
 
-                            if (parts.Length >= 2)
+                            _captureService.SharedState.CanvasWidth = width;
+                            _captureService.SharedState.CanvasHeight = height;
+                            CanvasSizeDisplay = $"SAI2 画布：{width} x {height}";
+
+                            if (sizeChanged)
                             {
-                                var potentialPath = parts[parts.Length - 1].Trim();
-
-                                if (potentialPath.EndsWith(".sai2", StringComparison.OrdinalIgnoreCase) && File.Exists(potentialPath))
-                                {
-                                    // 检查窗口标题是否变化（已检测到画布的情况下）
-                                    if (foundCanvas && _lastKnownWindowTitle == title)
-                                    {
-                                        continue;
-                                    }
-
-                                    if (Sai2FileParser.TryParseCanvasSize(potentialPath, out int width, out int height))
-                                    {
-                                        // 检查尺寸是否变化
-                                        bool sizeChanged = (_captureService.SharedState.CanvasWidth != width ||
-                                                           _captureService.SharedState.CanvasHeight != height);
-
-                                        _captureService.SharedState.CanvasWidth = width;
-                                        _captureService.SharedState.CanvasHeight = height;
-                                        CanvasSizeDisplay = $"SAI2 画布：{width} x {height}";
-
-                                        // 只在尺寸变化时输出日志
-                                        if (sizeChanged)
-                                        {
-                                            AddLog($"SAI2 画布尺寸：{width} x {height}");
-                                            Status = $"SAI2 画布：{width} x {height}";
-                                        }
-
-                                        _lastKnownWindowTitle = title;
-                                        foundCanvas = true;
-                                        return;
-                                    }
-                                    else
-                                    {
-                                        AddLog($"SAI2 文件解析失败：{potentialPath}", "WARNING");
-                                    }
-                                }
+                                AddLog($"SAI2 画布尺寸：{width} x {height}");
+                                Status = $"SAI2 画布：{width} x {height}";
                             }
 
-                            // 更新最后已知窗口标题
                             _lastKnownWindowTitle = title;
+                            return;
                         }
+
+                        AddLog($"SAI2 文件解析失败：{potentialPath}", "WARNING");
+                        _lastKnownWindowTitle = title;
                     }
                     catch (Exception ex)
                     {
@@ -299,11 +184,7 @@ namespace Sai2Capture.ViewModels
                     }
                 }
 
-                // 找到 SAI2 但无法解析画布尺寸
-                if (!foundCanvas)
-                {
-                    CanvasSizeDisplay = "SAI2 已运行（未检测到画布）";
-                }
+                CanvasSizeDisplay = "SAI2 已运行（未检测到画布）";
             }
             catch (Exception ex)
             {
@@ -333,9 +214,6 @@ namespace Sai2Capture.ViewModels
             _resumeFromFilePath = null; // 清除续录路径
         }
 
-        /// <summary>
-        /// 从录制文件继续录制
-        /// </summary>
         [RelayCommand]
         private void StartCaptureFromFile()
         {
@@ -348,36 +226,31 @@ namespace Sai2Capture.ViewModels
 
             if (dialog.ShowDialog() != true) return;
 
-            // 加载文件元数据
             var metadata = _captureService.LoadRecordingMetadata(dialog.FileName);
-            if (metadata != null)
-            {
-                var windowTitle = metadata.WindowTitle;
-                var totalFrames = metadata.TotalFrames;
-
-                _resumeFromFilePath = dialog.FileName;
-
-                AddLog($"从文件继续录制：{dialog.FileName}");
-                AddLog($"原录制信息：{totalFrames} 帧，窗口：{windowTitle}");
-
-                // 尝试使用原录制的窗口标题
-                if (!string.IsNullOrEmpty(windowTitle) && WindowTitles.Contains(windowTitle))
-                {
-                    SelectedWindowTitle = windowTitle;
-                }
-                else if (!string.IsNullOrEmpty(windowTitle))
-                {
-                    AddLog($"注意：原录制窗口 \"{windowTitle}\" 未找到，请确保目标窗口已打开", "WARNING");
-                }
-
-                // 启动录制
-                StartCaptureCommand.Execute(null);
-            }
-            else
+            if (metadata == null)
             {
                 AddLog($"无法读取录制文件元数据：{dialog.FileName}", "ERROR");
                 MessageBox.Show("无法读取录制文件，请确保文件未损坏。", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
             }
+
+            _resumeFromFilePath = dialog.FileName;
+            AddLog($"从文件继续录制：{dialog.FileName}");
+            AddLog($"原录制信息：{metadata.TotalFrames} 帧，窗口：{metadata.WindowTitle}");
+
+            if (!string.IsNullOrEmpty(metadata.WindowTitle))
+            {
+                if (WindowTitles.Contains(metadata.WindowTitle))
+                {
+                    SelectedWindowTitle = metadata.WindowTitle;
+                }
+                else
+                {
+                    AddLog($"注意：原录制窗口 \"{metadata.WindowTitle}\" 未找到，请确保目标窗口已打开", "WARNING");
+                }
+            }
+
+            StartCaptureCommand.Execute(null);
         }
 
         /// <summary>
@@ -434,27 +307,24 @@ namespace Sai2Capture.ViewModels
             {
                 AddLog($"执行热键命令：{hotkeyId} -> {commandName}");
 
+                if (commandName == "ToggleWindowTopmost")
+                {
+                    ToggleWindowTopmostRequested?.Invoke();
+                    return;
+                }
+
                 switch (commandName)
                 {
                     case "StartCaptureCommand":
-                        StartCaptureCommand.Execute(null);
-                        break;
+                        StartCaptureCommand.Execute(null); break;
                     case "PauseCaptureCommand":
-                        TogglePauseCommand.Execute(null);
-                        break;
+                        TogglePauseCommand.Execute(null); break;
                     case "StopCaptureCommand":
-                        StopCaptureCommand.Execute(null);
-                        break;
+                        StopCaptureCommand.Execute(null); break;
                     case "RefreshWindowListCommand":
-                        RefreshWindowListCommand.Execute(null);
-                        break;
+                        RefreshWindowListCommand.Execute(null); break;
                     case "ExportLogCommand":
-                        ExportLogCommand.Execute(null);
-                        break;
-                    default:
-                        // 特殊处理一些没有直接命令的热键
-                        HandleSpecialHotkey(hotkeyId);
-                        break;
+                        ExportLogCommand.Execute(null); break;
                 }
             }
             catch (Exception ex)
@@ -464,45 +334,9 @@ namespace Sai2Capture.ViewModels
         }
 
         /// <summary>
-        /// 处理特殊热键
+        /// 当请求切换窗口置顶时触发
         /// </summary>
-        private void HandleSpecialHotkey(string hotkeyId)
-        {
-            switch (hotkeyId)
-            {
-                case "toggle_window_topmost":
-                    // 切换窗口置顶状态
-                    // 这个需要在 MainWindow 中处理
-                    ToggleWindowTopmost();
-                    break;
-            }
-        }
-
-        /// <summary>
-        /// 切换窗口置顶状态
-        /// </summary>
-        private void ToggleWindowTopmost()
-        {
-            try
-            {
-                // 通过 Application.Current.MainWindow 访问主窗口
-                if (System.Windows.Application.Current.MainWindow != null)
-                {
-                    var mainWindow = System.Windows.Application.Current.MainWindow;
-                    mainWindow.Topmost = !mainWindow.Topmost;
-
-                    // 手动更新置顶按钮状态以同步按钮样式
-                    Sai2Capture.Styles.WindowTemplateHelper.UpdateWindowTopmostState(mainWindow);
-
-                    AddLog($"窗口置顶状态已切换为：{mainWindow.Topmost}");
-                    Status = $"窗口已{(mainWindow.Topmost ? "置顶" : "取消置顶")}";
-                }
-            }
-            catch (Exception ex)
-            {
-                AddLog($"切换窗口置顶状态失败：{ex.Message}", "ERROR");
-            }
-        }
+        public event Action? ToggleWindowTopmostRequested;
 
         private int _elapsedSeconds = 0;
 
@@ -527,17 +361,14 @@ namespace Sai2Capture.ViewModels
             }
         }
 
-        /// <summary>
-        /// 当前录制状态
-        /// </summary>
         public RecordingState CurrentRecordingState
         {
             get
             {
                 var state = _captureService.SharedState;
-                if (state.Running) return RecordingState.Recording;
-                if (state.IsInitialized) return RecordingState.Paused;
-                return RecordingState.Stopped;
+                return state.Running ? RecordingState.Recording
+                    : state.IsInitialized ? RecordingState.Paused
+                    : RecordingState.Stopped;
             }
         }
 
@@ -554,44 +385,22 @@ namespace Sai2Capture.ViewModels
 
         public bool CanStop => IsRecording;
 
-        /// <summary>
-        /// 更新状态显示
-        /// 根据捕获服务的运行状态显示不同的信息
-        /// 只在录制时计数器递增
-        /// </summary>
         private void UpdateStatus(object? sender, EventArgs e)
         {
             var sharedState = _captureService.SharedState;
+            if (!sharedState.Running && sharedState.FrameNumber == 0) return;
 
-            if (sharedState.Running)
-            {
-                _elapsedSeconds++;
-                var minutes = _elapsedSeconds / 10 / 60;
-                var seconds = (_elapsedSeconds / 10) % 60;
-                var elapsedStr = $"{minutes:D2}:{seconds:D2}";
-                Status = $"正在录制（当前已经过：{elapsedStr}，有效捕获：{sharedState.SavedCount}）";
-            }
-            else if (sharedState.FrameNumber > 0)
-            {
-                var minutes = _elapsedSeconds / 10 / 60;
-                var seconds = (_elapsedSeconds / 10) % 60;
-                var elapsedStr = $"{minutes:D2}:{seconds:D2}";
-                Status = $"已暂停（当前已经过：{elapsedStr}，有效捕获：{sharedState.SavedCount}）";
-            }
+            var elapsed = TimeSpan.FromSeconds(_elapsedSeconds++ / 10.0);
+            var elapsedStr = $"{(int)elapsed.TotalMinutes:D2}:{elapsed.Seconds:D2}";
+
+            Status = sharedState.Running
+                ? $"正在录制（当前已经过：{elapsedStr}，有效捕获：{sharedState.SavedCount}）"
+                : $"已暂停（当前已经过：{elapsedStr}，有效捕获：{sharedState.SavedCount}）";
         }
 
 
-        /// <summary>
-        /// 获取捕获服务实例
-        /// 用于 UI 绑定的只读属性
-        /// 提供对捕获进度和状态的访问
-        /// </summary>
         public CaptureService CaptureService => _captureService;
 
-        /// <summary>
-        /// 刷新窗口列表命令
-        /// 重新扫描系统进程，查找 SAI2 相关的窗口标题
-        /// </summary>
         [RelayCommand]
         private void RefreshWindowList()
         {
@@ -599,17 +408,12 @@ namespace Sai2Capture.ViewModels
             WindowTitles = new ObservableCollection<string>(_windowCaptureService.EnumSai2WindowTitles());
             AddLog($"SAI2 窗口列表已刷新，共 {WindowTitles.Count} 个 SAI2 相关窗口");
 
-            // 如果之前的选择仍然存在，保持选择
             if (!string.IsNullOrEmpty(currentSelection) && WindowTitles.Contains(currentSelection))
             {
                 SelectedWindowTitle = currentSelection;
             }
         }
 
-        /// <summary>
-        /// 启动嵌入式预览
-        /// 在主界面左侧开始显示指定窗口的实时预览
-        /// </summary>
         public void StartEmbeddedPreview(System.Windows.Controls.Image? previewImage = null)
         {
             try
@@ -622,11 +426,7 @@ namespace Sai2Capture.ViewModels
                 }
 
                 AddLog($"启动嵌入式预览：{SelectedWindowTitle}");
-
-                // 停止之前的预览（如果有）
                 _utilityService.StopEmbeddedPreview();
-
-                // 只有在提供了 Image 控件时才启动预览
                 if (previewImage != null)
                 {
                     _utilityService.StartEmbeddedPreview(SelectedWindowTitle, previewImage);
@@ -639,9 +439,6 @@ namespace Sai2Capture.ViewModels
             }
         }
 
-        /// <summary>
-        /// 停止嵌入式预览
-        /// </summary>
         public void StopEmbeddedPreview()
         {
             try
@@ -655,13 +452,6 @@ namespace Sai2Capture.ViewModels
             }
         }
 
-        /// <summary>
-        /// 窗口关闭前处理
-        /// 1. 保存当前所有设置值
-        /// 2. 确保停止所有捕获操作
-        /// 3. 停止嵌入式预览
-        /// 4. 保留应用状态的完整性
-        /// </summary>
         public void OnWindowClosing()
         {
             AddLog("保存设置并关闭应用程序");
@@ -673,60 +463,32 @@ namespace Sai2Capture.ViewModels
             _settingsService.SaveSettings();
 
             _captureService.StopCapture();
-
-            // 停止嵌入式预览
             StopEmbeddedPreview();
         }
 
-        /// <summary>
-        /// 获取或设置保存路径
-        /// 默认为程序根目录下的 output 文件夹
-        /// </summary>
         [ObservableProperty]
         private string _savePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "output");
 
-        /// <summary>
-        /// 获取或设置 SAI2 程序路径
-        /// 用于快速启动 SAI2 应用程序
-        /// </summary>
         [ObservableProperty]
         private string _sai2Path = "";
 
-        /// <summary>
-        /// 日志内容
-        /// </summary>
         [ObservableProperty]
         private string _logContent = string.Empty;
 
-        /// <summary>
-        /// 日志统计信息
-        /// </summary>
         [ObservableProperty]
         private string _logStatistics = "日志行数：0";
 
-        /// <summary>
-        /// 自动滚动日志
-        /// </summary>
         [ObservableProperty]
         private bool _autoScrollLog = true;
 
-        /// <summary>
-        /// 日志过滤级别
-        /// </summary>
         [ObservableProperty]
         private string _logFilterLevel = "全部";
 
-        /// <summary>
-        /// 当日志过滤级别改变时更新显示
-        /// </summary>
         partial void OnLogFilterLevelChanged(string value)
         {
             UpdateLogDisplay();
         }
 
-        /// <summary>
-        /// 更新日志显示（应用过滤）
-        /// </summary>
         private void UpdateLogDisplay()
         {
             LogLevel? filterLevel = LogFilterLevel switch
@@ -741,32 +503,16 @@ namespace Sai2Capture.ViewModels
             var count = _logService.GetLineCount(filterLevel);
             var totalCount = _logService.GetLineCount();
 
-            if (filterLevel.HasValue)
-            {
-                LogStatistics = $"显示：{count} / 总计：{totalCount} / 1000 | 过滤：{LogFilterLevel}";
-            }
-            else
-            {
-                LogStatistics = $"日志行数：{totalCount} / 1000 | 最后更新：{DateTime.Now:yyyy-MM-dd HH:mm:ss}";
-            }
+            LogStatistics = filterLevel.HasValue
+                ? $"显示：{count} / 总计：{totalCount} / 1000 | 过滤：{LogFilterLevel}"
+                : $"日志行数：{totalCount} / 1000 | 最后更新：{DateTime.Now:yyyy-MM-dd HH:mm:ss}";
 
-            // 过滤后也自动滚动到底部（确保在 UI 线程执行）
             if (AutoScrollLog && _logScrollViewer != null)
             {
-                try
-                {
-                    _logScrollViewer.ScrollToEnd();
-                }
-                catch
-                {
-                    // 忽略滚动错误
-                }
+                try { _logScrollViewer.ScrollToEnd(); } catch { }
             }
         }
 
-        /// <summary>
-        /// 设置日志滚动视图引用
-        /// </summary>
         public void SetLogScrollViewer(System.Windows.Controls.ScrollViewer scrollViewer)
         {
             _logScrollViewer = scrollViewer;

@@ -1,5 +1,7 @@
 using CommunityToolkit.Mvvm.DependencyInjection;
+using Sai2Capture.Helpers;
 using Sai2Capture.Services;
+using Sai2Capture.Styles;
 using Sai2Capture.ViewModels;
 using Sai2Capture.Views;
 using System.Windows;
@@ -7,7 +9,7 @@ using System.Windows.Interop;
 
 namespace Sai2Capture
 {
-    public partial class MainWindow : Sai2Capture.Styles.CustomMainWindow
+    public partial class MainWindow : CustomMainWindow
     {
         private HotkeyService? _hotkeyService;
         private SettingsService? _settingsService;
@@ -17,8 +19,7 @@ namespace Sai2Capture
             DataContext = Ioc.Default.GetRequiredService<MainViewModel>();
             InitializeComponent();
 
-            // 为录制管理页面设置独立的 ViewModel
-            if (FindName("RecordingManagerPageControl") is Views.RecordingManagerPage recordingManagerPage)
+            if (FindName("RecordingManagerPageControl") is RecordingManagerPage recordingManagerPage)
             {
                 recordingManagerPage.DataContext = Ioc.Default.GetRequiredService<RecordingManagerViewModel>();
             }
@@ -35,29 +36,48 @@ namespace Sai2Capture
             {
                 _hotkeyService.OnHotkeyTriggered += OnHotkeyTriggered;
             }
+
+            // 订阅 ViewModel 的置顶切换请求
+            if (DataContext is MainViewModel viewModel)
+            {
+                viewModel.ToggleWindowTopmostRequested += OnToggleWindowTopmostRequested;
+            }
+        }
+
+        private void OnToggleWindowTopmostRequested()
+        {
+            try
+            {
+                Topmost = !Topmost;
+                Sai2Capture.Styles.WindowTemplateHelper.UpdateWindowTopmostState(this);
+
+                if (DataContext is MainViewModel viewModel)
+                {
+                    viewModel.AddLog($"窗口置顶状态已切换为：{Topmost}");
+                    viewModel.Status = $"窗口已{(Topmost ? "置顶" : "取消置顶")}";
+                }
+            }
+            catch (Exception ex)
+            {
+                if (DataContext is MainViewModel viewModel)
+                {
+                    viewModel.AddLog($"切换窗口置顶状态失败：{ex.Message}", "ERROR");
+                }
+            }
         }
 
         private void MainWindow_SourceInitialized(object? sender, EventArgs e)
         {
-            // 设置窗口捕获服务的自身窗口句柄
-            var windowCaptureService = Ioc.Default.GetService<WindowCaptureService>();
-            if (windowCaptureService != null)
-            {
-                var handle = new WindowInteropHelper(this).Handle;
-                if (handle != IntPtr.Zero)
-                {
-                    windowCaptureService.SetSelfWindowHandle(handle);
-                }
-            }
+            var windowHandle = new WindowInteropHelper(this).Handle;
+            if (windowHandle == IntPtr.Zero) return;
 
-            // 初始化热键服务
+            var windowCaptureService = Ioc.Default.GetService<WindowCaptureService>();
+            windowCaptureService?.SetSelfWindowHandle(windowHandle);
+
             if (_hotkeyService != null)
             {
-                var windowHandle = new WindowInteropHelper(this).Handle;
                 _hotkeyService.Initialize(windowHandle);
-
-                HwndSource source = HwndSource.FromHwnd(windowHandle);
-                source?.AddHook(new HwndSourceHook(WndProcHook));
+                HwndSource.FromHwnd(windowHandle)?.AddHook(WndProcHook);
             }
         }
 
@@ -73,11 +93,8 @@ namespace Sai2Capture
             }
         }
 
-        private bool _isClosing = false;
         private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
         {
-            if (_isClosing) return;
-
             if (DataContext is MainViewModel mainViewModel)
             {
                 var captureService = mainViewModel.CaptureService;
@@ -95,19 +112,20 @@ namespace Sai2Capture
                         var result = CustomDialogService.ShowThreeButtonDialog(
                             message, "选择关闭方式", "保存并关闭", "不保存关闭", "取消");
 
-                        if (result == 2 || result == -1) // 取消或关闭对话框
+                        if (result == 2 || result == -1)
                         {
                             e.Cancel = true;
                             return;
                         }
-                        else if (result == 1) // 不保存关闭
+
+                        if (result == 1)
                         {
                             captureService.CancelCapture();
-                            AddLogWithContext(mainViewModel, $"用户选择不保存 - {(isRecording ? "停止录制" : "放弃暂停的录制")}并关闭应用程序");
+                            mainViewModel.AddLog($"用户选择不保存 - {(isRecording ? "停止录制" : "放弃暂停的录制")}并关闭应用程序");
                         }
-                        else // 保存并关闭
+                        else
                         {
-                            AddLogWithContext(mainViewModel, $"用户选择保存 - {(isRecording ? "停止录制" : "保存暂停的录制")}并关闭应用程序");
+                            mainViewModel.AddLog($"用户选择保存 - {(isRecording ? "停止录制" : "保存暂停的录制")}并关闭应用程序");
                         }
                     }
                 }
@@ -115,17 +133,9 @@ namespace Sai2Capture
 
             SaveWindowSettings();
 
-            _isClosing = true;
-            try
+            if (DataContext is MainViewModel closingViewModel)
             {
-                if (DataContext is MainViewModel closingViewModel)
-                {
-                    closingViewModel.OnWindowClosing();
-                }
-            }
-            finally
-            {
-                _isClosing = false;
+                closingViewModel.OnWindowClosing();
             }
         }
 
@@ -139,27 +149,12 @@ namespace Sai2Capture
 
         private IntPtr WndProcHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
         {
-            if (_hotkeyService != null)
+            if (_hotkeyService?.ProcessWndProc(hwnd, msg, wParam, lParam, out IntPtr result) == true)
             {
-                if (_hotkeyService.ProcessWndProc(hwnd, msg, wParam, lParam, out IntPtr result))
-                {
-                    handled = true;
-                    return result;
-                }
+                handled = true;
+                return result;
             }
             return IntPtr.Zero;
-        }
-
-        private void AddLogWithContext(MainViewModel viewModel, string message)
-        {
-            try
-            {
-                viewModel.AddLog(message);
-            }
-            catch
-            {
-                // 日志记录失败时不阻止关闭流程
-            }
         }
 
         private void SaveWindowSettings()
@@ -192,11 +187,8 @@ namespace Sai2Capture
 
                     if (_settingsService.WindowLeft >= 0 && _settingsService.WindowTop >= 0)
                     {
-                        var screenWidth = SystemParameters.PrimaryScreenWidth;
-                        var screenHeight = SystemParameters.PrimaryScreenHeight;
-
-                        if (Width + _settingsService.WindowLeft <= screenWidth &&
-                            Height + _settingsService.WindowTop <= screenHeight)
+                        if (Width + _settingsService.WindowLeft <= SystemParameters.PrimaryScreenWidth &&
+                            Height + _settingsService.WindowTop <= SystemParameters.PrimaryScreenHeight)
                         {
                             Left = _settingsService.WindowLeft;
                             Top = _settingsService.WindowTop;
@@ -214,41 +206,18 @@ namespace Sai2Capture
         {
             base.OnClosed(e);
 
-            // 保存 MainPage 的预览区域宽度设置
-            var mainPage = FindChild<MainPage>(this);
-            mainPage?.SaveSettings();
-
-            if (_hotkeyService != null)
+            if (this.FindChild<MainPage>() is { } mainPage)
             {
-                _hotkeyService.Dispose();
-                _hotkeyService = null;
+                mainPage.SaveSettings();
             }
+
+            _hotkeyService?.Dispose();
+            _hotkeyService = null;
 
             if (DataContext is MainViewModel viewModel)
             {
                 viewModel.StopCanvasPolling();
             }
-        }
-
-        /// <summary>
-        /// 在视觉树中查找子控件
-        /// </summary>
-        private static T? FindChild<T>(DependencyObject parent) where T : DependencyObject
-        {
-            if (parent == null) return null;
-
-            for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent); i++)
-            {
-                var child = System.Windows.Media.VisualTreeHelper.GetChild(parent, i);
-                if (child is T result)
-                    return result;
-
-                var grandChild = FindChild<T>(child);
-                if (grandChild != null)
-                    return grandChild;
-            }
-
-            return null;
         }
     }
 }

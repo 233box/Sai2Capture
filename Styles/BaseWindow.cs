@@ -3,7 +3,7 @@ using System.Windows;
 namespace Sai2Capture.Styles
 {
     /// <summary>
-    /// 统一的窗口基类，自动应用标准样式
+    /// 统一的窗口基类
     /// </summary>
     public class BaseWindow : Window
     {
@@ -32,18 +32,6 @@ namespace Sai2Capture.Styles
                 WindowTemplateHelper.ApplyCustomWindowStyle(this);
             else
                 WindowTemplateHelper.ApplyCustomDialogStyle(this);
-        }
-
-        protected void SetAsDialog()
-        {
-            WindowKind = WindowType.Dialog;
-            WindowTemplateHelper.ApplyCustomDialogStyle(this);
-        }
-
-        protected void SetAsMainWindow()
-        {
-            WindowKind = WindowType.MainWindow;
-            WindowTemplateHelper.ApplyCustomWindowStyle(this);
         }
     }
 
