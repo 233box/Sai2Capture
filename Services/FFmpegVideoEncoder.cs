@@ -105,13 +105,21 @@ namespace Sai2Capture.Services
                                 ? decodedFrame
                                 : ConvertToBgr(decodedFrame);
 
-                            // 调整尺寸
+                            // 调整尺寸到指定输出尺寸
                             using var resizedFrame = (bgrFrame.Width != width || bgrFrame.Height != height)
                                 ? ResizeFrame(bgrFrame, width, height)
                                 : bgrFrame;
 
                             // 保存为 PNG（无损，适合 FFmpeg 输入）
+                            // 使用统一的文件名格式
                             var framePath = Path.Combine(tempDirectory, $"frame_{i:D6}.png");
+                            
+                            // 确保保存的尺寸正确
+                            if (resizedFrame.Width != width || resizedFrame.Height != height)
+                            {
+                                _logService.AddLog($"[FFmpeg] 帧尺寸不匹配：{resizedFrame.Width}x{resizedFrame.Height}，期望：{width}x{height}", LogLevel.Warning);
+                            }
+                            
                             Cv2.ImEncode(".png", resizedFrame, out var pngData);
                             File.WriteAllBytes(framePath, pngData);
                             decodedCount++;
@@ -231,6 +239,8 @@ namespace Sai2Capture.Services
                 }
 
                 // 构建 FFmpeg 命令参数
+                // 使用 scale 滤镜确保输出尺寸是 2 的倍数
+                // 因为帧已经在 OpenCvSharp 中调整到正确尺寸，这里只做微调
                 var scaleFilter = $"scale={adjustedWidth}:{adjustedHeight}";
                 var arguments = $"-f image2 -framerate {fps.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)} " +
                                 $"-i \"{inputPattern}\" " +

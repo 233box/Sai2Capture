@@ -470,9 +470,19 @@ namespace Sai2Capture.Services
                 double actualFps = settings.Fps > 0 ? settings.Fps : (1.0 / metadata.CaptureInterval);
                 if (actualFps <= 0) actualFps = 20;
 
-                // 计算输出尺寸（始终使用原始分辨率）
-                int width = metadata.CanvasWidth > 0 ? metadata.CanvasWidth : metadata.Frames[0].Width;
-                int height = metadata.CanvasHeight > 0 ? metadata.CanvasHeight : metadata.Frames[0].Height;
+                // 计算输出尺寸 - 使用实际帧的尺寸而不是 Canvas 尺寸
+                // 因为 Canvas 尺寸可能与实际捕获尺寸不同
+                int width = metadata.Frames[0].Width;
+                int height = metadata.Frames[0].Height;
+                
+                // 如果 Canvas 尺寸与帧尺寸不同，记录一下
+                if (metadata.CanvasWidth > 0 && metadata.CanvasHeight > 0)
+                {
+                    if (metadata.CanvasWidth != width || metadata.CanvasHeight != height)
+                    {
+                        _logService.AddLog($"Canvas 尺寸 ({metadata.CanvasWidth}x{metadata.CanvasHeight}) 与帧尺寸 ({width}x{height}) 不同，使用帧尺寸", LogLevel.Warning);
+                    }
+                }
 
                 _logService.AddLog($"导出参数：{metadata.Frames.Count} 帧，{actualFps:F2} FPS, 尺寸：{width}x{height}, 编解码器：{settings.Codec}, 质量等级：{settings.QualityLevel}");
 

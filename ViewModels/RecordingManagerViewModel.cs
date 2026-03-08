@@ -88,7 +88,7 @@ namespace Sai2Capture.ViewModels
         private double _exportFps = 20;
 
         [ObservableProperty]
-        private VideoCodec _exportCodec = VideoCodec.MJPEG;
+        private VideoCodec _exportCodec = VideoCodec.H264;
 
         [ObservableProperty]
         private int _exportQualityLevel = 2;
@@ -97,7 +97,7 @@ namespace Sai2Capture.ViewModels
         private string _savePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "output");
 
         [ObservableProperty]
-        private string _exportSummary = "MJPEG | 20 FPS | 高质量";
+        private string _exportSummary = "H.264 | 20 FPS | 高质量";
 
         /// <summary>
         /// 更新导出摘要显示
@@ -130,11 +130,21 @@ namespace Sai2Capture.ViewModels
             _logService = logService;
             _settingsService = settingsService;
             _captureService = captureService;
-            
+
             // 从设置服务获取保存路径，确保与录制服务使用相同的路径
             SavePath = _settingsService.SavePath;
+            
+            // 从设置服务加载视频导出设置
+            ExportCodec = _settingsService.ExportCodec;
+            ExportFps = _settingsService.ExportFps;
+            ExportQualityLevel = _settingsService.ExportQualityLevel;
+            
+            // 更新导出摘要显示
+            UpdateExportSummary();
+            
             _logService.AddLog($"[录制管理] ViewModel 初始化 - 保存路径：{SavePath}", LogLevel.Warning);
             _logService.AddLog($"[录制管理] BaseDirectory: {AppDomain.CurrentDomain.BaseDirectory}", LogLevel.Warning);
+            _logService.AddLog($"[录制管理] 加载导出设置 - 编解码器：{ExportCodec}, FPS: {ExportFps}, 质量：{ExportQualityLevel}", LogLevel.Info);
             
             // 确保保存路径存在
             if (!Directory.Exists(SavePath))
@@ -300,9 +310,16 @@ namespace Sai2Capture.ViewModels
                         IsExporting = false;
                         if (!string.IsNullOrEmpty(actualOutputPath))
                         {
+                            // 保存用户的导出设置
+                            _settingsService.ExportCodec = ExportCodec;
+                            _settingsService.ExportFps = ExportFps;
+                            _settingsService.ExportQualityLevel = ExportQualityLevel;
+                            _settingsService.SaveSettings();
+                            
                             StatusMessage = $"视频导出成功：{actualOutputPath}";
                             ExportProgressText = "导出完成";
                             _logService.AddLog($"视频导出成功：{actualOutputPath}");
+                            _logService.AddLog($"导出设置已保存 - 编解码器：{ExportCodec}, FPS: {ExportFps}, 质量：{ExportQualityLevel}");
                             MessageBox.Show($"视频已成功导出到：\n{actualOutputPath}", "导出成功",
                                 MessageBoxButton.OK, MessageBoxImage.Information);
                         }

@@ -11,9 +11,9 @@ namespace Sai2Capture.Models
         public double Fps { get; set; } = 20;
 
         /// <summary>
-        /// 视频编解码器
+        /// 视频编解码器（默认 H.264）
         /// </summary>
-        public VideoCodec Codec { get; set; } = VideoCodec.MJPEG;
+        public VideoCodec Codec { get; set; } = VideoCodec.H264;
 
         /// <summary>
         /// 视频质量等级（1-5，1 为最高质量，5 为最小文件）
