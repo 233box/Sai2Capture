@@ -127,31 +127,25 @@
                  Visibility="{Binding SelectedRecording, Converter={StaticResource UniversalConverter}, ConverterParameter=NullToCollapsed}">
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <TextBlock Grid.Column="0"
-                           Text="导出帧率："
-                           Style="{StaticResource LabelStyle}"
-                           Margin="0,0,12,0"/>
-
-                <ui:NumberBox Grid.Column="1"
-                              Value="{Binding ExportFps}"
-                              Minimum="1"
-                              Maximum="60"
-                              SmallChange="1"
-                              Width="150"
-                              HorizontalAlignment="Left"/>
-
-                <StackPanel Grid.Column="2" Orientation="Horizontal">
-                    <ui:Button Content="🎬 导出视频"
-                               Command="{Binding ExportVideoCommand}"
-                               Appearance="Primary"
-                               Margin="12,0,0,0"
-                               IsEnabled="{Binding IsExporting, Converter={StaticResource UniversalConverter}, ConverterParameter=BoolInverted}"/>
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="导出配置："
+                               Style="{StaticResource LabelStyle}"
+                               VerticalAlignment="Center"
+                               Margin="0,0,12,0"/>
+                    <TextBlock Text="{Binding ExportSummary}"
+                               FontSize="{StaticResource FontSizeNormal}"
+                               Foreground="{DynamicResource ui:BodyForegroundSecondaryBrush}"
+                               VerticalAlignment="Center"/>
                 </StackPanel>
+
+                <ui:Button Grid.Column="1"
+                           Content="⚙️ 导出设置"
+                           Command="{Binding ConfigureExportCommand}"
+                           Appearance="Primary"/>
             </Grid>
         </ui:Card>
 

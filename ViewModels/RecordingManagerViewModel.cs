@@ -88,7 +88,39 @@ namespace Sai2Capture.ViewModels
         private double _exportFps = 20;
 
         [ObservableProperty]
+        private int _exportOutputWidth = 0;
+
+        [ObservableProperty]
+        private int _exportOutputHeight = 0;
+
+        [ObservableProperty]
+        private VideoCodec _exportCodec = VideoCodec.H264;
+
+        [ObservableProperty]
+        private int _exportQuality = 80;
+
+        [ObservableProperty]
         private string _savePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "output");
+
+        [ObservableProperty]
+        private string _exportSummary = "H.264 | 20 FPS | 原始分辨率 | 80%";
+
+        /// <summary>
+        /// 更新导出摘要显示
+        /// </summary>
+        partial void OnExportFpsChanged(double value) => UpdateExportSummary();
+        partial void OnExportOutputWidthChanged(int value) => UpdateExportSummary();
+        partial void OnExportOutputHeightChanged(int value) => UpdateExportSummary();
+        partial void OnExportCodecChanged(VideoCodec value) => UpdateExportSummary();
+        partial void OnExportQualityChanged(int value) => UpdateExportSummary();
+
+        private void UpdateExportSummary()
+        {
+            var resolution = (ExportOutputWidth == 0 && ExportOutputHeight == 0)
+                ? "原始分辨率"
+                : $"{ExportOutputWidth}×{ExportOutputHeight}";
+            ExportSummary = $"{ExportCodec} | {ExportFps} FPS | {resolution} | {ExportQuality}%";
+        }
 
         public RecordingManagerViewModel(
             RecordingDataService recordingDataService,
@@ -235,10 +267,11 @@ namespace Sai2Capture.ViewModels
 
             try
             {
+                var extension = ExportCodec.GetFileExtension();
                 var dialog = new SaveFileDialog
                 {
-                    Filter = "MP4 视频 (*.mp4)|*.mp4|AVI 视频 (*.avi)|*.avi",
-                    FileName = Path.ChangeExtension(SelectedRecording.FileName, ".mp4"),
+                    Filter = $"{ExportCodec} 视频 (*{extension})|*{extension}|所有文件 (*.*)|*.*",
+                    FileName = Path.ChangeExtension(SelectedRecording.FileName, extension),
                     InitialDirectory = SavePath
                 };
 
@@ -248,13 +281,23 @@ namespace Sai2Capture.ViewModels
                 ExportProgress = 0;
                 ExportProgressText = "正在导出视频...";
 
+                // 构建导出配置
+                var settings = new VideoExportSettings
+                {
+                    Fps = ExportFps,
+                    OutputWidth = ExportOutputWidth,
+                    OutputHeight = ExportOutputHeight,
+                    Codec = ExportCodec,
+                    Quality = ExportQuality
+                };
+
                 // 在新线程中执行导出
                 Task.Run(() =>
                 {
                     var success = _recordingDataService.ExportToVideo(
                         SelectedRecording.FilePath,
                         dialog.FileName,
-                        ExportFps);
+                        settings);
 
                     System.Windows.Application.Current.Dispatcher.Invoke(() =>
                     {
@@ -284,6 +327,40 @@ namespace Sai2Capture.ViewModels
                 StatusMessage = $"导出错误：{ex.Message}";
                 _logService.AddLog($"导出视频错误：{ex.Message}", LogLevel.Error);
                 MessageBox.Show($"导出错误：{ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// 配置导出参数
+        /// </summary>
+        [RelayCommand]
+        private void ConfigureExport()
+        {
+            var dialog = new VideoExportSettingsDialog(new VideoExportSettings
+            {
+                Fps = ExportFps,
+                OutputWidth = ExportOutputWidth,
+                OutputHeight = ExportOutputHeight,
+                Codec = ExportCodec,
+                Quality = ExportQuality
+            });
+
+            var mainWindow = System.Windows.Application.Current.MainWindow;
+            if (mainWindow != null)
+            {
+                dialog.Owner = mainWindow;
+            }
+
+            if (dialog.ShowDialog() == true)
+            {
+                // 应用用户选择的设置
+                ExportFps = dialog.Settings.Fps;
+                ExportOutputWidth = dialog.Settings.OutputWidth;
+                ExportOutputHeight = dialog.Settings.OutputHeight;
+                ExportCodec = dialog.Settings.Codec;
+                ExportQuality = dialog.Settings.Quality;
+
+                _logService.AddLog($"导出配置已更新：{ExportCodec} | {ExportFps} FPS | {ExportOutputWidth}x{ExportOutputHeight} | {ExportQuality}%");
             }
         }
 

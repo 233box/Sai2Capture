@@ -1,0 +1,146 @@
+<styles:CustomDialogWindow x:Class="Sai2Capture.Views.VideoExportSettingsDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+        xmlns:styles="clr-namespace:Sai2Capture.Styles"
+        mc:Ignorable="d"
+        Title="导出视频设置" 
+        Height="380" 
+        Width="420"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Topmost="True">
+    <Grid Margin="20,16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- 设置内容 -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,16">
+            
+            <!-- 编解码器 -->
+            <TextBlock Text="视频编解码器"
+                       FontSize="13"
+                       FontWeight="SemiBold"
+                       Margin="0,0,0,8"/>
+            <ComboBox x:Name="CodecComboBox"
+                      Margin="0,0,0,16"
+                      Padding="10,8"/>
+
+            <!-- 帧率 -->
+            <TextBlock Text="帧率（FPS）"
+                       FontSize="13"
+                       FontWeight="SemiBold"
+                       Margin="0,0,0,8"/>
+            <Grid Margin="0,0,0,16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <ui:NumberBox x:Name="FpsNumberBox"
+                              Grid.Column="0"
+                              Minimum="1"
+                              Maximum="60"
+                              SmallChange="1"
+                              Value="20"
+                              Padding="10,8"/>
+                <TextBlock Grid.Column="1"
+                           Text="FPS"
+                           VerticalAlignment="Center"
+                           Margin="12,0,0,0"
+                           FontSize="13"/>
+            </Grid>
+
+            <!-- 分辨率 -->
+            <TextBlock Text="输出分辨率（0 = 使用原始分辨率）"
+                       FontSize="13"
+                       FontWeight="SemiBold"
+                       Margin="0,0,0,8"/>
+            <Grid Margin="0,0,0,16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                    <TextBlock Text="宽度"
+                               FontSize="11"
+                               Foreground="{DynamicResource ui:BodyForegroundSecondaryBrush}"
+                               Margin="0,0,0,4"/>
+                    <ui:NumberBox x:Name="WidthNumberBox"
+                                  Minimum="0"
+                                  Maximum="7680"
+                                  SmallChange="100"
+                                  Value="0"
+                                  Padding="10,8"/>
+                </StackPanel>
+                <TextBlock Grid.Column="1"
+                           Text="×"
+                           FontSize="16"
+                           VerticalAlignment="Bottom"
+                           Margin="8,0,8,4"/>
+                <StackPanel Grid.Column="2" Margin="8,0,0,0">
+                    <TextBlock Text="高度"
+                               FontSize="11"
+                               Foreground="{DynamicResource ui:BodyForegroundSecondaryBrush}"
+                               Margin="0,0,0,4"/>
+                    <ui:NumberBox x:Name="HeightNumberBox"
+                                  Minimum="0"
+                                  Maximum="4320"
+                                  SmallChange="100"
+                                  Value="0"
+                                  Padding="10,8"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- 质量 -->
+            <TextBlock Text="视频质量"
+                       FontSize="13"
+                       FontWeight="SemiBold"
+                       Margin="0,0,0,8"/>
+            <Grid Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Slider x:Name="QualitySlider"
+                        Grid.Column="0"
+                        Minimum="50"
+                        Maximum="100"
+                        TickFrequency="5"
+                        IsSnapToTickEnabled="True"
+                        VerticalAlignment="Center"
+                        Margin="0,0,12,0"/>
+                <TextBlock Grid.Column="1"
+                           x:Name="QualityValueText"
+                           Text="80%"
+                           FontSize="13"
+                           FontWeight="SemiBold"
+                           VerticalAlignment="Center"
+                           Width="40"
+                           TextAlignment="Right"/>
+            </Grid>
+        </StackPanel>
+
+        <!-- 按钮区域 -->
+        <StackPanel Grid.Row="2"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right">
+            <ui:Button x:Name="CancelButton"
+                       Content="取消"
+                       Appearance="Secondary"
+                       Width="100"
+                       Margin="0,0,12,0"
+                       Click="CancelButton_Click"/>
+            <ui:Button x:Name="ExportButton"
+                       Content="开始导出"
+                       Appearance="Primary"
+                       Width="120"
+                       Click="ExportButton_Click"/>
+        </StackPanel>
+    </Grid>
+</styles:CustomDialogWindow>
