@@ -31,6 +31,20 @@
     <None Remove="runtimes\win-arm64\**" />
   </ItemGroup>
 
+  <!-- 包含 FFmpeg 二进制文件到输出目录 -->
+  <ItemGroup>
+    <Content Include="$(NuGetPackageRoot)ffmpeg.static\4.4.0.7\ffmpeg\*.exe">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>%(FileName)%(Extension)</Link>
+      <Visible>false</Visible>
+    </Content>
+    <Content Include="$(NuGetPackageRoot)ffmpeg.static\4.4.0.7\ffmpeg\*.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>%(FileName)%(Extension)</Link>
+      <Visible>false</Visible>
+    </Content>
+  </ItemGroup>
+
   <!-- 将 Sounds 文件夹嵌入到单文件中 -->
   <ItemGroup>
     <None Update="Sounds\*.wav">
@@ -40,11 +54,13 @@
 
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.0" />
+    <PackageReference Include="FFmpeg.Static" Version="4.4.0.7" />
+    <PackageReference Include="FFMpegCore" Version="5.4.0" />
     <PackageReference Include="OpenCvSharp4" Version="4.8.0.20230708" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
     <PackageReference Include="OpenCvSharp4.runtime.win" Version="4.8.0.20230708" />
     <PackageReference Include="System.Drawing.Common" Version="8.0.0" />
-    <PackageReference Include="System.Text.Json" Version="8.0.1" />
+    <PackageReference Include="System.Text.Json" Version="9.0.10" />
     <PackageReference Include="WPF-UI" Version="3.1.0" />
   </ItemGroup>
 

@@ -88,7 +88,7 @@ namespace Sai2Capture.ViewModels
         private double _exportFps = 20;
 
         [ObservableProperty]
-        private VideoCodec _exportCodec = VideoCodec.H264;
+        private VideoCodec _exportCodec = VideoCodec.MJPEG;
 
         [ObservableProperty]
         private int _exportQualityLevel = 2;
@@ -97,7 +97,7 @@ namespace Sai2Capture.ViewModels
         private string _savePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "output");
 
         [ObservableProperty]
-        private string _exportSummary = "H.264 | 20 FPS | 高质量";
+        private string _exportSummary = "MJPEG | 20 FPS | 高质量";
 
         /// <summary>
         /// 更新导出摘要显示
@@ -290,7 +290,7 @@ namespace Sai2Capture.ViewModels
                 // 在新线程中执行导出
                 Task.Run(() =>
                 {
-                    var success = _recordingDataService.ExportToVideo(
+                    var actualOutputPath = _recordingDataService.ExportToVideo(
                         SelectedRecording.FilePath,
                         dialog.FileName,
                         settings);
@@ -298,12 +298,12 @@ namespace Sai2Capture.ViewModels
                     System.Windows.Application.Current.Dispatcher.Invoke(() =>
                     {
                         IsExporting = false;
-                        if (success)
+                        if (!string.IsNullOrEmpty(actualOutputPath))
                         {
-                            StatusMessage = $"视频导出成功：{dialog.FileName}";
+                            StatusMessage = $"视频导出成功：{actualOutputPath}";
                             ExportProgressText = "导出完成";
-                            _logService.AddLog($"视频导出成功：{dialog.FileName}");
-                            MessageBox.Show($"视频已成功导出到：\n{dialog.FileName}", "导出成功",
+                            _logService.AddLog($"视频导出成功：{actualOutputPath}");
+                            MessageBox.Show($"视频已成功导出到：\n{actualOutputPath}", "导出成功",
                                 MessageBoxButton.OK, MessageBoxImage.Information);
                         }
                         else

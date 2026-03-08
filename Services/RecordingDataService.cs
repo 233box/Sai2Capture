@@ -10,7 +10,7 @@ namespace Sai2Capture.Services
     /// 录制数据服务 - 将录制内容写入自定义二进制格式文件，并提供导出为视频的功能
     /// 文件格式：.sai2rec（SAI2 Recording）
     /// 文件结构：[文件头 29 字节][元数据 JSON][帧索引表][帧数据...]
-    /// 
+    ///
     /// 容错机制：
     /// 1. 每 50 帧自动刷新到磁盘
     /// 2. 每 10 秒自动备份元数据
@@ -21,6 +21,7 @@ namespace Sai2Capture.Services
     {
         private readonly LogService _logService;
         private readonly SettingsService _settingsService;
+        private readonly FFmpegVideoEncoder _ffmpegEncoder;
         private RecordingMetadata? _currentRecording;
         private string? _recordingFilePath;
         private FileStream? _fileStream;
@@ -35,14 +36,15 @@ namespace Sai2Capture.Services
 
         // JPEG 编码参数
         private readonly int _jpegQuality = 85;
-        
+
         // 自动保存间隔（秒）
         private const int AutoSaveIntervalSeconds = 10;
 
-        public RecordingDataService(LogService logService, SettingsService settingsService)
+        public RecordingDataService(LogService logService, SettingsService settingsService, FFmpegVideoEncoder ffmpegEncoder)
         {
             _logService = logService;
             _settingsService = settingsService;
+            _ffmpegEncoder = ffmpegEncoder;
         }
 
         /// <summary>
@@ -412,26 +414,27 @@ namespace Sai2Capture.Services
         /// <param name="recordingFilePath">.sai2rec 文件路径</param>
         /// <param name="outputVideoPath">输出视频路径</param>
         /// <param name="fps">帧率（可选，默认根据录制间隔计算）</param>
-        /// <returns>是否成功</returns>
-        public bool ExportToVideo(string recordingFilePath, string outputVideoPath, double? fps = null)
+        /// <returns>输出的视频文件路径，失败时返回 null</returns>
+        public string? ExportToVideo(string recordingFilePath, string outputVideoPath, double? fps = null)
         {
+            // 默认使用 MJPEG 编解码器（兼容性最好，不需要额外编解码器）
             var settings = new VideoExportSettings
             {
                 Fps = fps ?? 20,
-                Codec = VideoCodec.H264,
+                Codec = VideoCodec.MJPEG,
                 QualityLevel = 2
             };
             return ExportToVideo(recordingFilePath, outputVideoPath, settings);
         }
 
         /// <summary>
-        /// 从录制文件导出为视频（支持完整配置）
+        /// 从录制文件导出为视频（支持完整配置）- 使用 FFmpeg 编码
         /// </summary>
         /// <param name="recordingFilePath">.sai2rec 文件路径</param>
         /// <param name="outputVideoPath">输出视频路径</param>
         /// <param name="settings">导出配置</param>
-        /// <returns>是否成功</returns>
-        public bool ExportToVideo(string recordingFilePath, string outputVideoPath, VideoExportSettings settings)
+        /// <returns>输出的视频文件路径，失败时返回 null</returns>
+        public string? ExportToVideo(string recordingFilePath, string outputVideoPath, VideoExportSettings settings)
         {
             try
             {
@@ -440,7 +443,7 @@ namespace Sai2Capture.Services
                 if (!File.Exists(recordingFilePath))
                 {
                     _logService.AddLog($"录制文件不存在：{recordingFilePath}", LogLevel.Error);
-                    return false;
+                    return null;
                 }
 
                 // 验证文件魔数
@@ -452,7 +455,7 @@ namespace Sai2Capture.Services
                 if (magicNumber != "SAI2REC01")
                 {
                     _logService.AddLog($"无效的文件格式：{magicNumber}", LogLevel.Error);
-                    return false;
+                    return null;
                 }
 
                 // 读取元数据
@@ -460,14 +463,7 @@ namespace Sai2Capture.Services
                 if (metadata == null || metadata.Frames.Count == 0)
                 {
                     _logService.AddLog("录制文件无效或无帧数据", LogLevel.Error);
-                    return false;
-                }
-
-                // 确定输出目录
-                var outputDirectory = Path.GetDirectoryName(outputVideoPath);
-                if (!string.IsNullOrEmpty(outputDirectory) && !Directory.Exists(outputDirectory))
-                {
-                    Directory.CreateDirectory(outputDirectory);
+                    return null;
                 }
 
                 // 计算帧率
@@ -480,88 +476,85 @@ namespace Sai2Capture.Services
 
                 _logService.AddLog($"导出参数：{metadata.Frames.Count} 帧，{actualFps:F2} FPS, 尺寸：{width}x{height}, 编解码器：{settings.Codec}, 质量等级：{settings.QualityLevel}");
 
-                // 创建视频写入器
-                using var videoWriter = new VideoWriter();
-                var fourcc = settings.Codec.GetFourCC();
-                var size = new OpenCvSharp.Size(width, height);
+                // 根据编解码器调整输出文件扩展名
+                string fileExtension = settings.Codec.GetRecommendedExtension();
+                var finalOutputPath = Path.ChangeExtension(outputVideoPath, fileExtension);
+                var outputDirectory = Path.GetDirectoryName(finalOutputPath);
+                if (!string.IsNullOrEmpty(outputDirectory) && !Directory.Exists(outputDirectory))
+                {
+                    Directory.CreateDirectory(outputDirectory);
+                }
 
-                // 尝试打开视频写入器
-                bool opened = videoWriter.Open(outputVideoPath, fourcc, actualFps, size);
+                // 读取所有帧数据
+                _logService.AddLog("正在加载帧数据...");
+                var frames = new List<(byte[] JpegData, int FrameIndex)>();
                 
-                // 如果 H.264 打开失败，尝试回退到 MPEG4
-                if (!opened && settings.Codec == VideoCodec.H264)
+                using (var fileStream = new FileStream(recordingFilePath, FileMode.Open, FileAccess.Read))
+                using (var reader = new BinaryReader(fileStream))
                 {
-                    _logService.AddLog("H.264 编解码器不可用，尝试回退到 MPEG4...", LogLevel.Warning);
-                    fourcc = VideoCodec.MPEG4.GetFourCC();
-                    opened = videoWriter.Open(outputVideoPath, fourcc, actualFps, size);
-                }
-
-                if (!opened)
-                {
-                    _logService.AddLog("无法打开视频写入器，可能缺少必要的编解码器", LogLevel.Error);
-                    return false;
-                }
-
-                // 使用文件流读取帧数据
-                using var fileStream = new FileStream(recordingFilePath, FileMode.Open, FileAccess.Read);
-                using var reader = new BinaryReader(fileStream);
-
-                // 按顺序写入帧
-                int frameCount = 0;
-                var sortedFrames = metadata.Frames.OrderBy(f => f.FrameIndex).ToList();
-                int totalFrames = sortedFrames.Count;
-
-                foreach (var frameData in sortedFrames)
-                {
-                    try
+                    var sortedFrames = metadata.Frames.OrderBy(f => f.FrameIndex).ToList();
+                    foreach (var frameData in sortedFrames)
                     {
-                        // 读取帧数据
-                        fileStream.Position = frameData.DataOffset;
-                        var dataLength = reader.ReadInt32();
-                        var jpegData = reader.ReadBytes(dataLength);
-
-                        // 解码 JPEG 数据
-                        using var frame = Cv2.ImDecode(jpegData, ImreadModes.Color);
-                        if (frame == null || frame.Empty())
+                        try
                         {
-                            _logService.AddLog($"帧 #{frameData.FrameIndex} 解码失败", LogLevel.Warning);
-                            continue;
+                            fileStream.Position = frameData.DataOffset;
+                            var dataLength = reader.ReadInt32();
+                            var jpegData = reader.ReadBytes(dataLength);
+                            frames.Add((jpegData, frameData.FrameIndex));
                         }
-
-                        // 调整尺寸以匹配输出尺寸（如果需要）
-                        if (frame.Width != width || frame.Height != height)
+                        catch (Exception ex)
                         {
-                            Cv2.Resize(frame, frame, size, 0, 0, InterpolationFlags.Area);
+                            _logService.AddLog($"读取帧 #{frameData.FrameIndex} 失败：{ex.Message}", LogLevel.Warning);
                         }
-
-                        videoWriter.Write(frame);
-                        frameCount++;
-
-                        // 更新进度
-                        if (frameCount % 50 == 0 || frameCount == totalFrames)
-                        {
-                            double progress = (double)frameCount / totalFrames * 100;
-                            _logService.AddLog($"导出进度：{frameCount}/{totalFrames} 帧 ({progress:F1}%)");
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logService.AddLog($"读取帧 #{frameData.FrameIndex} 失败：{ex.Message}", LogLevel.Warning);
                     }
                 }
 
-                videoWriter.Release();
+                if (frames.Count == 0)
+                {
+                    _logService.AddLog("没有可导出的帧数据", LogLevel.Error);
+                    return null;
+                }
 
-                _logService.AddLog($"✓ 视频导出成功 - {outputVideoPath}");
-                _logService.AddLog($"  总帧数：{frameCount}, 文件大小：{new FileInfo(outputVideoPath).Length / 1024.0 / 1024.0:F2} MB");
+                _logService.AddLog($"已加载 {frames.Count} 帧，开始 FFmpeg 编码...");
 
-                return true;
+                // 使用 FFmpeg 编码
+                double lastProgress = -1;
+                var progress = new Progress<double>(p =>
+                {
+                    // 限制日志输出频率
+                    if (p - lastProgress >= 10)
+                    {
+                        _logService.AddLog($"导出进度：{p:F1}%");
+                        lastProgress = p;
+                    }
+                });
+
+                var result = _ffmpegEncoder.ExportVideo(
+                    frames,
+                    finalOutputPath,
+                    settings,
+                    width,
+                    height,
+                    actualFps,
+                    progress);
+
+                if (!string.IsNullOrEmpty(result))
+                {
+                    _logService.AddLog($"✓ 视频导出成功 - {finalOutputPath}");
+                    _logService.AddLog($"  总帧数：{frames.Count}, 文件大小：{new FileInfo(result).Length / 1024.0 / 1024.0:F2} MB");
+                    return result;
+                }
+                else
+                {
+                    _logService.AddLog("FFmpeg 编码失败", LogLevel.Error);
+                    return null;
+                }
             }
             catch (Exception ex)
             {
                 _logService.AddLog($"导出视频失败：{ex.Message}", LogLevel.Error);
                 _logService.AddLog($"异常堆栈：{ex.StackTrace}", LogLevel.Error);
-                return false;
+                return null;
             }
         }
 
@@ -740,6 +733,41 @@ namespace Sai2Capture.Services
                     _frameIndex.Clear();
                 }
             }
+        }
+
+        /// <summary>
+        /// 将帧转换为 BGR 格式（3 通道）
+        /// </summary>
+        private static Mat ConvertToBgr(Mat frame)
+        {
+            if (frame.Channels() == 3)
+                return frame;
+
+            var bgr = new Mat();
+            if (frame.Channels() == 4)
+            {
+                Cv2.CvtColor(frame, bgr, ColorConversionCodes.BGRA2BGR);
+            }
+            else if (frame.Channels() == 1)
+            {
+                Cv2.CvtColor(frame, bgr, ColorConversionCodes.GRAY2BGR);
+            }
+            else
+            {
+                // 其他情况，尝试转换为 BGR
+                Cv2.CvtColor(frame, bgr, ColorConversionCodes.BGRA2BGR);
+            }
+            return bgr;
+        }
+
+        /// <summary>
+        /// 调整帧尺寸
+        /// </summary>
+        private static Mat ResizeFrame(Mat frame, OpenCvSharp.Size size)
+        {
+            var resized = new Mat();
+            Cv2.Resize(frame, resized, size, 0, 0, InterpolationFlags.Area);
+            return resized;
         }
     }
 }
