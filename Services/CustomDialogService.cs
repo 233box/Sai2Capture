@@ -66,6 +66,21 @@ namespace Sai2Capture.Services
         public static bool ShowDialog(string message, string caption = "提示")
             => ShowDialog(message, caption, "确认", "取消");
 
+        /// <summary>
+        /// 显示信息提示对话框（只有一个确定按钮）
+        /// </summary>
+        public static void ShowInfoDialog(string message, string title = "提示")
+        {
+            var dialog = CreateDialog(WpfApplication.Current.MainWindow, message, title, 420, 180);
+            var buttonPanel = CreateButtonPanel(dialog);
+
+            var confirmButton = CreateButton("确定", "DefaultButtonStyle", () => CloseDialog(dialog, true));
+            buttonPanel.Children.Add(confirmButton);
+
+            SetupDialogKeyboard(dialog);
+            dialog.ShowDialog();
+        }
+
         private static Window CreateDialog(Window? owner, string message, string title, int width, int height)
         {
             var dialog = new Window

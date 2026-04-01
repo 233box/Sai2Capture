@@ -285,6 +285,11 @@ namespace Sai2Capture.ViewModels
 
                 if (dialog.ShowDialog() != true) return;
 
+                // 提示用户在日志中查看进度
+                CustomDialogService.ShowInfoDialog(
+                    $"视频正在导出中...\n\n请切换到「日志」页面查看导出进度。\n\n帧数：{SelectedRecording.TotalFrames} 帧\n格式：{ExportCodec}\nFPS：{ExportFps}",
+                    "正在导出视频");
+
                 IsExporting = true;
                 ExportProgress = 0;
                 ExportProgressText = "正在导出视频...";
