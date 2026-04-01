@@ -407,6 +407,396 @@ namespace Sai2Capture.Services
             Cv2.Resize(frame, resized, new OpenCvSharp.Size(width, height));
             return resized;
         }
+
+        /// <summary>
+        /// 两阶段导出：快速 MJPEG 封装 + FFmpeg 格式转换
+        /// 阶段1：直接从 JPEG 数据创建 MJPEG 视频（极快）
+        /// 阶段2：FFmpeg 转码为目标格式（可后台进行）
+        /// </summary>
+        public string? ExportVideoTwoStage(
+            List<(byte[] JpegData, int FrameIndex, int Width, int Height)> frames,
+            string outputPath,
+            ModelsVideoExportSettings settings,
+            double fps,
+            IProgress<double>? progress = null)
+        {
+            _isCancelled = false;
+
+            try
+            {
+                if (frames.Count == 0)
+                {
+                    _logService.AddLog("[FFmpeg] 帧列表为空", LogLevel.Error);
+                    return null;
+                }
+
+                // 验证所有帧尺寸一致
+                var firstWidth = frames[0].Width;
+                var firstHeight = frames[0].Height;
+                if (!frames.All(f => f.Width == firstWidth && f.Height == firstHeight))
+                {
+                    _logService.AddLog("[FFmpeg] 检测到帧尺寸不一致，跳过两阶段导出", LogLevel.Warning);
+                    return null;
+                }
+
+                var width = firstWidth;
+                var height = firstHeight;
+
+                _logService.AddLog($"[FFmpeg] 两阶段导出开始 - {frames.Count} 帧, {fps:F2} FPS, 尺寸：{width}x{height}");
+                _logService.AddLog($"[FFmpeg] 目标格式：{settings.Codec}, 质量等级：{settings.QualityLevel}");
+
+                // ===== 阶段1：快速 MJPEG 封装 =====
+                _logService.AddLog("[FFmpeg] 阶段1/2：正在创建 MJPEG 中间视频...");
+                progress?.Report(5); // 初始进度
+
+                var tempMjpegPath = Path.Combine(Path.GetTempPath(), $"Sai2Capture_Temp_{Guid.NewGuid()}.avi");
+
+                if (!ExportToMJPEGFast(frames, tempMjpegPath, fps, width, height, new Progress<double>(p => progress?.Report(p * 0.5))))
+                {
+                    _logService.AddLog("[FFmpeg] 阶段1失败：MJPEG 中间视频创建失败", LogLevel.Error);
+                    return null;
+                }
+
+                progress?.Report(50);
+                _logService.AddLog($"[FFmpeg] 阶段1完成：{tempMjpegPath}");
+
+                // 如果目标格式就是 MJPEG，直接返回中间文件
+                if (settings.Codec == ModelsVideoCodec.MJPEG)
+                {
+                    if (File.Exists(outputPath))
+                        File.Delete(outputPath);
+                    File.Move(tempMjpegPath, outputPath);
+                    progress?.Report(100);
+                    _logService.AddLog($"[FFmpeg] ✓ 导出完成（MJPEG）- {outputPath}");
+                    return outputPath;
+                }
+
+                // ===== 阶段2：FFmpeg 转码 =====
+                _logService.AddLog("[FFmpeg] 阶段2/2：正在转码为目标格式...");
+
+                var codecConfig = GetCodecConfig(settings.Codec, settings.QualityLevel);
+                var success = ConvertVideoWithFFmpeg(tempMjpegPath, outputPath, codecConfig, fps, width, height, new Progress<double>(p => progress?.Report(50 + p * 0.5)));
+
+                // 清理临时文件
+                try { if (File.Exists(tempMjpegPath)) File.Delete(tempMjpegPath); } catch { }
+
+                if (success)
+                {
+                    progress?.Report(100);
+                    _logService.AddLog($"[FFmpeg] ✓ 两阶段导出完成 - {outputPath}");
+                    var fileInfo = new FileInfo(outputPath);
+                    _logService.AddLog($"[FFmpeg] 文件大小：{fileInfo.Length / 1024.0 / 1024.0:F2} MB");
+                    return outputPath;
+                }
+                else
+                {
+                    _logService.AddLog("[FFmpeg] 阶段2失败：FFmpeg 转码失败", LogLevel.Error);
+                    return null;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logService.AddLog($"[FFmpeg] 两阶段导出异常：{ex.Message}", LogLevel.Error);
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// 超快速 MJPEG 导出 - 使用 FFmpeg image2pipe 编码
+        /// 将 JPEG 数据写入临时文件，通过 FFmpeg 快速编码为 MJPEG
+        /// </summary>
+        private bool ExportToMJPEGFast(
+            List<(byte[] JpegData, int FrameIndex, int Width, int Height)> frames,
+            string outputPath,
+            double fps,
+            int width,
+            int height,
+            IProgress<double>? progress = null)
+        {
+            try
+            {
+                _logService.AddLog($"[FFmpeg] 超快速 MJPEG 导出：{frames.Count} 帧, {fps:F2} FPS");
+
+                var ffmpegPath = Path.Combine(AppContext.BaseDirectory, "ffmpeg.exe");
+                if (!File.Exists(ffmpegPath))
+                {
+                    _logService.AddLog("[FFmpeg] FFmpeg 未找到", LogLevel.Error);
+                    return ExportToMJPEGWithVideoWriter(frames, outputPath, fps, width, height, progress);
+                }
+
+                // 创建临时目录存储 JPEG 文件
+                var tempDir = Path.Combine(Path.GetTempPath(), $"Sai2Capture_JPEG_{Guid.NewGuid()}");
+                Directory.CreateDirectory(tempDir);
+
+                try
+                {
+                    _logService.AddLog($"[FFmpeg] 保存 {frames.Count} 帧 JPEG 到临时目录...");
+
+                    // 批量写入 JPEG 文件（并行加速）
+                    var lastReportTime = DateTime.Now;
+                    var lockObj = new object();
+                    int completed = 0;
+
+                    Parallel.For(0, frames.Count, new ParallelOptions { MaxDegreeOfParallelism = 4 }, i =>
+                    {
+                        var framePath = Path.Combine(tempDir, $"frame_{i:D6}.jpg");
+                        File.WriteAllBytes(framePath, frames[i].JpegData);
+
+                        lock (lockObj)
+                        {
+                            completed++;
+                            var now = DateTime.Now;
+                            if (now - lastReportTime >= TimeSpan.FromMilliseconds(300))
+                            {
+                                progress?.Report((double)completed / frames.Count * 30);
+                                lastReportTime = now;
+                            }
+                        }
+                    });
+
+                    progress?.Report(30);
+                    _logService.AddLog($"[FFmpeg] JPEG 文件写入完成");
+
+                    // 使用 FFmpeg 快速编码 MJPEG
+                    var inputPattern = Path.Combine(tempDir, "frame_%06d.jpg");
+                    var arguments = $"-framerate {fps.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)} " +
+                                   $"-i \"{inputPattern}\" " +
+                                   $"-c:v mjpeg " +
+                                   $"-q:v 2 " +
+                                   $"-pix_fmt yuv420p " +
+                                   $"-y \"{outputPath}\"";
+
+                    _logService.AddLog($"[FFmpeg] 编码命令：ffmpeg {arguments}");
+
+                    var startInfo = new ProcessStartInfo
+                    {
+                        FileName = ffmpegPath,
+                        Arguments = arguments,
+                        UseShellExecute = false,
+                        CreateNoWindow = true,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        WindowStyle = ProcessWindowStyle.Hidden
+                    };
+
+                    using var process = new Process { StartInfo = startInfo };
+                    _ffmpegProcess = process;
+
+                    var errorOutput = new System.Text.StringBuilder();
+                    process.ErrorDataReceived += (s, e) =>
+                    {
+                        if (!string.IsNullOrEmpty(e.Data))
+                            errorOutput.AppendLine(e.Data);
+                    };
+
+                    process.Start();
+                    process.BeginErrorReadLine();
+                    process.WaitForExit(300000);
+
+                    _ffmpegProcess = null;
+                    progress?.Report(100);
+
+                    if (process.ExitCode == 0 && File.Exists(outputPath))
+                    {
+                        var fileSize = new FileInfo(outputPath).Length;
+                        _logService.AddLog($"[FFmpeg] MJPEG 导出完成 - {frames.Count} 帧, 文件大小：{fileSize / 1024.0 / 1024.0:F2} MB");
+                        return true;
+                    }
+                    else
+                    {
+                        _logService.AddLog($"[FFmpeg] FFmpeg MJPEG 失败，退出码：{process.ExitCode}", LogLevel.Warning);
+                        _logService.AddLog($"[FFmpeg] 错误：{errorOutput}", LogLevel.Warning);
+                        try { File.Delete(outputPath); } catch { }
+                        return ExportToMJPEGWithVideoWriter(frames, outputPath, fps, width, height, progress);
+                    }
+                }
+                finally
+                {
+                    // 清理临时文件
+                    try { Directory.Delete(tempDir, true); } catch { }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logService.AddLog($"[FFmpeg] MJPEG 导出异常：{ex.Message}", LogLevel.Error);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 使用 VideoWriter 的回退方法
+        /// </summary>
+        private bool ExportToMJPEGWithVideoWriter(
+            List<(byte[] JpegData, int FrameIndex, int Width, int Height)> frames,
+            string outputPath,
+            double fps,
+            int width,
+            int height,
+            IProgress<double>? progress = null)
+        {
+            try
+            {
+                using var writer = new VideoWriter(outputPath, VideoWriter.FourCC('M', 'J', 'P', 'G'), fps, new OpenCvSharp.Size(width, height));
+
+                if (!writer.IsOpened())
+                {
+                    _logService.AddLog("[FFmpeg] 无法创建 VideoWriter", LogLevel.Error);
+                    return false;
+                }
+
+                var lastReportTime = DateTime.Now;
+
+                for (int i = 0; i < frames.Count; i++)
+                {
+                    if (_isCancelled) return false;
+
+                    try
+                    {
+                        using var frame = Cv2.ImDecode(frames[i].JpegData, ImreadModes.Color);
+                        if (frame != null && !frame.Empty())
+                        {
+                            writer.Write(frame);
+                        }
+                    }
+                    catch { }
+
+                    var now = DateTime.Now;
+                    if (now - lastReportTime >= TimeSpan.FromMilliseconds(200))
+                    {
+                        progress?.Report((double)i / frames.Count * 100);
+                        lastReportTime = now;
+                    }
+                }
+
+                writer.Release();
+                progress?.Report(100);
+                return File.Exists(outputPath);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// FFmpeg 转码（阶段2）- 从 MJPEG 转换为目标格式
+        /// </summary>
+        private bool ConvertVideoWithFFmpeg(
+            string inputPath,
+            string outputPath,
+            (string Name, string Preset, int CRF, string CustomArgs) codecConfig,
+            double fps,
+            int width,
+            int height,
+            IProgress<double>? progress = null)
+        {
+            try
+            {
+                // 确保宽高是 2 的倍数
+                int adjustedWidth = width % 2 == 0 ? width : width - 1;
+                int adjustedHeight = height % 2 == 0 ? height : height - 1;
+
+                var scaleFilter = adjustedWidth != width || adjustedHeight != height
+                    ? $"scale={adjustedWidth}:{adjustedHeight}"
+                    : "scale=trunc(iw/2)*2:trunc(ih/2)*2"; // 确保输出尺寸为偶数
+
+                var arguments = $"-i \"{inputPath}\" " +
+                               $"-c:v {codecConfig.Name} " +
+                               $"-crf {codecConfig.CRF} " +
+                               $"-preset {codecConfig.Preset} " +
+                               $"{codecConfig.CustomArgs} " +
+                               $"-vf \"{scaleFilter}\" " +
+                               $"-pix_fmt yuv420p " +
+                               $"-y \"{outputPath}\"";
+
+                var ffmpegPath = Path.Combine(AppContext.BaseDirectory, "ffmpeg.exe");
+                if (!File.Exists(ffmpegPath))
+                {
+                    _logService.AddLog("[FFmpeg] FFmpeg 未找到", LogLevel.Error);
+                    return false;
+                }
+
+                _logService.AddLog($"[FFmpeg] 转码命令：ffmpeg {arguments}");
+
+                var startInfo = new ProcessStartInfo
+                {
+                    FileName = ffmpegPath,
+                    Arguments = arguments,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    WindowStyle = ProcessWindowStyle.Hidden
+                };
+
+                using var process = new Process { StartInfo = startInfo };
+                _ffmpegProcess = process;
+
+                var errorOutput = new System.Text.StringBuilder();
+                var lastProgressTime = DateTime.MinValue;
+
+                process.ErrorDataReceived += (sender, e) =>
+                {
+                    if (!string.IsNullOrEmpty(e.Data))
+                    {
+                        errorOutput.AppendLine(e.Data);
+
+                        if (progress != null && (DateTime.Now - lastProgressTime).TotalMilliseconds > 300)
+                        {
+                            // 简单进度估算
+                            progress.Report(50); // 实际 FFmpeg 会自己显示进度
+                            lastProgressTime = DateTime.Now;
+                        }
+                    }
+                };
+
+                process.Start();
+                process.BeginErrorReadLine();
+                process.WaitForExit();
+
+                _ffmpegProcess = null;
+
+                if (process.ExitCode == 0 && File.Exists(outputPath))
+                {
+                    _logService.AddLog("[FFmpeg] 转码完成");
+                    return true;
+                }
+                else
+                {
+                    _logService.AddLog($"[FFmpeg] 转码失败，退出码：{process.ExitCode}", LogLevel.Error);
+                    _logService.AddLog($"[FFmpeg] 错误输出：{errorOutput}", LogLevel.Error);
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logService.AddLog($"[FFmpeg] 转码异常：{ex.Message}", LogLevel.Error);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 快速预览模式：只导出为 MJPEG，返回中间文件路径
+        /// </summary>
+        public string? ExportToMJPEGPreview(
+            List<(byte[] JpegData, int FrameIndex, int Width, int Height)> frames,
+            string? outputPath = null,
+            double fps = 20,
+            IProgress<double>? progress = null)
+        {
+            if (frames.Count == 0) return null;
+
+            outputPath ??= Path.Combine(Path.GetTempPath(), $"Sai2Capture_Preview_{Guid.NewGuid()}.avi");
+
+            var firstWidth = frames[0].Width;
+            var firstHeight = frames[0].Height;
+
+            if (ExportToMJPEGFast(frames, outputPath, fps, firstWidth, firstHeight, progress))
+            {
+                return outputPath;
+            }
+            return null;
+        }
     }
 
     /// <summary>

@@ -495,10 +495,10 @@ namespace Sai2Capture.Services
                     Directory.CreateDirectory(outputDirectory);
                 }
 
-                // 读取所有帧数据
+                // 读取所有帧数据（包含尺寸信息，用于两阶段导出）
                 _logService.AddLog("正在加载帧数据...");
-                var frames = new List<(byte[] JpegData, int FrameIndex)>();
-                
+                var frames = new List<(byte[] JpegData, int FrameIndex, int Width, int Height)>();
+
                 using (var fileStream = new FileStream(recordingFilePath, FileMode.Open, FileAccess.Read))
                 using (var reader = new BinaryReader(fileStream))
                 {
@@ -510,7 +510,7 @@ namespace Sai2Capture.Services
                             fileStream.Position = frameData.DataOffset;
                             var dataLength = reader.ReadInt32();
                             var jpegData = reader.ReadBytes(dataLength);
-                            frames.Add((jpegData, frameData.FrameIndex));
+                            frames.Add((jpegData, frameData.FrameIndex, frameData.Width, frameData.Height));
                         }
                         catch (Exception ex)
                         {
@@ -525,13 +525,12 @@ namespace Sai2Capture.Services
                     return null;
                 }
 
-                _logService.AddLog($"已加载 {frames.Count} 帧，开始 FFmpeg 编码...");
+                _logService.AddLog($"已加载 {frames.Count} 帧，使用两阶段快速导出...");
 
-                // 使用 FFmpeg 编码
+                // 使用两阶段导出（MJPEG 快速封装 + FFmpeg 转码）
                 double lastProgress = -1;
                 var progress = new Progress<double>(p =>
                 {
-                    // 限制日志输出频率
                     if (p - lastProgress >= 10)
                     {
                         _logService.AddLog($"导出进度：{p:F1}%");
@@ -539,12 +538,10 @@ namespace Sai2Capture.Services
                     }
                 });
 
-                var result = _ffmpegEncoder.ExportVideo(
+                var result = _ffmpegEncoder.ExportVideoTwoStage(
                     frames,
                     finalOutputPath,
                     settings,
-                    width,
-                    height,
                     actualFps,
                     progress);
 
@@ -556,14 +553,126 @@ namespace Sai2Capture.Services
                 }
                 else
                 {
-                    _logService.AddLog("FFmpeg 编码失败", LogLevel.Error);
-                    return null;
+                    _logService.AddLog("两阶段导出失败，尝试传统方法...", LogLevel.Warning);
+                    // 回退到旧方法（作为备选）
+                    return ExportToVideoLegacy(recordingFilePath, finalOutputPath, settings, metadata, actualFps);
                 }
             }
             catch (Exception ex)
             {
                 _logService.AddLog($"导出视频失败：{ex.Message}", LogLevel.Error);
                 _logService.AddLog($"异常堆栈：{ex.StackTrace}", LogLevel.Error);
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// 传统导出方法（备选）- 将帧保存为临时 PNG 文件后用 FFmpeg 编码
+        /// </summary>
+        private string? ExportToVideoLegacy(string recordingFilePath, string outputVideoPath, VideoExportSettings settings, RecordingMetadata metadata, double fps)
+        {
+            try
+            {
+                _logService.AddLog("[传统方法] 开始导出...");
+
+                // 读取帧数据
+                var frames = new List<(byte[] JpegData, int FrameIndex)>();
+                using (var fileStream = new FileStream(recordingFilePath, FileMode.Open, FileAccess.Read))
+                using (var reader = new BinaryReader(fileStream))
+                {
+                    var sortedFrames = metadata.Frames.OrderBy(f => f.FrameIndex).ToList();
+                    foreach (var frameData in sortedFrames)
+                    {
+                        try
+                        {
+                            fileStream.Position = frameData.DataOffset;
+                            var dataLength = reader.ReadInt32();
+                            var jpegData = reader.ReadBytes(dataLength);
+                            frames.Add((jpegData, frameData.FrameIndex));
+                        }
+                        catch { }
+                    }
+                }
+
+                var width = metadata.Frames[0].Width;
+                var height = metadata.Frames[0].Height;
+
+                double lastProgress = -1;
+                var progress = new Progress<double>(p =>
+                {
+                    if (p - lastProgress >= 10)
+                    {
+                        _logService.AddLog($"[传统方法] 导出进度：{p:F1}%");
+                        lastProgress = p;
+                    }
+                });
+
+                var result = _ffmpegEncoder.ExportVideo(frames, outputVideoPath, settings, width, height, fps, progress);
+
+                if (!string.IsNullOrEmpty(result))
+                {
+                    _logService.AddLog($"[传统方法] ✓ 导出成功 - {outputVideoPath}");
+                    return result;
+                }
+                return null;
+            }
+            catch (Exception ex)
+            {
+                _logService.AddLog($"[传统方法] 导出失败：{ex.Message}", LogLevel.Error);
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// 快速预览导出 - 只导出为 MJPEG 格式
+        /// </summary>
+        public string? ExportToMJPEGPreview(string recordingFilePath, double? fps = null)
+        {
+            try
+            {
+                _logService.AddLog($"开始预览导出 - {recordingFilePath}");
+
+                var metadata = LoadMetadata(recordingFilePath);
+                if (metadata == null || metadata.Frames.Count == 0)
+                {
+                    _logService.AddLog("录制文件无效", LogLevel.Error);
+                    return null;
+                }
+
+                var actualFps = fps ?? (1.0 / metadata.CaptureInterval);
+                if (actualFps <= 0) actualFps = 20;
+
+                // 读取帧数据
+                var frames = new List<(byte[] JpegData, int FrameIndex, int Width, int Height)>();
+                using (var fileStream = new FileStream(recordingFilePath, FileMode.Open, FileAccess.Read))
+                using (var reader = new BinaryReader(fileStream))
+                {
+                    var sortedFrames = metadata.Frames.OrderBy(f => f.FrameIndex).ToList();
+                    foreach (var frameData in sortedFrames)
+                    {
+                        try
+                        {
+                            fileStream.Position = frameData.DataOffset;
+                            var dataLength = reader.ReadInt32();
+                            var jpegData = reader.ReadBytes(dataLength);
+                            frames.Add((jpegData, frameData.FrameIndex, frameData.Width, frameData.Height));
+                        }
+                        catch { }
+                    }
+                }
+
+                if (frames.Count == 0)
+                {
+                    _logService.AddLog("没有可导出的帧", LogLevel.Error);
+                    return null;
+                }
+
+                var progress = new Progress<double>(p => { });
+                return _ffmpegEncoder.ExportToMJPEGPreview(frames, null, actualFps, progress);
+            }
+            catch (Exception ex)
+            {
+                _logService.AddLog($"预览导出失败：{ex.Message}", LogLevel.Error);
                 return null;
             }
         }
