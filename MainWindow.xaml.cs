@@ -61,7 +61,7 @@ namespace Sai2Capture
             {
                 if (DataContext is MainViewModel viewModel)
                 {
-                    viewModel.AddLog($"切换窗口置顶状态失败：{ex.Message}", "ERROR");
+                    viewModel.AddLog($"切换窗口置顶状态失败：{ex.Message}", LogLevel.Error);
                 }
             }
         }

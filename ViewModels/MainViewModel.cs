@@ -173,12 +173,12 @@ namespace Sai2Capture.ViewModels
                             return;
                         }
 
-                        AddLog($"SAI2 文件解析失败：{potentialPath}", "WARNING");
+                        AddLog($"SAI2 文件解析失败：{potentialPath}", LogLevel.Warning);
                         _lastKnownWindowTitle = title;
                     }
                     catch (Exception ex)
                     {
-                        AddLog($"检查 SAI2 窗口失败：{ex.Message}", "WARNING");
+                        AddLog($"检查 SAI2 窗口失败：{ex.Message}", LogLevel.Warning);
                     }
                 }
 
@@ -187,7 +187,7 @@ namespace Sai2Capture.ViewModels
             catch (Exception ex)
             {
                 CanvasSizeDisplay = "未检测到 SAI2";
-                AddLog($"更新画布尺寸失败：{ex.Message}", "WARNING");
+                AddLog($"更新画布尺寸失败：{ex.Message}", LogLevel.Warning);
             }
         }
 
@@ -219,13 +219,13 @@ namespace Sai2Capture.ViewModels
         {
             if (IsPaused)
             {
-                AddLog("继续捕获", "WARNING");
+                AddLog("继续录制", LogLevel.Info);
                 _captureService.StartCapture(SelectedWindowTitle, false, CaptureInterval);
                 _statusTimer.Start();
             }
             else if (IsRecording)
             {
-                AddLog("暂停捕获", "WARNING");
+                AddLog("暂停录制", LogLevel.Info);
                 _captureService.PauseCapture();
                 _statusTimer.Stop();
             }
@@ -286,7 +286,7 @@ namespace Sai2Capture.ViewModels
             }
             catch (Exception ex)
             {
-                AddLog($"执行热键命令失败：{ex.Message}", "ERROR");
+                AddLog($"执行热键命令失败：{ex.Message}", LogLevel.Error);
             }
         }
 
@@ -378,7 +378,7 @@ namespace Sai2Capture.ViewModels
                 if (string.IsNullOrWhiteSpace(SelectedWindowTitle))
                 {
                     Status = "请先选择或输入窗口标题";
-                    AddLog("预览失败：未选择窗口标题", "WARNING");
+                    AddLog("预览失败：未选择窗口标题", LogLevel.Warning);
                     return;
                 }
 
@@ -392,7 +392,7 @@ namespace Sai2Capture.ViewModels
             catch (Exception ex)
             {
                 Status = $"启动嵌入式预览错误：{ex.Message}";
-                AddLog($"启动嵌入式预览错误：{ex.Message}", "ERROR");
+                AddLog($"启动嵌入式预览错误：{ex.Message}", LogLevel.Error);
             }
         }
 
@@ -405,7 +405,7 @@ namespace Sai2Capture.ViewModels
             }
             catch (Exception ex)
             {
-                AddLog($"停止嵌入式预览错误：{ex.Message}", "ERROR");
+                AddLog($"停止嵌入式预览错误：{ex.Message}", LogLevel.Error);
             }
         }
 
@@ -539,25 +539,27 @@ namespace Sai2Capture.ViewModels
             catch (Exception ex)
             {
                 var errorMessage = $"启动 SAI2 失败：{ex.Message}";
-                AddLog(errorMessage, "ERROR");
+                AddLog(errorMessage, LogLevel.Error);
                 System.Windows.MessageBox.Show(errorMessage, "启动失败", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
         /// <summary>
-        /// 添加日志消息
+        /// 添加日志消息（UI 线程）
         /// </summary>
         /// <param name="message">日志消息</param>
-        /// <param name="level">日志级别（INFO, WARNING, ERROR）</param>
-        public void AddLog(string message, string level = "INFO")
+        /// <param name="level">日志级别</param>
+        public void AddLog(string message, LogLevel level = LogLevel.Info)
         {
-            var logLevel = level.ToUpper() switch
-            {
-                "WARNING" => LogLevel.Warning,
-                "ERROR" => LogLevel.Error,
-                _ => LogLevel.Info
-            };
-            _logService.AddLog(message, logLevel);
+            _logService.AddLog(message, level, "UI");
+        }
+
+        /// <summary>
+        /// 添加结构化日志（UI 线程）
+        /// </summary>
+        public void AddLogStructured(string message, LogLevel level, Dictionary<string, object>? context = null)
+        {
+            _logService.AddLogStructured(message, level, "UI", context);
         }
 
         /// <summary>
@@ -597,7 +599,7 @@ namespace Sai2Capture.ViewModels
             }
             catch (Exception ex)
             {
-                AddLog($"导出日志失败：{ex.Message}", "ERROR");
+                AddLog($"导出日志失败：{ex.Message}", LogLevel.Error);
                 Status = $"导出日志失败：{ex.Message}";
             }
         }

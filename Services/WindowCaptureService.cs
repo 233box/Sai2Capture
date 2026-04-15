@@ -1,5 +1,6 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using OpenCvSharp;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 
@@ -74,7 +75,6 @@ namespace Sai2Capture.Services
         {
             _sharedState = sharedState;
             _logService = logService;
-            _logService.AddLog("窗口捕获服务已初始化");
         }
 
         /// <summary>
@@ -84,7 +84,6 @@ namespace Sai2Capture.Services
         public void SetSelfWindowHandle(nint windowHandle)
         {
             _selfWindowHandle = windowHandle;
-            _logService.AddLog($"已设置程序自身窗口句柄：0x{windowHandle:X}");
         }
 
         /// <summary>
@@ -162,18 +161,15 @@ namespace Sai2Capture.Services
         /// <returns>SAI2 相关窗口标题列表</returns>
         public List<string> EnumSai2WindowTitles()
         {
-            _logService.AddLog("扫描系统进程，查找 SAI2 相关窗口");
             List<string> sai2WindowTitles = new List<string>();
-            List<string> allProcessInfo = new List<string>();
 
             EnumWindows((hWnd, _) =>
             {
                 if (IsWindowVisible(hWnd))
                 {
-                    // 排除当前程序自己的窗口
                     if (_selfWindowHandle.HasValue && hWnd == _selfWindowHandle.Value)
                     {
-                        return true; // 跳过自己的窗口
+                        return true;
                     }
 
                     System.Text.StringBuilder sb = new System.Text.StringBuilder(256);
@@ -183,31 +179,16 @@ namespace Sai2Capture.Services
                     if (!string.IsNullOrEmpty(title) && IsSai2RelatedWindow(hWnd))
                     {
                         sai2WindowTitles.Add(title);
-
-                        // 记录详细进程信息用于调试
-                        string? processPath = GetProcessPath(hWnd);
-                        string exeName = System.IO.Path.GetFileName(processPath ?? "未知");
-                        allProcessInfo.Add($"窗口：'{title}' - 进程：{exeName}");
                     }
                 }
                 return true;
             }, IntPtr.Zero);
 
-            // 记录所有找到的 SAI2 相关窗口信息
-            if (allProcessInfo.Count > 0)
+            if (sai2WindowTitles.Count == 0)
             {
-                _logService.AddLog($"找到 {allProcessInfo.Count} 个 SAI2 相关窗口:");
-                foreach (string info in allProcessInfo)
-                {
-                    _logService.AddLog($"  {info}");
-                }
-            }
-            else
-            {
-                _logService.AddLog("未找到 SAI2 相关窗口，请确保 SAI2 程序正在运行", LogLevel.Warning);
+                _logService.AddLog("未找到 SAI2 相关窗口", LogLevel.Warning, "UI");
             }
 
-            _logService.AddLog($"SAI2 窗口枚举完成，找到{sai2WindowTitles.Count} 个 SAI2 相关窗口");
             return sai2WindowTitles;
         }
 
@@ -256,23 +237,15 @@ namespace Sai2Capture.Services
         /// <returns>窗口句柄，未找到时返回 IntPtr.Zero（静默模式）或抛异常（非静默模式）</returns>
         public nint FindWindowByTitle(string windowTitle, bool silent = false)
         {
-            if (!silent)
-            {
-                _logService.AddLog($"查找窗口：'{windowTitle}'");
-            }
             nint hWnd = FindWindow(null, windowTitle);
             if (hWnd == IntPtr.Zero)
             {
                 if (!silent)
                 {
-                    _logService.AddLog($"未找到窗口：'{windowTitle}'", LogLevel.Error);
+                    _logService.AddLog($"未找到窗口：'{windowTitle}'", LogLevel.Error, "UI");
                     throw new Exception($"Window with title '{windowTitle}' not found");
                 }
                 return IntPtr.Zero;
-            }
-            if (!silent)
-            {
-                _logService.AddLog($"找到窗口句柄：0x{hWnd:X}");
             }
             return hWnd;
         }
@@ -283,7 +256,6 @@ namespace Sai2Capture.Services
         /// <param name="hWnd">目标窗口句柄</param>
         public System.Threading.Tasks.Task<bool> InitializeCaptureAsync(nint hWnd)
         {
-            _logService.AddLog("使用传统 PrintWindow API，初始化成功");
             return System.Threading.Tasks.Task.FromResult(true);
         }
 
@@ -306,8 +278,17 @@ namespace Sai2Capture.Services
         {
             if (!GetWindowRect(hWnd, out RECT windowRect))
             {
-                _logService.AddLog($"获取窗口矩形失败：{Marshal.GetLastWin32Error()}", LogLevel.Error);
-                throw new Win32Exception(Marshal.GetLastWin32Error());
+                int errorCode = Marshal.GetLastWin32Error();
+                _logService.AddLogStructured(
+                    $"获取窗口矩形失败",
+                    LogLevel.Error,
+                    "BG",
+                    new Dictionary<string, object>
+                    {
+                        ["ErrorCode"] = errorCode,
+                        ["Hwnd"] = $"0x{hWnd:X}"
+                    });
+                throw new Win32Exception(errorCode);
             }
 
             int width = windowRect.Right - windowRect.Left;
@@ -315,7 +296,15 @@ namespace Sai2Capture.Services
 
             if (width <= 0 || height <= 0)
             {
-                _logService.AddLog($"无效的窗口尺寸：{width}x{height}", LogLevel.Error);
+                _logService.AddLogStructured(
+                    "无效的窗口尺寸",
+                    LogLevel.Error,
+                    "BG",
+                    new Dictionary<string, object>
+                    {
+                        ["Width"] = width,
+                        ["Height"] = height
+                    });
                 throw new Exception($"无效的窗口尺寸：{width}x{height}");
             }
 
@@ -332,21 +321,27 @@ namespace Sai2Capture.Services
                 if (!PrintWindow(hWnd, hdc, 0))
                 {
                     int errorCode = Marshal.GetLastWin32Error();
-                    _logService.AddLog($"PrintWindow 调用失败：{errorCode}", LogLevel.Error);
+                    _logService.AddLogStructured(
+                        "PrintWindow 调用失败",
+                        LogLevel.Error,
+                        "BG",
+                        new Dictionary<string, object>
+                        {
+                            ["ErrorCode"] = errorCode,
+                            ["Hwnd"] = $"0x{hWnd:X}"
+                        });
                     throw new Win32Exception(errorCode);
                 }
 
                 graphics.ReleaseHdc(hdc);
                 hdc = IntPtr.Zero;
 
-                // 手动将 Bitmap 转换为 Mat
                 var rect = new System.Drawing.Rectangle(0, 0, bitmap.Width, bitmap.Height);
                 var bitmapData = bitmap.LockBits(rect, System.Drawing.Imaging.ImageLockMode.ReadOnly, bitmap.PixelFormat);
 
                 try
                 {
                     var tempMat = new Mat(bitmap.Height, bitmap.Width, MatType.CV_8UC4, bitmapData.Scan0);
-                    // 转换 BGR 到 RGB，创建新 Mat 避免资源泄漏
                     var resultMat = new Mat();
                     Cv2.CvtColor(tempMat, resultMat, ColorConversionCodes.BGRA2BGR);
                     return resultMat;
@@ -386,21 +381,18 @@ namespace Sai2Capture.Services
         private bool ImagesEqual(Mat? img1, Mat img2)
         {
             if (img1 == null) return false;
-            
-            // 检查图像是否已被释放
+
             if (img1.IsDisposed || img2.IsDisposed)
             {
-                _logService.AddLog("图像对象已被释放，跳过比较", LogLevel.Warning);
                 return false;
             }
-            
+
             if (img1.Size() != img2.Size()) return false;
             if (img1.Channels() != img2.Channels()) return false;
 
             using Mat diff = new Mat();
             Cv2.Absdiff(img1, img2, diff);
 
-            // 对于多通道图像，需要先转换为灰度图再计数非零像素
             if (diff.Channels() > 1)
             {
                 using Mat gray = new Mat();
@@ -426,19 +418,17 @@ namespace Sai2Capture.Services
             {
                 _sharedState.VideoWriter.Write(frame);
 
-                // 释放旧的 LastImage，防止内存泄漏
                 if (_sharedState.LastImage != null && !_sharedState.LastImage.IsDisposed)
                 {
                     _sharedState.LastImage.Dispose();
                 }
 
-                // 克隆当前帧作为下一帧的比较基准
                 _sharedState.LastImage = frame.Clone();
                 _sharedState.SavedCount++;
             }
             else
             {
-                _logService.AddLog("警告：VideoWriter 未打开，无法保存帧", LogLevel.Warning);
+                _logService.AddLog("VideoWriter 未打开，无法保存帧", LogLevel.Warning, "BG");
             }
         }
 
@@ -448,7 +438,6 @@ namespace Sai2Capture.Services
         /// </summary>
         public void Dispose()
         {
-            _logService.AddLog("释放窗口捕获服务资源");
             GC.SuppressFinalize(this);
         }
     }

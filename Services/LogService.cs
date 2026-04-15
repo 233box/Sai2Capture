@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace Sai2Capture.Services
@@ -12,33 +14,105 @@ namespace Sai2Capture.Services
         private readonly object _lock = new();
         private const int MaxLogLines = 1000;
         private readonly string _logFilePath;
+        private readonly string _logDirectory;
 
         public LogService()
         {
-            // 日志文件路径：程序目录下的 crash.log
-            _logFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "crash.log");
+            _logDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
+            _logFilePath = Path.Combine(_logDirectory, "crash.log");
         }
 
         public event EventHandler<LogEventArgs>? LogUpdated;
 
-        public void AddLog(string message, LogLevel level = LogLevel.Info)
+        public void AddLog(
+            string message,
+            LogLevel level = LogLevel.Info,
+            string? threadType = null,
+            [CallerMemberName] string? caller = null)
         {
             lock (_lock)
             {
-                _logEntries.Add(new LogEntry { Timestamp = DateTime.Now, Level = level, Message = message });
+                var entry = new LogEntry
+                {
+                    Timestamp = DateTime.Now,
+                    Level = level,
+                    Message = message,
+                    ThreadType = threadType ?? (Thread.CurrentThread.IsBackground ? "BG" : "UI"),
+                    ThreadId = Environment.CurrentManagedThreadId.ToString(),
+                    Caller = caller
+                };
+
+                _logEntries.Add(entry);
                 if (_logEntries.Count > MaxLogLines) _logEntries.RemoveAt(0);
-                
-                // 同步写入文件（确保崩溃时日志不丢失）
-                try
-                {
-                    File.AppendAllText(_logFilePath, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [{level}] {message}{Environment.NewLine}");
-                }
-                catch
-                {
-                    // 文件写入失败时不抛出异常，避免影响主流程
-                }
+
+                // 同步写入文件
+                WriteToFile(entry);
             }
             NotifyLogUpdated();
+        }
+
+        public void AddLogStructured(
+            string message,
+            LogLevel level,
+            string? threadType = null,
+            Dictionary<string, object>? context = null,
+            [CallerMemberName] string? caller = null)
+        {
+            lock (_lock)
+            {
+                var entry = new LogEntry
+                {
+                    Timestamp = DateTime.Now,
+                    Level = level,
+                    Message = message,
+                    ThreadType = threadType ?? (Thread.CurrentThread.IsBackground ? "BG" : "UI"),
+                    ThreadId = Environment.CurrentManagedThreadId.ToString(),
+                    Caller = caller,
+                    Context = context
+                };
+
+                _logEntries.Add(entry);
+                if (_logEntries.Count > MaxLogLines) _logEntries.RemoveAt(0);
+
+                WriteToFile(entry);
+            }
+            NotifyLogUpdated();
+        }
+
+#if DEBUG
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public void Debug(string message, string? threadType = null, [CallerMemberName] string? caller = null)
+        {
+            AddLog(message, LogLevel.Debug, threadType, caller);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public void DebugStructured(string message, Dictionary<string, object>? context = null, string? threadType = null, [CallerMemberName] string? caller = null)
+        {
+            AddLogStructured(message, LogLevel.Debug, threadType, context, caller);
+        }
+#else
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public void Debug(string message, string? threadType = null, [CallerMemberName] string? caller = null) { }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public void DebugStructured(string message, Dictionary<string, object>? context = null, string? threadType = null, [CallerMemberName] string? caller = null) { }
+#endif
+
+        private void WriteToFile(LogEntry entry)
+        {
+            try
+            {
+                if (!Directory.Exists(_logDirectory))
+                {
+                    Directory.CreateDirectory(_logDirectory);
+                }
+                File.AppendAllText(_logFilePath, entry.ToFileString() + Environment.NewLine);
+            }
+            catch
+            {
+                // 文件写入失败时不抛出异常，避免影响主流程
+            }
         }
 
         public void ClearLog()
@@ -121,10 +195,26 @@ namespace Sai2Capture.Services
         public DateTime Timestamp { get; set; }
         public LogLevel Level { get; set; }
         public string Message { get; set; } = string.Empty;
-        public override string ToString() => $"[{Timestamp:yyyy-MM-dd HH:mm:ss}] [{Level}] {Message}";
+        public string? ThreadType { get; set; }
+        public string? ThreadId { get; set; }
+        public string? Caller { get; set; }
+        public Dictionary<string, object>? Context { get; set; }
+
+        public override string ToString() => $"[{Timestamp:HH:mm:ss}] [{ThreadType ?? "MAIN",-4}] [{Level,-7}] {Message}";
+
+        public string ToFileString()
+        {
+            var baseStr = $"[{Timestamp:yyyy-MM-dd HH:mm:ss}] [{ThreadType ?? "MAIN"}:{ThreadId ?? "?"}] [{Level}] {Message}";
+            if (Context != null && Context.Count > 0)
+            {
+                var contextStr = string.Join(", ", Context.Select(kv => $"{kv.Key}={kv.Value}"));
+                return $"{baseStr} | {{{contextStr}}}";
+            }
+            return baseStr;
+        }
     }
 
-    public enum LogLevel { Info, Warning, Error }
+    public enum LogLevel { Debug, Info, Warning, Error }
 
     public class LogEventArgs : EventArgs
     {
