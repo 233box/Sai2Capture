@@ -32,7 +32,8 @@ namespace Sai2Capture.ViewModels
     }
 
     /// <summary>
-    /// 录制文件管理视图模型（回退到直接 MP4 文件管理）
+    /// 录制文件管理视图模型
+    /// 保存路径直接来源于 SettingsService，保持单一数据源
     /// </summary>
     public partial class RecordingManagerViewModel : ObservableObject
     {
@@ -54,8 +55,10 @@ namespace Sai2Capture.ViewModels
         [ObservableProperty]
         private string _statusMessage = "就绪";
 
-        [ObservableProperty]
-        private string _savePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "output");
+        /// <summary>
+        /// 保存路径 - 直接从 SettingsService 获取，确保单一数据源
+        /// </summary>
+        public string SavePath => _settingsService.SavePath;
 
         public RecordingManagerViewModel(
             LogService logService,
@@ -63,8 +66,6 @@ namespace Sai2Capture.ViewModels
         {
             _logService = logService;
             _settingsService = settingsService;
-
-            SavePath = _settingsService.SavePath;
 
             _logService.AddLog($"[录制管理] ViewModel 初始化 - 保存路径：{SavePath}");
 
