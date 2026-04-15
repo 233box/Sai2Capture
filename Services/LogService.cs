@@ -1,7 +1,9 @@
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Sai2Capture.Services
 {
@@ -15,11 +17,20 @@ namespace Sai2Capture.Services
         private const int MaxLogLines = 1000;
         private readonly string _logFilePath;
         private readonly string _logDirectory;
+        private readonly ConcurrentQueue<string> _logQueue = new();
+        private readonly Task _writeTask;
+        private volatile bool _isRunning = true;
 
         public LogService()
         {
             _logDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
             _logFilePath = Path.Combine(_logDirectory, "crash.log");
+
+            // 确保日志目录存在
+            EnsureLogDirectoryExists();
+
+            // 启动后台写入任务
+            _writeTask = Task.Run(WriteLogWorker);
         }
 
         public event EventHandler<LogEventArgs>? LogUpdated;
@@ -45,8 +56,7 @@ namespace Sai2Capture.Services
                 _logEntries.Add(entry);
                 if (_logEntries.Count > MaxLogLines) _logEntries.RemoveAt(0);
 
-                // 同步写入文件
-                WriteToFile(entry);
+                QueueLogEntry(entry);
             }
             NotifyLogUpdated();
         }
@@ -74,7 +84,7 @@ namespace Sai2Capture.Services
                 _logEntries.Add(entry);
                 if (_logEntries.Count > MaxLogLines) _logEntries.RemoveAt(0);
 
-                WriteToFile(entry);
+                QueueLogEntry(entry);
             }
             NotifyLogUpdated();
         }
@@ -99,7 +109,7 @@ namespace Sai2Capture.Services
         public void DebugStructured(string message, Dictionary<string, object>? context = null, string? threadType = null, [CallerMemberName] string? caller = null) { }
 #endif
 
-        private void WriteToFile(LogEntry entry)
+        private void EnsureLogDirectoryExists()
         {
             try
             {
@@ -107,11 +117,46 @@ namespace Sai2Capture.Services
                 {
                     Directory.CreateDirectory(_logDirectory);
                 }
-                File.AppendAllText(_logFilePath, entry.ToFileString() + Environment.NewLine);
             }
             catch
             {
-                // 文件写入失败时不抛出异常，避免影响主流程
+                // 目录创建失败时静默处理
+            }
+        }
+
+        private void QueueLogEntry(LogEntry entry)
+        {
+            _logQueue.Enqueue(entry.ToFileString() + Environment.NewLine);
+        }
+
+        private async Task WriteLogWorker()
+        {
+            var batch = new List<string>();
+            while (_isRunning || !_logQueue.IsEmpty)
+            {
+                // 批量收集日志条目
+                batch.Clear();
+                while (_logQueue.TryDequeue(out string? line) && batch.Count < 100)
+                {
+                    if (line != null) batch.Add(line);
+                }
+
+                if (batch.Count > 0)
+                {
+                    try
+                    {
+                        await File.AppendAllTextAsync(_logFilePath, string.Concat(batch));
+                    }
+                    catch
+                    {
+                        // 文件写入失败时静默处理，避免影响主流程
+                    }
+                }
+                else
+                {
+                    // 没有日志时短暂等待，减少 CPU 占用
+                    await Task.Delay(100);
+                }
             }
         }
 
@@ -172,14 +217,14 @@ namespace Sai2Capture.Services
             LogEntry? lastEntry;
             string fullLog;
             int lineCount;
-            
+
             lock (_lock)
             {
                 lastEntry = _logEntries.LastOrDefault();
                 fullLog = GetFullLog();
                 lineCount = _logEntries.Count;
             }
-            
+
             LogUpdated?.Invoke(this, new LogEventArgs
             {
                 FullLog = fullLog,
@@ -187,6 +232,22 @@ namespace Sai2Capture.Services
                 LastUpdate = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
                 LastEntry = lastEntry
             });
+        }
+
+        /// <summary>
+        /// 停止日志服务，等待所有日志写入完成
+        /// </summary>
+        public async Task ShutdownAsync()
+        {
+            _isRunning = false;
+            try
+            {
+                await _writeTask;
+            }
+            catch
+            {
+                // 忽略关闭时的异常
+            }
         }
     }
 

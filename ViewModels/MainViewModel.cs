@@ -24,7 +24,7 @@ namespace Sai2Capture.ViewModels
     /// 主窗口视图模型
     /// 协调各服务组件，处理 UI 交互逻辑
     /// </summary>
-    public partial class MainViewModel : ObservableObject
+    public partial class MainViewModel : ObservableObject, IDisposable
     {
         private readonly WindowCaptureService _windowCaptureService;
         private readonly UtilityService _utilityService;
@@ -37,6 +37,8 @@ namespace Sai2Capture.ViewModels
         private readonly DispatcherTimer _canvasPollingTimer;
         private System.Windows.Controls.ScrollViewer? _logScrollViewer;
         private string? _lastKnownWindowTitle;
+        private EventHandler<LogEventArgs>? _logUpdatedHandler;
+        private bool _disposed;
 
         [ObservableProperty]
         private ObservableCollection<string> _windowTitles = new();
@@ -77,7 +79,8 @@ namespace Sai2Capture.ViewModels
             _hotkeyViewModel = hotkeyViewModel;
             _recordingManagerViewModel = recordingManagerViewModel;
 
-            _logService.LogUpdated += OnLogUpdated;
+            _logUpdatedHandler = OnLogUpdated;
+            _logService.LogUpdated += _logUpdatedHandler;
 
             _statusTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
             _statusTimer.Tick += UpdateStatus;
@@ -602,6 +605,36 @@ namespace Sai2Capture.ViewModels
                 AddLog($"导出日志失败：{ex.Message}", LogLevel.Error);
                 Status = $"导出日志失败：{ex.Message}";
             }
+        }
+
+        /// <summary>
+        /// 释放资源
+        /// </summary>
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// 释放资源
+        /// </summary>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (_disposed) return;
+
+            if (disposing)
+            {
+                _statusTimer?.Stop();
+                _canvasPollingTimer?.Stop();
+
+                if (_logService != null && _logUpdatedHandler != null)
+                {
+                    _logService.LogUpdated -= _logUpdatedHandler;
+                }
+            }
+
+            _disposed = true;
         }
     }
 }

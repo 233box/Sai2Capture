@@ -13,10 +13,15 @@ namespace Sai2Capture
     {
         private HotkeyService? _hotkeyService;
         private SettingsService? _settingsService;
+        private MainViewModel? _mainViewModel;
+        private EventHandler<HotkeyEventArgs>? _hotkeyTriggeredHandler;
+        private Action? _toggleTopmostHandler;
 
         public MainWindow()
         {
-            DataContext = Ioc.Default.GetRequiredService<MainViewModel>();
+            _mainViewModel = Ioc.Default.GetRequiredService<MainViewModel>();
+            DataContext = _mainViewModel;
+
             InitializeComponent();
 
             if (FindName("RecordingManagerPageControl") is RecordingManagerPage recordingManagerPage)
@@ -34,13 +39,15 @@ namespace Sai2Capture
             _hotkeyService = Ioc.Default.GetService<HotkeyService>();
             if (_hotkeyService != null)
             {
-                _hotkeyService.OnHotkeyTriggered += OnHotkeyTriggered;
+                _hotkeyTriggeredHandler = OnHotkeyTriggered;
+                _hotkeyService.OnHotkeyTriggered += _hotkeyTriggeredHandler;
             }
 
             // 订阅 ViewModel 的置顶切换请求
-            if (DataContext is MainViewModel viewModel)
+            if (_mainViewModel != null)
             {
-                viewModel.ToggleWindowTopmostRequested += OnToggleWindowTopmostRequested;
+                _toggleTopmostHandler = OnToggleWindowTopmostRequested;
+                _mainViewModel.ToggleWindowTopmostRequested += _toggleTopmostHandler;
             }
         }
 
@@ -204,7 +211,18 @@ namespace Sai2Capture
 
         protected override void OnClosed(EventArgs e)
         {
-            base.OnClosed(e);
+            // 取消事件订阅
+            if (_hotkeyService != null && _hotkeyTriggeredHandler != null)
+            {
+                _hotkeyService.OnHotkeyTriggered -= _hotkeyTriggeredHandler;
+                _hotkeyTriggeredHandler = null;
+            }
+
+            if (_mainViewModel != null && _toggleTopmostHandler != null)
+            {
+                _mainViewModel.ToggleWindowTopmostRequested -= _toggleTopmostHandler;
+                _toggleTopmostHandler = null;
+            }
 
             if (this.FindChild<MainPage>() is { } mainPage)
             {
@@ -214,10 +232,10 @@ namespace Sai2Capture
             _hotkeyService?.Dispose();
             _hotkeyService = null;
 
-            if (DataContext is MainViewModel viewModel)
-            {
-                viewModel.StopCanvasPolling();
-            }
+            _mainViewModel?.Dispose();
+            _mainViewModel = null;
+
+            base.OnClosed(e);
         }
     }
 }
