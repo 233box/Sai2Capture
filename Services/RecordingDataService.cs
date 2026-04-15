@@ -438,11 +438,12 @@ namespace Sai2Capture.Services
         {
             try
             {
-                _logService.AddLog($"开始导出视频 - 源文件：{recordingFilePath}, 输出：{outputVideoPath}");
+                _logService.AddLog($"[导出] 开始导出视频 - 源文件：{recordingFilePath}");
+                _logService.AddLog($"[导出] 输出路径：{outputVideoPath}");
 
                 if (!File.Exists(recordingFilePath))
                 {
-                    _logService.AddLog($"录制文件不存在：{recordingFilePath}", LogLevel.Error);
+                    _logService.AddLog($"[导出] ✗ 录制文件不存在：{recordingFilePath}", LogLevel.Error);
                     return null;
                 }
 
@@ -454,7 +455,7 @@ namespace Sai2Capture.Services
 
                 if (magicNumber != "SAI2REC01")
                 {
-                    _logService.AddLog($"无效的文件格式：{magicNumber}", LogLevel.Error);
+                    _logService.AddLog($"[导出] ✗ 无效的文件格式：{magicNumber}", LogLevel.Error);
                     return null;
                 }
 
@@ -462,7 +463,7 @@ namespace Sai2Capture.Services
                 var metadata = LoadMetadata(recordingFilePath);
                 if (metadata == null || metadata.Frames.Count == 0)
                 {
-                    _logService.AddLog("录制文件无效或无帧数据", LogLevel.Error);
+                    _logService.AddLog("[导出] ✗ 录制文件无效或无帧数据", LogLevel.Error);
                     return null;
                 }
 
@@ -474,17 +475,17 @@ namespace Sai2Capture.Services
                 // 因为 Canvas 尺寸可能与实际捕获尺寸不同
                 int width = metadata.Frames[0].Width;
                 int height = metadata.Frames[0].Height;
-                
+
                 // 如果 Canvas 尺寸与帧尺寸不同，记录一下
                 if (metadata.CanvasWidth > 0 && metadata.CanvasHeight > 0)
                 {
                     if (metadata.CanvasWidth != width || metadata.CanvasHeight != height)
                     {
-                        _logService.AddLog($"Canvas 尺寸 ({metadata.CanvasWidth}x{metadata.CanvasHeight}) 与帧尺寸 ({width}x{height}) 不同，使用帧尺寸", LogLevel.Warning);
+                        _logService.AddLog($"[导出] Canvas 尺寸与帧尺寸不同，使用帧尺寸 ({width}x{height})", LogLevel.Info);
                     }
                 }
 
-                _logService.AddLog($"导出参数：{metadata.Frames.Count} 帧，{actualFps:F2} FPS, 尺寸：{width}x{height}, 编解码器：{settings.Codec}, 质量等级：{settings.QualityLevel}");
+                _logService.AddLog($"[导出] 导出参数：{metadata.Frames.Count} 帧, {actualFps:F2} FPS, {width}x{height}, {settings.Codec}");
 
                 // 根据编解码器调整输出文件扩展名
                 string fileExtension = settings.Codec.GetRecommendedExtension();
@@ -496,7 +497,7 @@ namespace Sai2Capture.Services
                 }
 
                 // 读取所有帧数据（包含尺寸信息，用于两阶段导出）
-                _logService.AddLog("正在加载帧数据...");
+                _logService.AddLog("[导出] 正在加载帧数据...");
                 var frames = new List<(byte[] JpegData, int FrameIndex, int Width, int Height)>();
 
                 using (var fileStream = new FileStream(recordingFilePath, FileMode.Open, FileAccess.Read))
@@ -514,27 +515,29 @@ namespace Sai2Capture.Services
                         }
                         catch (Exception ex)
                         {
-                            _logService.AddLog($"读取帧 #{frameData.FrameIndex} 失败：{ex.Message}", LogLevel.Warning);
+                            _logService.AddLog($"[导出] 读取帧 #{frameData.FrameIndex} 失败：{ex.Message}", LogLevel.Warning);
                         }
                     }
                 }
 
                 if (frames.Count == 0)
                 {
-                    _logService.AddLog("没有可导出的帧数据", LogLevel.Error);
+                    _logService.AddLog("[导出] ✗ 没有可导出的帧数据", LogLevel.Error);
                     return null;
                 }
 
-                _logService.AddLog($"已加载 {frames.Count} 帧，使用两阶段快速导出...");
+                _logService.AddLog($"[导出] 已加载 {frames.Count} 帧，开始编码...");
 
                 // 使用两阶段导出（MJPEG 快速封装 + FFmpeg 转码）
-                double lastProgress = -1;
+                // 进度日志由 FFmpegVideoEncoder 内部输出，这里只记录关键节点
+                double lastLogProgress = -1;
                 var progress = new Progress<double>(p =>
                 {
-                    if (p - lastProgress >= 10)
+                    // 只在关键节点输出日志（每20%）
+                    if (p - lastLogProgress >= 20)
                     {
-                        _logService.AddLog($"导出进度：{p:F1}%");
-                        lastProgress = p;
+                        _logService.AddLog($"[导出] 总体进度：{p:F0}%");
+                        lastLogProgress = p;
                     }
                 });
 
@@ -547,21 +550,21 @@ namespace Sai2Capture.Services
 
                 if (!string.IsNullOrEmpty(result))
                 {
-                    _logService.AddLog($"✓ 视频导出成功 - {finalOutputPath}");
-                    _logService.AddLog($"  总帧数：{frames.Count}, 文件大小：{new FileInfo(result).Length / 1024.0 / 1024.0:F2} MB");
+                    var fileSize = new FileInfo(result).Length / 1024.0 / 1024.0;
+                    _logService.AddLog($"[导出] ✓ 视频导出成功 - {result}");
+                    _logService.AddLog($"[导出]   帧数：{frames.Count}, 大小：{fileSize:F2} MB");
                     return result;
                 }
                 else
                 {
-                    _logService.AddLog("两阶段导出失败，尝试传统方法...", LogLevel.Warning);
+                    _logService.AddLog("[导出] 快速导出失败，尝试传统方法...", LogLevel.Warning);
                     // 回退到旧方法（作为备选）
                     return ExportToVideoLegacy(recordingFilePath, finalOutputPath, settings, metadata, actualFps);
                 }
             }
             catch (Exception ex)
             {
-                _logService.AddLog($"导出视频失败：{ex.Message}", LogLevel.Error);
-                _logService.AddLog($"异常堆栈：{ex.StackTrace}", LogLevel.Error);
+                _logService.AddLog($"[导出] ✗ 导出失败：{ex.Message}", LogLevel.Error);
                 return null;
             }
         }
@@ -573,7 +576,7 @@ namespace Sai2Capture.Services
         {
             try
             {
-                _logService.AddLog("[传统方法] 开始导出...");
+                _logService.AddLog("[导出] 使用传统方法导出...");
 
                 // 读取帧数据
                 var frames = new List<(byte[] JpegData, int FrameIndex)>();
@@ -602,7 +605,7 @@ namespace Sai2Capture.Services
                 {
                     if (p - lastProgress >= 10)
                     {
-                        _logService.AddLog($"[传统方法] 导出进度：{p:F1}%");
+                        _logService.AddLog($"[导出] 导出进度：{p:F0}%");
                         lastProgress = p;
                     }
                 });
@@ -611,14 +614,16 @@ namespace Sai2Capture.Services
 
                 if (!string.IsNullOrEmpty(result))
                 {
-                    _logService.AddLog($"[传统方法] ✓ 导出成功 - {outputVideoPath}");
+                    var fileSize = new FileInfo(result).Length / 1024.0 / 1024.0;
+                    _logService.AddLog($"[导出] ✓ 视频导出成功 - {result}");
+                    _logService.AddLog($"[导出]   帧数：{frames.Count}, 大小：{fileSize:F2} MB");
                     return result;
                 }
                 return null;
             }
             catch (Exception ex)
             {
-                _logService.AddLog($"[传统方法] 导出失败：{ex.Message}", LogLevel.Error);
+                _logService.AddLog($"[导出] ✗ 传统方法导出失败：{ex.Message}", LogLevel.Error);
                 return null;
             }
         }

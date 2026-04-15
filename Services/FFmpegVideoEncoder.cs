@@ -41,7 +41,7 @@ namespace Sai2Capture.Services
                 if (_ffmpegProcess != null && !_ffmpegProcess.HasExited)
                 {
                     _ffmpegProcess.Kill();
-                    _logService.AddLog("[FFmpeg] 编码已取消", LogLevel.Warning);
+                    _logService.AddLog("[导出] 编码已取消", LogLevel.Warning);
                 }
             }
             catch { }
@@ -69,7 +69,7 @@ namespace Sai2Capture.Services
                 var timeIndex = line.IndexOf("time=");
                 if (timeIndex < 0) return;
 
-                var timeStr = line.Substring(timeIndex + 5, 12); // 取足够的长度
+                var timeStr = line.Substring(timeIndex + 5, 12);
                 var parts = timeStr.Split(':');
                 if (parts.Length != 3) return;
 
@@ -80,18 +80,21 @@ namespace Sai2Capture.Services
                 var currentSeconds = hours * 3600 + minutes * 60 + seconds;
                 var currentProgress = (currentSeconds / totalDurationSeconds) * 100;
 
-                // 只在进度变化 >2% 时输出，避免日志刷屏
+                // 只在进度变化 >=10% 时输出，避免日志刷屏
                 var now = DateTime.Now;
-                if (currentProgress - state.LastProgress >= 2.0)
+                if (currentProgress - state.LastProgress >= 10.0)
                 {
                     state.LastProgress = currentProgress;
                     state.LastReportTime = now;
-                    progress?.Report(Math.Min(currentProgress, 99.9));
 
-                    // 输出进度日志
+                    // 计算实际进度（30-100%）
+                    var actualProgress = 30 + currentProgress * 0.7;
+                    progress?.Report(Math.Min(actualProgress, 99.9));
+
+                    // 输出编码阶段进度
                     var elapsed = (now - state.StartTime).TotalSeconds;
                     var eta = currentProgress > 0 ? (elapsed / currentProgress * 100) - elapsed : 0;
-                    _logService.AddLog($"导出进度：{currentProgress:F1}% (已用 {elapsed:F0}秒, 剩余约 {eta:F0}秒)");
+                    _logService.AddLog($"[导出-编码] 进度：{actualProgress:F0}% (已用 {elapsed:F0}秒, 剩余约 {eta:F0}秒)");
                 }
             }
             catch { }
@@ -113,12 +116,12 @@ namespace Sai2Capture.Services
 
             try
             {
-                _logService.AddLog($"[FFmpeg] 开始编码 - 输出：{outputPath}");
-                _logService.AddLog($"[FFmpeg] 参数：{frames.Count} 帧，{fps:F2} FPS, 尺寸：{width}x{height}, 编解码器：{settings.Codec}");
+                _logService.AddLog($"[导出] 开始编码 - 输出：{outputPath}");
+                _logService.AddLog($"[导出] 参数：{frames.Count} 帧，{fps:F2} FPS, 尺寸：{width}x{height}, 编解码器：{settings.Codec}");
 
                 if (frames.Count == 0)
                 {
-                    _logService.AddLog("[FFmpeg] 帧列表为空", LogLevel.Error);
+                    _logService.AddLog("[导出] 帧列表为空", LogLevel.Error);
                     return null;
                 }
 
@@ -129,14 +132,14 @@ namespace Sai2Capture.Services
                 try
                 {
                     // 解码并保存帧到临时目录
-                    _logService.AddLog($"[FFmpeg] 正在解码 {frames.Count} 帧到临时目录...");
+                    _logService.AddLog($"[导出] 正在解码 {frames.Count} 帧到临时目录...");
                     int decodedCount = 0;
 
                     for (int i = 0; i < frames.Count; i++)
                     {
                         if (_isCancelled)
                         {
-                            _logService.AddLog("[FFmpeg] 编码已取消", LogLevel.Warning);
+                            _logService.AddLog("[导出] 编码已取消", LogLevel.Warning);
                             return null;
                         }
 
@@ -146,7 +149,7 @@ namespace Sai2Capture.Services
                             using var decodedFrame = Cv2.ImDecode(jpegData, ImreadModes.Color);
                             if (decodedFrame == null || decodedFrame.Empty())
                             {
-                                _logService.AddLog($"[FFmpeg] 帧 #{frameIndex} 解码失败，跳过", LogLevel.Warning);
+                                _logService.AddLog($"[导出] 帧 #{frameIndex} 解码失败，跳过", LogLevel.Warning);
                                 continue;
                             }
 
@@ -167,7 +170,7 @@ namespace Sai2Capture.Services
                             // 确保保存的尺寸正确
                             if (resizedFrame.Width != width || resizedFrame.Height != height)
                             {
-                                _logService.AddLog($"[FFmpeg] 帧尺寸不匹配：{resizedFrame.Width}x{resizedFrame.Height}，期望：{width}x{height}", LogLevel.Warning);
+                                _logService.AddLog($"[导出] 帧尺寸不匹配：{resizedFrame.Width}x{resizedFrame.Height}，期望：{width}x{height}", LogLevel.Warning);
                             }
                             
                             Cv2.ImEncode(".png", resizedFrame, out var pngData);
@@ -176,22 +179,22 @@ namespace Sai2Capture.Services
 
                             if (decodedCount % 50 == 0)
                             {
-                                _logService.AddLog($"[FFmpeg] 已解码 {decodedCount}/{frames.Count} 帧");
+                                _logService.AddLog($"[导出] 已解码 {decodedCount}/{frames.Count} 帧");
                             }
                         }
                         catch (Exception ex)
                         {
-                            _logService.AddLog($"[FFmpeg] 处理帧 #{frameIndex} 失败：{ex.Message}", LogLevel.Warning);
+                            _logService.AddLog($"[导出] 处理帧 #{frameIndex} 失败：{ex.Message}", LogLevel.Warning);
                         }
                     }
 
                     if (decodedCount == 0)
                     {
-                        _logService.AddLog("[FFmpeg] 没有成功解码的帧", LogLevel.Error);
+                        _logService.AddLog("[导出] 没有成功解码的帧", LogLevel.Error);
                         return null;
                     }
 
-                    _logService.AddLog($"[FFmpeg] 解码完成 - {decodedCount} 帧，开始编码...");
+                    _logService.AddLog($"[导出] 解码完成 - {decodedCount} 帧，开始编码...");
 
                     // 使用 FFmpeg 进程调用编码
                     var success = RunFFmpegProcess(
@@ -206,14 +209,14 @@ namespace Sai2Capture.Services
 
                     if (success)
                     {
-                        _logService.AddLog($"[FFmpeg] ✓ 编码成功 - {outputPath}");
+                        _logService.AddLog($"[导出] ✓ 编码成功 - {outputPath}");
                         var fileInfo = new FileInfo(outputPath);
-                        _logService.AddLog($"[FFmpeg] 文件大小：{fileInfo.Length / 1024.0 / 1024.0:F2} MB");
+                        _logService.AddLog($"[导出] 文件大小：{fileInfo.Length / 1024.0 / 1024.0:F2} MB");
                         return outputPath;
                     }
                     else
                     {
-                        _logService.AddLog("[FFmpeg] 编码失败", LogLevel.Error);
+                        _logService.AddLog("[导出] 编码失败", LogLevel.Error);
                         return null;
                     }
                 }
@@ -225,19 +228,19 @@ namespace Sai2Capture.Services
                         if (Directory.Exists(tempDirectory))
                         {
                             Directory.Delete(tempDirectory, true);
-                            _logService.AddLog("[FFmpeg] 临时文件已清理");
+                            _logService.AddLog("[导出] 临时文件已清理");
                         }
                     }
                     catch (Exception ex)
                     {
-                        _logService.AddLog($"[FFmpeg] 清理临时文件失败：{ex.Message}", LogLevel.Warning);
+                        _logService.AddLog($"[导出] 清理临时文件失败：{ex.Message}", LogLevel.Warning);
                     }
                 }
             }
             catch (Exception ex)
             {
-                _logService.AddLog($"[FFmpeg] 编码失败：{ex.Message}", LogLevel.Error);
-                _logService.AddLog($"[FFmpeg] 堆栈跟踪：{ex.StackTrace}", LogLevel.Error);
+                _logService.AddLog($"[导出] 编码失败：{ex.Message}", LogLevel.Error);
+                _logService.AddLog($"[导出] 堆栈跟踪：{ex.StackTrace}", LogLevel.Error);
                 return null;
             }
         }
@@ -260,7 +263,7 @@ namespace Sai2Capture.Services
                 // 获取编解码器配置
                 var codecConfig = GetCodecConfig(settings.Codec, settings.QualityLevel);
 
-                _logService.AddLog($"[FFmpeg] 使用编解码器：{codecConfig.Name}, 预设：{codecConfig.Preset}, CRF: {codecConfig.CRF}");
+                _logService.AddLog($"[导出] 使用编解码器：{codecConfig.Name}, 预设：{codecConfig.Preset}, CRF: {codecConfig.CRF}");
 
                 // 创建输入文件列表
                 var inputPattern = Path.Combine(inputDirectory, "frame_%06d.png");
@@ -269,12 +272,12 @@ namespace Sai2Capture.Services
                 var firstFramePath = Path.Combine(inputDirectory, "frame_000000.png");
                 if (!File.Exists(firstFramePath))
                 {
-                    _logService.AddLog($"[FFmpeg] 第一帧文件不存在：{firstFramePath}", LogLevel.Error);
+                    _logService.AddLog($"[导出] 第一帧文件不存在：{firstFramePath}", LogLevel.Error);
                     var files = Directory.GetFiles(inputDirectory, "*.png");
-                    _logService.AddLog($"[FFmpeg] 目录中的 PNG 文件数：{files.Length}", LogLevel.Info);
+                    _logService.AddLog($"[导出] 目录中的 PNG 文件数：{files.Length}", LogLevel.Info);
                     if (files.Length > 0)
                     {
-                        _logService.AddLog($"[FFmpeg] 第一个文件：{files[0]}", LogLevel.Info);
+                        _logService.AddLog($"[导出] 第一个文件：{files[0]}", LogLevel.Info);
                     }
                     return false;
                 }
@@ -285,7 +288,7 @@ namespace Sai2Capture.Services
                 
                 if (adjustedWidth != width || adjustedHeight != height)
                 {
-                    _logService.AddLog($"[FFmpeg] 调整尺寸以符合 H.264 要求：{width}x{height} -> {adjustedWidth}x{adjustedHeight}", LogLevel.Warning);
+                    _logService.AddLog($"[导出] 调整尺寸以符合 H.264 要求：{width}x{height} -> {adjustedWidth}x{adjustedHeight}", LogLevel.Warning);
                 }
 
                 // 构建 FFmpeg 命令参数
@@ -306,14 +309,14 @@ namespace Sai2Capture.Services
 
                 if (!File.Exists(ffmpegPath))
                 {
-                    _logService.AddLog($"[FFmpeg] 未找到 FFmpeg: {ffmpegPath}", LogLevel.Error);
-                    _logService.AddLog("[FFmpeg] 请确保 FFMPEG.STATIC 包已正确安装", LogLevel.Error);
+                    _logService.AddLog($"[导出] 未找到 FFmpeg: {ffmpegPath}", LogLevel.Error);
+                    _logService.AddLog("[导出] 请确保 FFMPEG.STATIC 包已正确安装", LogLevel.Error);
                     return false;
                 }
 
-                _logService.AddLog($"[FFmpeg] 输入目录：{inputDirectory}");
-                _logService.AddLog($"[FFmpeg] 帧数：{frameCount}, FPS: {fps}");
-                _logService.AddLog($"[FFmpeg] 命令：ffmpeg {arguments}");
+                _logService.AddLog($"[导出] 输入目录：{inputDirectory}");
+                _logService.AddLog($"[导出] 帧数：{frameCount}, FPS: {fps}");
+                _logService.AddLog($"[导出] 命令：ffmpeg {arguments}");
 
                 // 启动 FFmpeg 进程
                 var startInfo = new ProcessStartInfo
@@ -335,15 +338,11 @@ namespace Sai2Capture.Services
                 var startTime = DateTime.Now;
                 var lastProgressTime = DateTime.MinValue;
                 var progressUpdateInterval = TimeSpan.FromMilliseconds(500);
-                var errorOutput = new System.Text.StringBuilder();
 
                 process.ErrorDataReceived += (sender, e) =>
                 {
                     if (!string.IsNullOrEmpty(e.Data))
                     {
-                        errorOutput.AppendLine(e.Data);
-                        _logService.AddLog($"[FFmpeg] {e.Data}", LogLevel.Info);
-
                         // 尝试解析进度并回调
                         if (progress != null)
                         {
@@ -368,34 +367,28 @@ namespace Sai2Capture.Services
                 process.BeginErrorReadLine();
                 process.WaitForExit();
 
-                // 如果失败，记录详细错误信息
+                // 如果失败，记录错误信息
                 if (process.ExitCode != 0)
                 {
-                    _logService.AddLog($"[FFmpeg] 标准错误输出：{errorOutput.ToString()}", LogLevel.Error);
-                    _logService.AddLog($"[FFmpeg] 退出码：{process.ExitCode}", LogLevel.Error);
+                    _logService.AddLog($"[导出] ✗ FFmpeg 编码失败，退出码：{process.ExitCode}", LogLevel.Error);
                 }
 
                 _ffmpegProcess = null;
 
                 if (process.ExitCode == 0 && File.Exists(outputPath))
                 {
-                    _logService.AddLog("[FFmpeg] 编码完成", LogLevel.Info);
+                    _logService.AddLog("[导出] 编码完成");
                     return true;
                 }
                 else
                 {
-                    _logService.AddLog($"[FFmpeg] 编码失败，退出码：{process.ExitCode}", LogLevel.Error);
-                    if (!File.Exists(outputPath))
-                    {
-                        _logService.AddLog($"[FFmpeg] 输出文件未创建：{outputPath}", LogLevel.Error);
-                    }
+                    _logService.AddLog($"[导出] ✗ 编码失败，退出码：{process.ExitCode}", LogLevel.Error);
                     return false;
                 }
             }
             catch (Exception ex)
             {
-                _logService.AddLog($"[FFmpeg] 编码异常：{ex.Message}", LogLevel.Error);
-                _logService.AddLog($"[FFmpeg] 堆栈：{ex.StackTrace}", LogLevel.Error);
+                _logService.AddLog($"[导出] ✗ 编码异常：{ex.Message}", LogLevel.Error);
                 return false;
             }
         }
@@ -475,7 +468,7 @@ namespace Sai2Capture.Services
             {
                 if (frames.Count == 0)
                 {
-                    _logService.AddLog("[FFmpeg] 帧列表为空", LogLevel.Error);
+                    _logService.AddLog("[导出] 帧列表为空", LogLevel.Error);
                     return null;
                 }
 
@@ -484,15 +477,15 @@ namespace Sai2Capture.Services
                 var firstHeight = frames[0].Height;
                 if (!frames.All(f => f.Width == firstWidth && f.Height == firstHeight))
                 {
-                    _logService.AddLog("[FFmpeg] 检测到帧尺寸不一致，跳过优化导出", LogLevel.Warning);
+                    _logService.AddLog("[导出] 检测到帧尺寸不一致，跳过优化导出", LogLevel.Warning);
                     return null;
                 }
 
                 var width = firstWidth;
                 var height = firstHeight;
 
-                _logService.AddLog($"[FFmpeg] 快速导出开始 - {frames.Count} 帧, {fps:F2} FPS, 尺寸：{width}x{height}");
-                _logService.AddLog($"[FFmpeg] 目标格式：{settings.Codec}, 质量等级：{settings.QualityLevel}");
+                _logService.AddLog($"[导出] 快速导出开始 - {frames.Count} 帧, {fps:F2} FPS, 尺寸：{width}x{height}");
+                _logService.AddLog($"[导出] 目标格式：{settings.Codec}, 质量等级：{settings.QualityLevel}");
 
                 // MJPEG 格式直接用快速导出
                 if (settings.Codec == ModelsVideoCodec.MJPEG)
@@ -500,7 +493,7 @@ namespace Sai2Capture.Services
                     if (ExportToMJPEGFast(frames, outputPath, fps, width, height, progress))
                     {
                         progress?.Report(100);
-                        _logService.AddLog($"[FFmpeg] ✓ 导出完成（MJPEG）- {outputPath}");
+                        _logService.AddLog($"[导出] ✓ 导出完成（MJPEG）- {outputPath}");
                         return outputPath;
                     }
                     return null;
@@ -512,20 +505,20 @@ namespace Sai2Capture.Services
                 if (success)
                 {
                     progress?.Report(100);
-                    _logService.AddLog($"[FFmpeg] ✓ 导出完成 - {outputPath}");
+                    _logService.AddLog($"[导出] ✓ 导出完成 - {outputPath}");
                     var fileInfo = new FileInfo(outputPath);
-                    _logService.AddLog($"[FFmpeg] 文件大小：{fileInfo.Length / 1024.0 / 1024.0:F2} MB");
+                    _logService.AddLog($"[导出] 文件大小：{fileInfo.Length / 1024.0 / 1024.0:F2} MB");
                     return outputPath;
                 }
                 else
                 {
-                    _logService.AddLog("[FFmpeg] 直接导出失败，回退到传统方法...", LogLevel.Warning);
+                    _logService.AddLog("[导出] 直接导出失败，回退到传统方法...", LogLevel.Warning);
                     return null;
                 }
             }
             catch (Exception ex)
             {
-                _logService.AddLog($"[FFmpeg] 导出异常：{ex.Message}", LogLevel.Error);
+                _logService.AddLog($"[导出] 导出异常：{ex.Message}", LogLevel.Error);
                 return null;
             }
         }
@@ -545,7 +538,7 @@ namespace Sai2Capture.Services
             var ffmpegPath = Path.Combine(AppContext.BaseDirectory, "ffmpeg.exe");
             if (!File.Exists(ffmpegPath))
             {
-                _logService.AddLog("[FFmpeg] FFmpeg 未找到", LogLevel.Error);
+                _logService.AddLog("[导出] FFmpeg 未找到", LogLevel.Error);
                 return false;
             }
 
@@ -555,9 +548,9 @@ namespace Sai2Capture.Services
 
             try
             {
-                _logService.AddLog($"[FFmpeg] 保存 {frames.Count} 帧 JPEG...");
+                _logService.AddLog($"[导出-写入] 保存 {frames.Count} 帧 JPEG...");
 
-                // 阶段1：并行写入 JPEG 文件 (0-30%)
+                // 阶段1：并行写入 JPEG 文件
                 var lastReportTime = DateTime.Now;
                 var lockObj = new object();
                 int completed = 0;
@@ -571,19 +564,20 @@ namespace Sai2Capture.Services
                     {
                         completed++;
                         var now = DateTime.Now;
-                        if (now - lastReportTime >= TimeSpan.FromMilliseconds(300))
+                        if (now - lastReportTime >= TimeSpan.FromMilliseconds(500))
                         {
-                            progress?.Report((double)completed / frames.Count * 30);
+                            var pct = (double)completed / frames.Count * 100;
+                            progress?.Report(pct * 0.3);  // 0-30%
                             lastReportTime = now;
                         }
                     }
                 });
 
                 progress?.Report(30);
-                _logService.AddLog("[FFmpeg] JPEG 文件写入完成");
+                _logService.AddLog("[导出-写入] 完成");
 
                 // 阶段2：FFmpeg 直接编码 (30-100%)
-                _logService.AddLog("[FFmpeg] 正在编码...");
+                _logService.AddLog("[导出-编码] 开始编码...");
 
                 var codecConfig = GetCodecConfig(settings.Codec, settings.QualityLevel);
 
@@ -605,7 +599,7 @@ namespace Sai2Capture.Services
                              $"-pix_fmt yuv420p " +
                              $"-y \"{outputPath}\"";
 
-                _logService.AddLog($"[FFmpeg] 编码命令：ffmpeg {arguments}");
+                _logService.AddLog($"[导出] 编码命令：ffmpeg {arguments}");
 
                 // 计算总时长（秒）
                 var totalDurationSeconds = frames.Count / fps;
@@ -647,13 +641,12 @@ namespace Sai2Capture.Services
                 if (process.ExitCode == 0 && File.Exists(outputPath))
                 {
                     progress?.Report(100);
-                    _logService.AddLog("[FFmpeg] 编码完成");
+                    _logService.AddLog("[导出] 编码完成");
                     return true;
                 }
                 else
                 {
-                    _logService.AddLog($"[FFmpeg] 编码失败，退出码：{process.ExitCode}", LogLevel.Error);
-                    _logService.AddLog($"[FFmpeg] 错误：{errorOutput}", LogLevel.Error);
+                    _logService.AddLog($"[导出] ✗ 编码失败，退出码：{process.ExitCode}", LogLevel.Error);
                     try { File.Delete(outputPath); } catch { }
                     return false;
                 }
@@ -678,12 +671,12 @@ namespace Sai2Capture.Services
         {
             try
             {
-                _logService.AddLog($"[FFmpeg] 超快速 MJPEG 导出：{frames.Count} 帧, {fps:F2} FPS");
+                _logService.AddLog($"[导出] 超快速 MJPEG 导出：{frames.Count} 帧, {fps:F2} FPS");
 
                 var ffmpegPath = Path.Combine(AppContext.BaseDirectory, "ffmpeg.exe");
                 if (!File.Exists(ffmpegPath))
                 {
-                    _logService.AddLog("[FFmpeg] FFmpeg 未找到", LogLevel.Error);
+                    _logService.AddLog("[导出] FFmpeg 未找到", LogLevel.Error);
                     return ExportToMJPEGWithVideoWriter(frames, outputPath, fps, width, height, progress);
                 }
 
@@ -693,7 +686,7 @@ namespace Sai2Capture.Services
 
                 try
                 {
-                    _logService.AddLog($"[FFmpeg] 保存 {frames.Count} 帧 JPEG 到临时目录...");
+                    _logService.AddLog($"[导出] 保存 {frames.Count} 帧 JPEG 到临时目录...");
 
                     // 批量写入 JPEG 文件（并行加速）
                     var lastReportTime = DateTime.Now;
@@ -718,7 +711,7 @@ namespace Sai2Capture.Services
                     });
 
                     progress?.Report(30);
-                    _logService.AddLog($"[FFmpeg] JPEG 文件写入完成");
+                    _logService.AddLog($"[导出] JPEG 文件写入完成");
 
                     // 使用 FFmpeg 快速编码 MJPEG
                     var inputPattern = Path.Combine(tempDir, "frame_%06d.jpg");
@@ -729,7 +722,7 @@ namespace Sai2Capture.Services
                                    $"-pix_fmt yuv420p " +
                                    $"-y \"{outputPath}\"";
 
-                    _logService.AddLog($"[FFmpeg] 编码命令：ffmpeg {arguments}");
+                    _logService.AddLog($"[导出] 编码命令：ffmpeg {arguments}");
 
                     var startInfo = new ProcessStartInfo
                     {
@@ -762,13 +755,13 @@ namespace Sai2Capture.Services
                     if (process.ExitCode == 0 && File.Exists(outputPath))
                     {
                         var fileSize = new FileInfo(outputPath).Length;
-                        _logService.AddLog($"[FFmpeg] MJPEG 导出完成 - {frames.Count} 帧, 文件大小：{fileSize / 1024.0 / 1024.0:F2} MB");
+                        _logService.AddLog($"[导出] MJPEG 导出完成 - {frames.Count} 帧, 文件大小：{fileSize / 1024.0 / 1024.0:F2} MB");
                         return true;
                     }
                     else
                     {
-                        _logService.AddLog($"[FFmpeg] FFmpeg MJPEG 失败，退出码：{process.ExitCode}", LogLevel.Warning);
-                        _logService.AddLog($"[FFmpeg] 错误：{errorOutput}", LogLevel.Warning);
+                        _logService.AddLog($"[导出] FFmpeg MJPEG 失败，退出码：{process.ExitCode}", LogLevel.Warning);
+                        _logService.AddLog($"[导出] 错误：{errorOutput}", LogLevel.Warning);
                         try { File.Delete(outputPath); } catch { }
                         return ExportToMJPEGWithVideoWriter(frames, outputPath, fps, width, height, progress);
                     }
@@ -781,7 +774,7 @@ namespace Sai2Capture.Services
             }
             catch (Exception ex)
             {
-                _logService.AddLog($"[FFmpeg] MJPEG 导出异常：{ex.Message}", LogLevel.Error);
+                _logService.AddLog($"[导出] MJPEG 导出异常：{ex.Message}", LogLevel.Error);
                 return false;
             }
         }
@@ -803,7 +796,7 @@ namespace Sai2Capture.Services
 
                 if (!writer.IsOpened())
                 {
-                    _logService.AddLog("[FFmpeg] 无法创建 VideoWriter", LogLevel.Error);
+                    _logService.AddLog("[导出] 无法创建 VideoWriter", LogLevel.Error);
                     return false;
                 }
 
@@ -875,11 +868,11 @@ namespace Sai2Capture.Services
                 var ffmpegPath = Path.Combine(AppContext.BaseDirectory, "ffmpeg.exe");
                 if (!File.Exists(ffmpegPath))
                 {
-                    _logService.AddLog("[FFmpeg] FFmpeg 未找到", LogLevel.Error);
+                    _logService.AddLog("[导出] FFmpeg 未找到", LogLevel.Error);
                     return false;
                 }
 
-                _logService.AddLog($"[FFmpeg] 转码命令：ffmpeg {arguments}");
+                _logService.AddLog($"[导出] 转码命令：ffmpeg {arguments}");
 
                 var startInfo = new ProcessStartInfo
                 {
@@ -921,19 +914,18 @@ namespace Sai2Capture.Services
 
                 if (process.ExitCode == 0 && File.Exists(outputPath))
                 {
-                    _logService.AddLog("[FFmpeg] 转码完成");
+                    _logService.AddLog("[导出] 转码完成");
                     return true;
                 }
                 else
                 {
-                    _logService.AddLog($"[FFmpeg] 转码失败，退出码：{process.ExitCode}", LogLevel.Error);
-                    _logService.AddLog($"[FFmpeg] 错误输出：{errorOutput}", LogLevel.Error);
+                    _logService.AddLog($"[导出] ✗ 转码失败，退出码：{process.ExitCode}", LogLevel.Error);
                     return false;
                 }
             }
             catch (Exception ex)
             {
-                _logService.AddLog($"[FFmpeg] 转码异常：{ex.Message}", LogLevel.Error);
+                _logService.AddLog($"[导出] ✗ 转码异常：{ex.Message}", LogLevel.Error);
                 return false;
             }
         }
