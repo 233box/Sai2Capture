@@ -1,158 +1,80 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Microsoft.Win32;
 using Sai2Capture.Models;
 using Sai2Capture.Services;
-using Sai2Capture.Views;
 using System.Collections.ObjectModel;
 using System.IO;
-using System.Text;
 using System.Windows;
 using MessageBox = System.Windows.MessageBox;
-using SaveFileDialog = Microsoft.Win32.SaveFileDialog;
-using System.Windows.Interop;
 
 namespace Sai2Capture.ViewModels
 {
     /// <summary>
-    /// 录制文件信息（用于 UI 显示）
+    /// 视频文件信息（用于 UI 显示）
     /// </summary>
-    public class RecordingFileInfo : ObservableObject
+    public class VideoFileInfo : ObservableObject
     {
         public string FilePath { get; set; } = string.Empty;
         public string FileName { get; set; } = string.Empty;
-        public string WindowTitle { get; set; } = string.Empty;
-        public DateTime StartTime { get; set; }
-        public DateTime? EndTime { get; set; }
-        public int TotalFrames { get; set; }
+        public DateTime CreatedTime { get; set; }
+        public DateTime ModifiedTime { get; set; }
         public double FileSizeKB { get; set; }
-        public double CaptureInterval { get; set; }
         public int CanvasWidth { get; set; }
         public int CanvasHeight { get; set; }
-        public string DurationDisplay => EndTime.HasValue
-            ? $"{(EndTime.Value - StartTime).TotalMinutes:F1} 分钟"
-            : "未完成";
-        public string SizeDisplay => FileSizeKB > 1024
-            ? $"{FileSizeKB / 1024:F2} MB"
-            : $"{FileSizeKB:F2} KB";
-        public string ResolutionDisplay => $"{CanvasWidth} x {CanvasHeight}";
+        public string SizeDisplay => FileSizeKB > 1024 * 1024
+            ? $"{FileSizeKB / 1024 / 1024:F2} GB"
+            : FileSizeKB > 1024
+                ? $"{FileSizeKB / 1024:F2} MB"
+                : $"{FileSizeKB:F2} KB";
+        public string ResolutionDisplay => CanvasWidth > 0 && CanvasHeight > 0
+            ? $"{CanvasWidth} x {CanvasHeight}"
+            : "未知";
     }
 
     /// <summary>
-    /// 录制文件管理视图模型
+    /// 录制文件管理视图模型（回退到直接 MP4 文件管理）
     /// </summary>
     public partial class RecordingManagerViewModel : ObservableObject
     {
-        private readonly RecordingDataService _recordingDataService;
         private readonly LogService _logService;
         private readonly SettingsService _settingsService;
-        private readonly CaptureService _captureService;
 
         [ObservableProperty]
-        private ObservableCollection<RecordingFileInfo> _recordingFiles = new();
+        private ObservableCollection<VideoFileInfo> _videoFiles = new();
 
         [ObservableProperty]
-        private RecordingFileInfo? _selectedRecording;
+        private VideoFileInfo? _selectedVideo;
 
-        partial void OnSelectedRecordingChanged(RecordingFileInfo? value)
+        partial void OnSelectedVideoChanged(VideoFileInfo? value)
         {
-            // 当选中项变化时，通知命令重新评估 CanExecute
-            ResumeRecordingCommand.NotifyCanExecuteChanged();
-            ExportVideoCommand.NotifyCanExecuteChanged();
-            DeleteRecordingCommand.NotifyCanExecuteChanged();
-            PreviewRecordingCommand.NotifyCanExecuteChanged();
+            DeleteVideoCommand.NotifyCanExecuteChanged();
+            OpenVideoCommand.NotifyCanExecuteChanged();
         }
 
         [ObservableProperty]
         private string _statusMessage = "就绪";
 
         [ObservableProperty]
-        private bool _isExporting = false;
-
-        partial void OnIsExportingChanged(bool value)
-        {
-            // 当导出状态变化时，通知命令重新评估 CanExecute
-            ResumeRecordingCommand.NotifyCanExecuteChanged();
-            ExportVideoCommand.NotifyCanExecuteChanged();
-            DeleteRecordingCommand.NotifyCanExecuteChanged();
-            PreviewRecordingCommand.NotifyCanExecuteChanged();
-        }
-
-        [ObservableProperty]
-        private double _exportProgress = 0;
-
-        [ObservableProperty]
-        private string _exportProgressText = string.Empty;
-
-        [ObservableProperty]
-        private double _exportFps = 20;
-
-        [ObservableProperty]
-        private VideoCodec _exportCodec = VideoCodec.H264;
-
-        [ObservableProperty]
-        private int _exportQualityLevel = 2;
-
-        [ObservableProperty]
         private string _savePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "output");
 
-        [ObservableProperty]
-        private string _exportSummary = "H.264 | 20 FPS | 高质量";
-
-        /// <summary>
-        /// 更新导出摘要显示
-        /// </summary>
-        partial void OnExportFpsChanged(double value) => UpdateExportSummary();
-        partial void OnExportCodecChanged(VideoCodec value) => UpdateExportSummary();
-        partial void OnExportQualityLevelChanged(int value) => UpdateExportSummary();
-
-        private void UpdateExportSummary()
-        {
-            var qualityText = ExportQualityLevel switch
-            {
-                1 => "最高质量",
-                2 => "高质量",
-                3 => "中等质量",
-                4 => "较低质量",
-                5 => "最低质量",
-                _ => "高质量"
-            };
-            ExportSummary = $"{ExportCodec} | {ExportFps} FPS | {qualityText}";
-        }
-
         public RecordingManagerViewModel(
-            RecordingDataService recordingDataService,
             LogService logService,
-            SettingsService settingsService,
-            CaptureService captureService)
+            SettingsService settingsService)
         {
-            _recordingDataService = recordingDataService;
             _logService = logService;
             _settingsService = settingsService;
-            _captureService = captureService;
 
-            // 从设置服务获取保存路径，确保与录制服务使用相同的路径
             SavePath = _settingsService.SavePath;
-            
-            // 从设置服务加载视频导出设置
-            ExportCodec = _settingsService.ExportCodec;
-            ExportFps = _settingsService.ExportFps;
-            ExportQualityLevel = _settingsService.ExportQualityLevel;
-            
-            // 更新导出摘要显示
-            UpdateExportSummary();
-            
-            _logService.AddLog($"[录制管理] ViewModel 初始化 - 保存路径：{SavePath}", LogLevel.Warning);
-            _logService.AddLog($"[录制管理] BaseDirectory: {AppDomain.CurrentDomain.BaseDirectory}", LogLevel.Warning);
-            _logService.AddLog($"[录制管理] 加载导出设置 - 编解码器：{ExportCodec}, FPS: {ExportFps}, 质量：{ExportQualityLevel}", LogLevel.Info);
-            
+
+            _logService.AddLog($"[录制管理] ViewModel 初始化 - 保存路径：{SavePath}");
+
             // 确保保存路径存在
             if (!Directory.Exists(SavePath))
             {
                 try
                 {
                     Directory.CreateDirectory(SavePath);
-                    _logService.AddLog($"[录制管理] 录制文件保存路径已创建：{SavePath}", LogLevel.Warning);
+                    _logService.AddLog($"[录制管理] 录制文件保存路径已创建：{SavePath}");
                 }
                 catch (Exception ex)
                 {
@@ -161,29 +83,28 @@ namespace Sai2Capture.ViewModels
             }
             else
             {
-                var files = Directory.GetFiles(SavePath, "*.sai2rec");
-                _logService.AddLog($"[录制管理] 保存路径已存在，找到 {files.Length} 个 .sai2rec 文件", LogLevel.Warning);
+                var files = Directory.GetFiles(SavePath, "*.mp4");
+                _logService.AddLog($"[录制管理] 保存路径已存在，找到 {files.Length} 个 .mp4 文件");
             }
         }
 
         /// <summary>
-        /// 刷新录制文件列表
+        /// 刷新视频文件列表
         /// </summary>
         [RelayCommand]
         private void RefreshFileList()
         {
             try
             {
-                RecordingFiles.Clear();
+                VideoFiles.Clear();
 
-                // 确保保存路径存在
                 if (!Directory.Exists(SavePath))
                 {
                     try
                     {
                         Directory.CreateDirectory(SavePath);
                         StatusMessage = $"已创建保存路径：{SavePath}";
-                        _logService.AddLog($"[录制管理] 录制文件保存路径已创建：{SavePath}", LogLevel.Warning);
+                        _logService.AddLog($"[录制管理] 录制文件保存路径已创建：{SavePath}");
                         return;
                     }
                     catch (Exception ex)
@@ -194,278 +115,93 @@ namespace Sai2Capture.ViewModels
                     }
                 }
 
-                _logService.AddLog($"[录制管理] 开始扫描目录：{SavePath}", LogLevel.Info);
-                
-                var files = Directory.GetFiles(SavePath, "*.sai2rec")
+                _logService.AddLog($"[录制管理] 开始扫描目录：{SavePath}");
+
+                // 搜索 MP4 和 AVI 文件
+                var mp4Files = Directory.GetFiles(SavePath, "*.mp4");
+                var aviFiles = Directory.GetFiles(SavePath, "*.avi");
+                var files = mp4Files.Concat(aviFiles)
                     .OrderByDescending(f => new FileInfo(f).LastWriteTime)
                     .ToList();
 
-                _logService.AddLog($"[录制管理] 找到 {files.Count} 个 .sai2rec 文件", LogLevel.Info);
+                _logService.AddLog($"[录制管理] 找到 {files.Count} 个视频文件");
 
                 foreach (var file in files)
                 {
-                    _logService.AddLog($"[录制管理] 加载文件：{file}", LogLevel.Info);
-                    
-                    var metadata = _recordingDataService.LoadMetadata(file);
-                    if (metadata != null)
+                    try
                     {
                         var fileInfo = new FileInfo(file);
-                        RecordingFiles.Add(new RecordingFileInfo
+                        var videoInfo = new VideoFileInfo
                         {
                             FilePath = file,
                             FileName = fileInfo.Name,
-                            WindowTitle = metadata.WindowTitle,
-                            StartTime = metadata.StartTime,
-                            EndTime = metadata.EndTime,
-                            TotalFrames = metadata.TotalFrames,
-                            FileSizeKB = fileInfo.Length / 1024.0,
-                            CaptureInterval = metadata.CaptureInterval,
-                            CanvasWidth = metadata.CanvasWidth,
-                            CanvasHeight = metadata.CanvasHeight
-                        });
-                        _logService.AddLog($"[录制管理] ✓ 成功加载：{fileInfo.Name} - {metadata.TotalFrames} 帧", LogLevel.Info);
+                            CreatedTime = fileInfo.CreationTime,
+                            ModifiedTime = fileInfo.LastWriteTime,
+                            FileSizeKB = fileInfo.Length / 1024.0
+                        };
+                        VideoFiles.Add(videoInfo);
+                        _logService.AddLog($"[录制管理] 加载：{fileInfo.Name} - {videoInfo.SizeDisplay}");
                     }
-                    else
+                    catch (Exception ex)
                     {
-                        _logService.AddLog($"[录制管理] ✗ 加载失败：{file} - LoadMetadata 返回 null", LogLevel.Error);
-                        
-                        // 尝试直接读取文件信息来调试
-                        try
-                        {
-                            var fileInfo = new FileInfo(file);
-                            _logService.AddLog($"[录制管理] 文件信息：大小={fileInfo.Length} 字节，修改时间={fileInfo.LastWriteTime}", LogLevel.Error);
-                            
-                            using var fs = new FileStream(file, FileMode.Open, FileAccess.Read);
-                            var magicBuffer = new byte[9];
-                            fs.Read(magicBuffer, 0, 9);
-                            var magic = System.Text.Encoding.ASCII.GetString(magicBuffer);
-                            _logService.AddLog($"[录制管理] 文件魔数：{magic}", LogLevel.Error);
-                            
-                            fs.Position = 13;
-                            var metaOffset = new BinaryReader(fs).ReadInt64();
-                            _logService.AddLog($"[录制管理] 元数据偏移：{metaOffset}", LogLevel.Error);
-                        }
-                        catch (Exception ex)
-                        {
-                            _logService.AddLog($"[录制管理] 调试信息读取失败：{ex.Message}", LogLevel.Error);
-                        }
+                        _logService.AddLog($"[录制管理] 加载文件失败：{file} - {ex.Message}", LogLevel.Error);
                     }
                 }
 
-                StatusMessage = RecordingFiles.Count > 0
-                    ? $"已加载 {RecordingFiles.Count} 个录制文件"
-                    : "暂无录制文件（录制文件将保存在此目录）";
-                _logService.AddLog($"[录制管理] 刷新完成 - 成功加载 {RecordingFiles.Count} 个文件", LogLevel.Info);
+                StatusMessage = VideoFiles.Count > 0
+                    ? $"已加载 {VideoFiles.Count} 个视频文件"
+                    : "暂无视频文件（录制文件将保存在此目录）";
+                _logService.AddLog($"[录制管理] 刷新完成 - 成功加载 {VideoFiles.Count} 个文件");
             }
             catch (Exception ex)
             {
                 StatusMessage = $"刷新失败：{ex.Message}";
                 _logService.AddLog($"[录制管理] 刷新失败：{ex.Message}", LogLevel.Error);
-                _logService.AddLog($"[录制管理] 异常堆栈：{ex.StackTrace}", LogLevel.Error);
             }
         }
 
         /// <summary>
-        /// 导出为视频
+        /// 删除选中的视频文件
         /// </summary>
-        [RelayCommand(CanExecute = nameof(CanExportVideo))]
-        private void ExportVideo()
+        [RelayCommand(CanExecute = nameof(CanDeleteVideo))]
+        private void DeleteVideo()
         {
-            if (SelectedRecording == null) return;
+            if (SelectedVideo == null) return;
+
+            var result = MessageBox.Show(
+                $"确定要删除视频文件 \"{SelectedVideo.FileName}\" 吗？\n此操作不可恢复！",
+                "确认删除",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+
+            if (result != MessageBoxResult.Yes) return;
 
             try
             {
-                var extension = ExportCodec.GetFileExtension();
-                var dialog = new SaveFileDialog
-                {
-                    Filter = $"{ExportCodec} 视频 (*{extension})|*{extension}|所有文件 (*.*)|*.*",
-                    FileName = Path.ChangeExtension(SelectedRecording.FileName, extension),
-                    InitialDirectory = SavePath
-                };
-
-                if (dialog.ShowDialog() != true) return;
-
-                // 提示用户在日志中查看进度
-                CustomDialogService.ShowInfoDialog(
-                    $"视频正在导出中...\n\n请切换到「日志」页面查看导出进度。\n\n帧数：{SelectedRecording.TotalFrames} 帧\n格式：{ExportCodec}\nFPS：{ExportFps}",
-                    "正在导出视频");
-
-                IsExporting = true;
-                ExportProgress = 0;
-                ExportProgressText = "正在导出视频...";
-
-                // 构建导出配置
-                var settings = new VideoExportSettings
-                {
-                    Fps = ExportFps,
-                    Codec = ExportCodec,
-                    QualityLevel = ExportQualityLevel
-                };
-
-                // 在新线程中执行导出
-                Task.Run(() =>
-                {
-                    var actualOutputPath = _recordingDataService.ExportToVideo(
-                        SelectedRecording.FilePath,
-                        dialog.FileName,
-                        settings);
-
-                    System.Windows.Application.Current.Dispatcher.Invoke(() =>
-                    {
-                        IsExporting = false;
-                        if (!string.IsNullOrEmpty(actualOutputPath))
-                        {
-                            // 保存用户的导出设置
-                            _settingsService.ExportCodec = ExportCodec;
-                            _settingsService.ExportFps = ExportFps;
-                            _settingsService.ExportQualityLevel = ExportQualityLevel;
-                            _settingsService.SaveSettings();
-                            
-                            StatusMessage = $"视频导出成功：{actualOutputPath}";
-                            ExportProgressText = "导出完成";
-                            _logService.AddLog($"视频导出成功：{actualOutputPath}");
-                            _logService.AddLog($"导出设置已保存 - 编解码器：{ExportCodec}, FPS: {ExportFps}, 质量：{ExportQualityLevel}");
-                            MessageBox.Show($"视频已成功导出到：\n{actualOutputPath}", "导出成功",
-                                MessageBoxButton.OK, MessageBoxImage.Information);
-                        }
-                        else
-                        {
-                            StatusMessage = "视频导出失败";
-                            ExportProgressText = "导出失败";
-                            _logService.AddLog("视频导出失败", LogLevel.Error);
-                            MessageBox.Show("视频导出失败，请查看日志获取详细信息", "导出失败",
-                                MessageBoxButton.OK, MessageBoxImage.Error);
-                        }
-                    });
-                });
-            }
-            catch (Exception ex)
-            {
-                IsExporting = false;
-                StatusMessage = $"导出错误：{ex.Message}";
-                _logService.AddLog($"导出视频错误：{ex.Message}", LogLevel.Error);
-                MessageBox.Show($"导出错误：{ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        /// <summary>
-        /// 配置导出参数
-        /// </summary>
-        [RelayCommand]
-        private void ConfigureExport()
-        {
-            var dialog = new VideoExportSettingsDialog(new VideoExportSettings
-            {
-                Fps = ExportFps,
-                Codec = ExportCodec,
-                QualityLevel = ExportQualityLevel
-            });
-
-            var mainWindow = System.Windows.Application.Current.MainWindow;
-            if (mainWindow != null)
-            {
-                dialog.Owner = mainWindow;
-            }
-
-            if (dialog.ShowDialog() == true)
-            {
-                // 应用用户选择的设置
-                ExportFps = dialog.Settings.Fps;
-                ExportCodec = dialog.Settings.Codec;
-                ExportQualityLevel = dialog.Settings.QualityLevel;
-
-                _logService.AddLog($"导出配置已更新：{ExportCodec} | {ExportFps} FPS | {ExportQualityLevel}级");
-            }
-        }
-
-        private bool CanExportVideo() => SelectedRecording != null && !IsExporting;
-
-        /// <summary>
-        /// 从选中的录制文件继续录制
-        /// </summary>
-        [RelayCommand(CanExecute = nameof(CanResumeRecording))]
-        private void ResumeRecording()
-        {
-            if (SelectedRecording == null) return;
-
-            try
-            {
-                _logService.AddLog($"从文件继续录制：{SelectedRecording.FilePath}");
-                _logService.AddLog($"原录制信息：{SelectedRecording.TotalFrames} 帧，{SelectedRecording.WindowTitle}");
-
-                // 通过 CaptureService 继续录制
-                // 注意：这里需要 MainViewModel 配合，通过事件或回调实现
-                ResumeRecordingRequested?.Invoke(this, new ResumeRecordingEventArgs
-                {
-                    FilePath = SelectedRecording.FilePath,
-                    WindowTitle = SelectedRecording.WindowTitle,
-                    ExistingFrames = SelectedRecording.TotalFrames
-                });
-
-                StatusMessage = $"已从 {SelectedRecording.FileName} 继续录制";
-            }
-            catch (Exception ex)
-            {
-                StatusMessage = $"继续录制失败：{ex.Message}";
-                _logService.AddLog($"继续录制失败：{ex.Message}", LogLevel.Error);
-                MessageBox.Show($"继续录制失败：{ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        private bool CanResumeRecording() => SelectedRecording != null && !IsExporting;
-
-        /// <summary>
-        /// 删除选中的录制文件
-        /// </summary>
-        [RelayCommand(CanExecute = nameof(CanDeleteRecording))]
-        private void DeleteRecording()
-        {
-            if (SelectedRecording == null) return;
-
-            // 使用统一的确认对话框
-            var dialog = new ConfirmDialog(
-                $"确定要删除录制文件 \"{SelectedRecording.FileName}\" 吗？",
-                "此操作不可恢复！",
-                "确认删除");
-
-            // 获取主窗口作为所有者
-            var mainWindow = System.Windows.Application.Current.MainWindow;
-            if (mainWindow != null)
-            {
-                dialog.Owner = mainWindow;
-            }
-
-            dialog.ShowDialog();
-
-            if (!dialog.Confirmed) return;
-
-            try
-            {
-                File.Delete(SelectedRecording.FilePath);
-                _logService.AddLog($"已删除录制文件：{SelectedRecording.FilePath}");
-                RecordingFiles.Remove(SelectedRecording);
-                SelectedRecording = null;
+                File.Delete(SelectedVideo.FilePath);
+                _logService.AddLog($"已删除视频文件：{SelectedVideo.FilePath}");
+                VideoFiles.Remove(SelectedVideo);
+                SelectedVideo = null;
                 StatusMessage = "文件已删除";
             }
             catch (Exception ex)
             {
                 StatusMessage = $"删除失败：{ex.Message}";
-                _logService.AddLog($"删除录制文件失败：{ex.Message}", LogLevel.Error);
+                _logService.AddLog($"删除视频文件失败：{ex.Message}", LogLevel.Error);
                 MessageBox.Show($"删除失败：{ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
-        private bool CanDeleteRecording() => SelectedRecording != null && !IsExporting;
+        private bool CanDeleteVideo() => SelectedVideo != null;
 
         /// <summary>
-        /// 打开录制文件所在目录
+        /// 打开视频文件所在目录
         /// </summary>
         [RelayCommand]
         private void OpenFileLocation()
         {
-            if (SelectedRecording == null)
+            if (SelectedVideo == null)
             {
-                // 打开保存路径
                 if (Directory.Exists(SavePath))
                 {
                     System.Diagnostics.Process.Start("explorer.exe", SavePath);
@@ -475,7 +211,7 @@ namespace Sai2Capture.ViewModels
 
             try
             {
-                var directory = Path.GetDirectoryName(SelectedRecording.FilePath);
+                var directory = Path.GetDirectoryName(SelectedVideo.FilePath);
                 if (!string.IsNullOrEmpty(directory) && Directory.Exists(directory))
                 {
                     System.Diagnostics.Process.Start("explorer.exe", directory);
@@ -488,42 +224,30 @@ namespace Sai2Capture.ViewModels
         }
 
         /// <summary>
-        /// 预览选中的录制文件（支持播放控制和帧导航）
+        /// 使用系统默认播放器打开视频
         /// </summary>
-        [RelayCommand(CanExecute = nameof(CanPreviewRecording))]
-        private void PreviewRecording()
+        [RelayCommand(CanExecute = nameof(CanOpenVideo))]
+        private void OpenVideo()
         {
-            if (SelectedRecording == null) return;
+            if (SelectedVideo == null) return;
 
             try
             {
-                // 显示预览窗口（传入文件路径）
-                var previewWindow = new RecordingPreviewWindow(SelectedRecording.FilePath);
-                previewWindow.Owner = System.Windows.Application.Current.MainWindow;
-                previewWindow.ShowDialog();
+                var psi = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = SelectedVideo.FilePath,
+                    UseShellExecute = true
+                };
+                System.Diagnostics.Process.Start(psi);
+                _logService.AddLog($"已打开视频：{SelectedVideo.FilePath}");
             }
             catch (Exception ex)
             {
-                _logService.AddLog($"预览录制文件失败：{ex.Message}", LogLevel.Error);
-                MessageBox.Show($"预览失败：{ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                _logService.AddLog($"打开视频失败：{ex.Message}", LogLevel.Error);
+                MessageBox.Show($"打开视频失败：{ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
-        private bool CanPreviewRecording() => SelectedRecording != null && !IsExporting;
-
-        /// <summary>
-        /// 当请求继续录制时触发
-        /// </summary>
-        public event EventHandler<ResumeRecordingEventArgs>? ResumeRecordingRequested;
-    }
-
-    /// <summary>
-    /// 继续录制事件参数
-    /// </summary>
-    public class ResumeRecordingEventArgs : EventArgs
-    {
-        public string FilePath { get; set; } = string.Empty;
-        public string WindowTitle { get; set; } = string.Empty;
-        public int ExistingFrames { get; set; }
+        private bool CanOpenVideo() => SelectedVideo != null;
     }
 }

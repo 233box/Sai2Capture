@@ -37,7 +37,6 @@ namespace Sai2Capture.ViewModels
         private readonly DispatcherTimer _canvasPollingTimer;
         private System.Windows.Controls.ScrollViewer? _logScrollViewer;
         private string? _lastKnownWindowTitle;
-        private string? _resumeFromFilePath;
 
         [ObservableProperty]
         private ObservableCollection<string> _windowTitles = new();
@@ -78,7 +77,6 @@ namespace Sai2Capture.ViewModels
             _hotkeyViewModel = hotkeyViewModel;
             _recordingManagerViewModel = recordingManagerViewModel;
 
-            _recordingManagerViewModel.ResumeRecordingRequested += OnResumeRecordingRequested;
             _logService.LogUpdated += OnLogUpdated;
 
             _statusTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
@@ -208,49 +206,8 @@ namespace Sai2Capture.ViewModels
 
             _statusTimer.Start();
             _canvasPollingTimer.Start();
-            
-            // 如果有续录文件，使用续录模式
-            _captureService.StartCapture(SelectedWindowTitle, true, CaptureInterval, _resumeFromFilePath);
-            _resumeFromFilePath = null; // 清除续录路径
-        }
 
-        [RelayCommand]
-        private void StartCaptureFromFile()
-        {
-            var dialog = new Microsoft.Win32.OpenFileDialog
-            {
-                Filter = "录制文件 (*.sai2rec)|*.sai2rec|所有文件 (*.*)|*.*",
-                Title = "选择要续录的文件",
-                InitialDirectory = SavePath
-            };
-
-            if (dialog.ShowDialog() != true) return;
-
-            var metadata = _captureService.LoadRecordingMetadata(dialog.FileName);
-            if (metadata == null)
-            {
-                AddLog($"无法读取录制文件元数据：{dialog.FileName}", "ERROR");
-                MessageBox.Show("无法读取录制文件，请确保文件未损坏。", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
-                return;
-            }
-
-            _resumeFromFilePath = dialog.FileName;
-            AddLog($"从文件继续录制：{dialog.FileName}");
-            AddLog($"原录制信息：{metadata.TotalFrames} 帧，窗口：{metadata.WindowTitle}");
-
-            if (!string.IsNullOrEmpty(metadata.WindowTitle))
-            {
-                if (WindowTitles.Contains(metadata.WindowTitle))
-                {
-                    SelectedWindowTitle = metadata.WindowTitle;
-                }
-                else
-                {
-                    AddLog($"注意：原录制窗口 \"{metadata.WindowTitle}\" 未找到，请确保目标窗口已打开", "WARNING");
-                }
-            }
-
-            StartCaptureCommand.Execute(null);
+            _captureService.StartCapture(SelectedWindowTitle, true, CaptureInterval);
         }
 
         /// <summary>
@@ -643,26 +600,6 @@ namespace Sai2Capture.ViewModels
                 AddLog($"导出日志失败：{ex.Message}", "ERROR");
                 Status = $"导出日志失败：{ex.Message}";
             }
-        }
-
-        /// <summary>
-        /// 处理录制管理页面的续录请求
-        /// </summary>
-        private void OnResumeRecordingRequested(object? sender, ResumeRecordingEventArgs e)
-        {
-            _resumeFromFilePath = e.FilePath;
-            
-            // 设置窗口标题
-            if (!string.IsNullOrEmpty(e.WindowTitle) && WindowTitles.Contains(e.WindowTitle))
-            {
-                SelectedWindowTitle = e.WindowTitle;
-            }
-
-            AddLog($"准备从文件继续录制：{e.FilePath}");
-            AddLog($"原录制帧数：{e.ExistingFrames}");
-
-            // 启动录制
-            StartCaptureCommand.Execute(null);
         }
     }
 }

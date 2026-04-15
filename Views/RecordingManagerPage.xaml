@@ -17,7 +17,6 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <!-- 顶部工具栏 -->
@@ -50,14 +49,9 @@
         <!-- 录制文件列表 -->
         <ui:Card Grid.Row="1" Margin="0,0,0,16">
             <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="*"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-
-                <DataGrid Grid.Row="0"
-                          ItemsSource="{Binding RecordingFiles}"
-                          SelectedItem="{Binding SelectedRecording}"
+                <DataGrid
+                          ItemsSource="{Binding VideoFiles}"
+                          SelectedItem="{Binding SelectedVideo}"
                           AutoGenerateColumns="False"
                           CanUserAddRows="False"
                           CanUserDeleteRows="False"
@@ -89,36 +83,27 @@
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="文件名"
                                             Binding="{Binding FileName}"
-                                            Width="200"/>
-                        <DataGridTextColumn Header="窗口标题"
-                                            Binding="{Binding WindowTitle}"
-                                            Width="150"/>
-                        <DataGridTextColumn Header="开始时间"
-                                            Binding="{Binding StartTime, StringFormat='yyyy-MM-dd HH:mm:ss'}"
+                                            Width="*"/>
+                        <DataGridTextColumn Header="创建时间"
+                                            Binding="{Binding CreatedTime, StringFormat='yyyy-MM-dd HH:mm:ss'}"
                                             Width="140"/>
-                        <DataGridTextColumn Header="时长"
-                                            Binding="{Binding DurationDisplay}"
-                                            Width="80"/>
-                        <DataGridTextColumn Header="帧数"
-                                            Binding="{Binding TotalFrames}"
-                                            Width="70"/>
-                        <DataGridTextColumn Header="分辨率"
-                                            Binding="{Binding ResolutionDisplay}"
-                                            Width="90"/>
+                        <DataGridTextColumn Header="修改时间"
+                                            Binding="{Binding ModifiedTime, StringFormat='yyyy-MM-dd HH:mm:ss'}"
+                                            Width="140"/>
                         <DataGridTextColumn Header="文件大小"
                                             Binding="{Binding SizeDisplay}"
-                                            Width="90"/>
+                                            Width="100"/>
                     </DataGrid.Columns>
                 </DataGrid>
 
                 <!-- 空状态提示 -->
-                <Grid Grid.Row="0" Visibility="{Binding RecordingFiles.Count, Converter={StaticResource UniversalConverter}, ConverterParameter=IntToCollapsed}">
+                <Grid Visibility="{Binding VideoFiles.Count, Converter={StaticResource UniversalConverter}, ConverterParameter=IntToCollapsed}">
                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="32">
                         <TextBlock Text="📼"
                                    FontSize="48"
                                    HorizontalAlignment="Center"
                                    Margin="0,0,0,16"/>
-                        <TextBlock Text="暂无录制文件"
+                        <TextBlock Text="暂无视频文件"
                                    FontSize="16"
                                    FontWeight="SemiBold"
                                    Foreground="{DynamicResource ui:BodyForegroundSecondaryBrush}"
@@ -128,92 +113,43 @@
                                    FontSize="13"
                                    Foreground="{DynamicResource ui:BodyForegroundSecondaryBrush}"
                                    HorizontalAlignment="Center"
-                                   TextWrapping="Wrap"
-                                   Margin="0,0,0,16"/>
-                        <TextBlock Text="请先到「主页面」开始录制，或点击下方「从文件继续录制」选择已有文件"
-                                   FontSize="13"
-                                   Foreground="{DynamicResource ui:BodyForegroundTertiaryBrush}"
-                                   HorizontalAlignment="Center"
                                    TextWrapping="Wrap"/>
                     </StackPanel>
                 </Grid>
             </Grid>
         </ui:Card>
 
-        <!-- 导出设置和操作按钮 -->
+        <!-- 操作按钮 -->
         <ui:Card Grid.Row="2" Margin="0,0,0,16"
-                 Visibility="{Binding SelectedRecording, Converter={StaticResource UniversalConverter}, ConverterParameter=NullToCollapsed}">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
+                 Visibility="{Binding SelectedVideo, Converter={StaticResource UniversalConverter}, ConverterParameter=NullToCollapsed}">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <ui:Button Content="▶️ 播放"
+                           Command="{Binding OpenVideoCommand}"
+                           Appearance="Primary"
+                           Width="100"
+                           Margin="0,0,12,0"/>
 
-                <!-- 导出配置显示 -->
-                <Grid Grid.Row="0" Margin="0,0,0,12">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
+                <ui:Button Content="📂 打开位置"
+                           Command="{Binding OpenFileLocationCommand}"
+                           Width="100"
+                           Margin="0,0,12,0"/>
 
-                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Text="导出配置："
-                                   Style="{StaticResource LabelStyle}"
-                                   VerticalAlignment="Center"
-                                   Margin="0,0,12,0"/>
-                        <TextBlock Text="{Binding ExportSummary}"
-                                   FontSize="{StaticResource FontSizeNormal}"
-                                   Foreground="{DynamicResource ui:BodyForegroundSecondaryBrush}"
-                                   VerticalAlignment="Center"/>
-                    </StackPanel>
-
-                    <ui:Button Grid.Column="1"
-                               Content="⚙️ 修改配置"
-                               Command="{Binding ConfigureExportCommand}"
-                               Appearance="Secondary"/>
-                </Grid>
-
-                <!-- 操作按钮区域 -->
-                <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center">
-                    <ui:Button Content="📹 导出视频"
-                               Command="{Binding ExportVideoCommand}"
-                               Appearance="Primary"
-                               Width="120"
-                               Margin="0,0,12,0"/>
-
-                    <ui:Button Content="▶️ 从此文件继续录制"
-                               Command="{Binding ResumeRecordingCommand}"
-                               Appearance="Secondary"
-                               Width="160"
-                               Margin="0,0,12,0"/>
-
-                    <ui:Button Content="👁️ 预览"
-                               Command="{Binding PreviewRecordingCommand}"
-                               Width="100"
-                               Margin="0,0,12,0"/>
-
-                    <ui:Button Content="📂 打开位置"
-                               Command="{Binding OpenFileLocationCommand}"
-                               Width="100"
-                               Margin="0,0,12,0"/>
-
-                    <ui:Button Content="🗑️ 删除"
-                               Command="{Binding DeleteRecordingCommand}"
-                               Appearance="Danger"
-                               Width="100">
-                        <ui:Button.Style>
-                            <Style TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
-                                <Setter Property="Foreground" Value="White"/>
-                                <Style.Triggers>
-                                    <Trigger Property="IsEnabled" Value="False">
-                                        <Setter Property="Foreground" Value="#9E9E9E"/>
-                                    </Trigger>
-                                </Style.Triggers>
-                            </Style>
-                        </ui:Button.Style>
-                    </ui:Button>
-                </StackPanel>
-            </Grid>
+                <ui:Button Content="🗑️ 删除"
+                           Command="{Binding DeleteVideoCommand}"
+                           Appearance="Danger"
+                           Width="100">
+                    <ui:Button.Style>
+                        <Style TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
+                            <Setter Property="Foreground" Value="White"/>
+                            <Style.Triggers>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter Property="Foreground" Value="#9E9E9E"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ui:Button.Style>
+                </ui:Button>
+            </StackPanel>
         </ui:Card>
     </Grid>
 </UserControl>
