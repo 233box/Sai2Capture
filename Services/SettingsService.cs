@@ -29,11 +29,6 @@ namespace Sai2Capture.Services
         [ObservableProperty] private double _windowLeft = -1;
         [ObservableProperty] private double _windowTop = -1;
         [ObservableProperty] private double _previewColumnWidth = 320;
-        
-        // 视频导出设置
-        [ObservableProperty] private VideoCodec _exportCodec = VideoCodec.H264;
-        [ObservableProperty] private double _exportFps = 20;
-        [ObservableProperty] private int _exportQualityLevel = 2;
 
         public SettingsService(SharedStateService sharedState, LogService logService)
         {
@@ -65,11 +60,6 @@ namespace Sai2Capture.Services
                         WindowLeft = settings.WindowLeft;
                         WindowTop = settings.WindowTop;
                         PreviewColumnWidth = settings.PreviewColumnWidth > 0 ? settings.PreviewColumnWidth : PreviewColumnWidth;
-                        
-                        // 加载视频导出设置
-                        ExportCodec = settings.ExportCodec;
-                        ExportFps = settings.ExportFps > 0 ? settings.ExportFps : ExportFps;
-                        ExportQualityLevel = settings.ExportQualityLevel > 0 ? settings.ExportQualityLevel : ExportQualityLevel;
 
                         if (settings.Hotkeys != null && settings.Hotkeys.Any())
                         {
@@ -122,12 +112,7 @@ namespace Sai2Capture.Services
                     WindowHeight = WindowHeight,
                     WindowLeft = WindowLeft,
                     WindowTop = WindowTop,
-                    PreviewColumnWidth = PreviewColumnWidth,
-                    
-                    // 视频导出设置
-                    ExportCodec = ExportCodec,
-                    ExportFps = ExportFps,
-                    ExportQualityLevel = ExportQualityLevel
+                    PreviewColumnWidth = PreviewColumnWidth
                 };
 
                 string json = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
@@ -193,11 +178,6 @@ namespace Sai2Capture.Services
             public double WindowLeft { get; set; }
             public double WindowTop { get; set; }
             public double PreviewColumnWidth { get; set; }
-            
-            // 视频导出设置
-            public VideoCodec ExportCodec { get; set; }
-            public double ExportFps { get; set; }
-            public int ExportQualityLevel { get; set; }
         }
     }
 }

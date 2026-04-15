@@ -31,7 +31,6 @@ namespace Sai2Capture
             services.AddSingleton<CaptureService>();
             services.AddSingleton<SettingsService>();
             services.AddSingleton<LogService>();
-            services.AddSingleton<FFmpegVideoEncoder>();
             services.AddSingleton<HotkeyService>();
             services.AddSingleton<HotkeyViewModel>();
 
