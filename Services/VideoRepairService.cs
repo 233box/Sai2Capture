@@ -289,52 +289,58 @@ namespace Sai2Capture.Services
 
         /// <summary>
         /// 计算两幅灰度图的结构相似度（SSIM）
+        /// 匹配 skimage.metrics.structural_similarity 默认参数：
+        /// uniform 窗口（7×7 box filter），K1=0.01, K2=0.03, L=255
         /// SSIM = (2*μx*μy + C1)*(2*σxy + C2) / ((μx² + μy² + C1)*(σx² + σy² + C2))
         /// </summary>
         private static double ComputeSSIM(Mat img1, Mat img2)
         {
             const double C1 = 6.5025;   // (0.01 * 255)²
             const double C2 = 58.5225;  // (0.03 * 255)²
+            var winSize = new OpenCvSharp.Size(7, 7); // skimage 默认窗口
 
             using var f1 = new Mat();
             using var f2 = new Mat();
             img1.ConvertTo(f1, MatType.CV_32F);
             img2.ConvertTo(f2, MatType.CV_32F);
 
-            // 均值
+            // 均值（uniform box filter，非 Gaussian）
             using var mu1 = new Mat();
             using var mu2 = new Mat();
-            Cv2.GaussianBlur(f1, mu1, new OpenCvSharp.Size(11, 11), 1.5);
-            Cv2.GaussianBlur(f2, mu2, new OpenCvSharp.Size(11, 11), 1.5);
+            Cv2.Blur(f1, mu1, winSize);
+            Cv2.Blur(f2, mu2, winSize);
 
-            // 平方和交叉积
+            // μx², μy², μx*μy
             using var mu1Sq = mu1.Mul(mu1);
             using var mu2Sq = mu2.Mul(mu2);
             using var mu1Mu2 = mu1.Mul(mu2);
 
+            // f² 和 f*f
             using var f1Sq = f1.Mul(f1);
             using var f2Sq = f2.Mul(f2);
             using var f1f2 = f1.Mul(f2);
 
-            // 方差和协方差
+            // E[f²] 和 E[f1*f2]（uniform box filter）
             using var sigma1Sq = new Mat();
             using var sigma2Sq = new Mat();
             using var sigma12 = new Mat();
-            Cv2.GaussianBlur(f1Sq, sigma1Sq, new OpenCvSharp.Size(11, 11), 1.5);
-            Cv2.GaussianBlur(f2Sq, sigma2Sq, new OpenCvSharp.Size(11, 11), 1.5);
-            Cv2.GaussianBlur(f1f2, sigma12, new OpenCvSharp.Size(11, 11), 1.5);
+            Cv2.Blur(f1Sq, sigma1Sq, winSize);
+            Cv2.Blur(f2Sq, sigma2Sq, winSize);
+            Cv2.Blur(f1f2, sigma12, winSize);
 
+            // 方差和协方差：σ² = E[f²] - (E[f])²
             Cv2.Subtract(sigma1Sq, mu1Sq, sigma1Sq);
             Cv2.Subtract(sigma2Sq, mu2Sq, sigma2Sq);
             Cv2.Subtract(sigma12, mu1Mu2, sigma12);
 
-            // SSIM 公式
+            // SSIM 公式：分子 = (2*μx*μy + C1) * (2*σxy + C2)
             using var t1 = new Mat();
             using var t2 = new Mat();
             Cv2.Add(mu1Mu2 * 2, C1, t1);
             Cv2.Add(sigma12 * 2, C2, t2);
             using var numerator = t1.Mul(t2);
 
+            // 分母 = (μx² + μy² + C1) * (σx² + σy² + C2)
             Cv2.Add(mu1Sq, mu2Sq, t1);
             Cv2.Add(t1, C1, t1);
             Cv2.Add(sigma1Sq, sigma2Sq, t2);
