@@ -1,8 +1,8 @@
-using CommunityToolkit.Mvvm.DependencyInjection;
-using Sai2Capture.Services;
-using Sai2Capture.Styles;
-using Sai2Capture.ViewModels;
-using Sai2Capture.Views;
+﻿using CommunityToolkit.Mvvm.DependencyInjection;
+using Sai2Capture.src.Services;
+using Sai2Capture.src.Styles;
+using Sai2Capture.src.ViewModels;
+using Sai2Capture.src.Views;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
@@ -61,7 +61,7 @@ namespace Sai2Capture
             try
             {
                 Topmost = !Topmost;
-                Sai2Capture.Styles.WindowTemplateHelper.UpdateWindowTopmostState(this);
+                Sai2Capture.src.Styles.WindowTemplateHelper.UpdateWindowTopmostState(this);
 
                 if (DataContext is MainViewModel viewModel)
                 {

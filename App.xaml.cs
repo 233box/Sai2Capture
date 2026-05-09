@@ -1,7 +1,7 @@
-using CommunityToolkit.Mvvm.DependencyInjection;
+﻿using CommunityToolkit.Mvvm.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
-using Sai2Capture.Services;
-using Sai2Capture.ViewModels;
+using Sai2Capture.src.Services;
+using Sai2Capture.src.ViewModels;
 using System.IO;
 using System.Windows;
 using System.Windows.Threading;

@@ -1,0 +1,286 @@
+﻿<UserControl x:Class="Sai2Capture.src.Views.VideoRepairPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:converters="clr-namespace:Sai2Capture.src.Converters"
+             mc:Ignorable="d"
+             d:DesignHeight="750" d:DesignWidth="900">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <converters:UniversalConverter x:Key="UniversalConverter" />
+        </ResourceDictionary>
+    </UserControl.Resources>
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <Grid Margin="16">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- 顶部标题 -->
+            <ui:Card Grid.Row="0" Margin="0,0,0,12">
+                <StackPanel>
+                    <TextBlock Text="视频修复"
+                               Style="{StaticResource CardTitleStyle}"/>
+                    <TextBlock Text="从视频中选取错误帧，自动检测并替换相似帧来修复视频损坏"
+                               Foreground="{DynamicResource ui:BodyForegroundSecondaryBrush}"
+                               FontSize="13"
+                               Margin="0,4,0,0"/>
+                </StackPanel>
+            </ui:Card>
+
+            <!-- 主体内容 -->
+            <StackPanel Grid.Row="1">
+
+                <!-- 视频文件选择 -->
+                <ui:Card Margin="0,0,0,8">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="120"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Text="视频文件：" VerticalAlignment="Center" FontSize="14"/>
+                        <TextBox Grid.Column="1"
+                                 Text="{Binding VideoPath, UpdateSourceTrigger=PropertyChanged}"
+                                 VerticalAlignment="Center"
+                                 IsReadOnly="True"
+                                 Margin="8,0"
+                                 TextWrapping="NoWrap"/>
+                        <ui:Button Grid.Column="2"
+                                   Content="📂 浏览"
+                                   Command="{Binding SelectVideoCommand}"
+                                   IsEnabled="{Binding IsProcessing, Converter={StaticResource UniversalConverter}, ConverterParameter=Invert}"/>
+                    </Grid>
+                </ui:Card>
+
+                <!-- 帧预览区（视频加载后显示） -->
+                <ui:Card Margin="0,0,0,8"
+                         Visibility="{Binding IsVideoLoaded, Converter={StaticResource UniversalConverter}, ConverterParameter=BoolToVisible}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- 标题 + 设为错误帧按钮 -->
+                        <Grid Grid.Row="0" Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="帧预览"
+                                       FontWeight="SemiBold"
+                                       FontSize="14"
+                                       VerticalAlignment="Center"/>
+                            <ui:Button Grid.Column="1"
+                                       Content="📸 设为错误帧"
+                                       Command="{Binding SetCurrentFrameAsReferenceCommand}"
+                                       Appearance="Primary"
+                                       IsEnabled="{Binding IsProcessing, Converter={StaticResource UniversalConverter}, ConverterParameter=Invert}"/>
+                        </Grid>
+
+                        <!-- 预览图像 -->
+                        <Border Grid.Row="1"
+                                BorderBrush="{DynamicResource ui:BorderBrush}"
+                                BorderThickness="1"
+                                HorizontalAlignment="Center"
+                                Margin="0,0,0,8">
+                            <Image Source="{Binding PreviewImage}"
+                                   Width="640"
+                                   Height="360"
+                                   Stretch="Uniform"/>
+                        </Border>
+
+                        <!-- 帧滑块 -->
+                        <Grid Grid.Row="2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Text="帧：" VerticalAlignment="Center" FontSize="13" Margin="0,0,8,0"/>
+                            <Slider Grid.Column="1"
+                                    Minimum="0"
+                                    Maximum="{Binding MaxFramePosition}"
+                                    Value="{Binding FramePosition, Delay=100}"
+                                    SmallChange="1"
+                                    LargeChange="30"
+                                    IsEnabled="{Binding IsProcessing, Converter={StaticResource UniversalConverter}, ConverterParameter=Invert}"
+                                    VerticalAlignment="Center"
+                                    Margin="0,0,8,0"/>
+                            <TextBlock Grid.Column="2"
+                                       VerticalAlignment="Center"
+                                       FontSize="13"
+                                       MinWidth="80"
+                                       TextAlignment="Right">
+                                <Run Text="{Binding FramePosition, StringFormat='{}{0:N0}'}"/>
+                                <Run Text=" / "/>
+                                <Run Text="{Binding MaxFramePosition, StringFormat='{}{0:N0}'}"/>
+                            </TextBlock>
+                        </Grid>
+                    </Grid>
+                </ui:Card>
+
+                <!-- 参考帧选择 -->
+                <ui:Card Margin="0,0,0,8">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="120"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Text="错误帧参考图：" VerticalAlignment="Center" FontSize="14"/>
+                        <TextBox Grid.Column="1"
+                                 Text="{Binding ReferenceImagePath, UpdateSourceTrigger=PropertyChanged}"
+                                 VerticalAlignment="Center"
+                                 IsReadOnly="True"
+                                 Margin="8,0"
+                                 TextWrapping="NoWrap"/>
+                        <ui:Button Grid.Column="2"
+                                   Content="📂 浏览"
+                                   Command="{Binding SelectReferenceImageCommand}"
+                                   IsEnabled="{Binding IsProcessing, Converter={StaticResource UniversalConverter}, ConverterParameter=Invert}"/>
+                    </Grid>
+                </ui:Card>
+
+                <!-- 参数设置 + 操作按钮 -->
+                <ui:Card Margin="0,0,0,8">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="120"/>
+                            <ColumnDefinition Width="200"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Text="相似度阈值：" VerticalAlignment="Center" FontSize="14"/>
+                        <Slider Grid.Column="1"
+                                Minimum="0.5"
+                                Maximum="0.99"
+                                SmallChange="0.01"
+                                LargeChange="0.05"
+                                Value="{Binding SimilarityThreshold}"
+                                IsEnabled="{Binding IsProcessing, Converter={StaticResource UniversalConverter}, ConverterParameter=Invert}"
+                                VerticalAlignment="Center"
+                                Margin="0,0,8,0"/>
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding SimilarityThreshold, StringFormat='{}{0:F2}'}"
+                                       FontSize="14"
+                                       VerticalAlignment="Center"/>
+                            <TextBlock Text="（建议 0.80~0.90）"
+                                       Foreground="{DynamicResource ui:BodyForegroundSecondaryBrush}"
+                                       FontSize="12"
+                                       VerticalAlignment="Center"
+                                       Margin="8,0,0,0"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="3" Orientation="Horizontal">
+                            <ui:Button Content="▶ 开始修复"
+                                       Command="{Binding StartRepairCommand}"
+                                       Appearance="Primary"
+                                       Margin="0,0,8,0"
+                                       Visibility="{Binding IsProcessing, Converter={StaticResource UniversalConverter}, ConverterParameter=BoolToInvertedVisibility}"/>
+                            <ui:Button Content="⏹ 取消"
+                                       Command="{Binding CancelRepairCommand}"
+                                       Appearance="Danger"
+                                       Visibility="{Binding IsProcessing, Converter={StaticResource UniversalConverter}, ConverterParameter=BoolToVisible}"/>
+                        </StackPanel>
+                    </Grid>
+                </ui:Card>
+
+                <!-- 输出路径 -->
+                <ui:Card Margin="0,0,0,8">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="120"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Text="输出路径：" VerticalAlignment="Center" FontSize="14"/>
+                        <TextBox Grid.Column="1"
+                                 Text="{Binding OutputPath, UpdateSourceTrigger=PropertyChanged}"
+                                 VerticalAlignment="Center"
+                                 Margin="8,0"
+                                 TextWrapping="NoWrap"/>
+                        <ui:Button Grid.Column="2"
+                                   Content="📂 浏览"
+                                   Command="{Binding SelectOutputPathCommand}"
+                                   IsEnabled="{Binding IsProcessing, Converter={StaticResource UniversalConverter}, ConverterParameter=Invert}"/>
+                    </Grid>
+                </ui:Card>
+
+                <!-- 进度与状态 -->
+                <ui:Card>
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- 进度条 -->
+                        <Grid Grid.Row="0" Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <ProgressBar Grid.Column="0"
+                                         Minimum="0"
+                                         Maximum="100"
+                                         Value="{Binding Progress}"
+                                         Height="22"
+                                         Margin="0,0,8,0"/>
+                            <TextBlock Grid.Column="1"
+                                       Text="{Binding Progress, StringFormat='{}{0:F1}%'}"
+                                       VerticalAlignment="Center"
+                                       FontSize="14"
+                                       FontWeight="SemiBold"/>
+                        </Grid>
+
+                        <!-- 状态信息 -->
+                        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,4">
+                            <TextBlock Text="状态：" FontWeight="SemiBold" Margin="0,0,4,0"/>
+                            <TextBlock Text="{Binding StatusText}"
+                                       Foreground="{DynamicResource ui:BodyForegroundSecondaryBrush}"/>
+                        </StackPanel>
+
+                        <!-- 统计信息 -->
+                        <Grid Grid.Row="2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="32"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="32"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Column="0">
+                                <Run Text="总帧数：" FontWeight="SemiBold"/>
+                                <Run Text="{Binding TotalFrames}"/>
+                            </TextBlock>
+
+                            <TextBlock Grid.Column="2">
+                                <Run Text="当前帧：" FontWeight="SemiBold"/>
+                                <Run Text="{Binding CurrentFrame}"/>
+                            </TextBlock>
+
+                            <TextBlock Grid.Column="4" Foreground="#E53935">
+                                <Run Text="已修复：" FontWeight="SemiBold"/>
+                                <Run Text="{Binding RemovedFrames}"/>
+                                <Run Text=" 帧"/>
+                            </TextBlock>
+                        </Grid>
+                    </Grid>
+                </ui:Card>
+            </StackPanel>
+        </Grid>
+    </ScrollViewer>
+</UserControl>
