@@ -15,8 +15,6 @@ namespace Sai2Capture.Services
 
         [ObservableProperty] private string _videoPath = string.Empty;
         [ObservableProperty] private string _referenceImagePath = string.Empty;
-        [ObservableProperty] private int _videoWidth;
-        [ObservableProperty] private int _videoHeight;
         [ObservableProperty] private double _similarityThreshold = 0.85;
         [ObservableProperty] private bool _isProcessing;
         [ObservableProperty] private double _progress;
@@ -39,8 +37,6 @@ namespace Sai2Capture.Services
 
             VideoPath = path;
             TotalFrames = (int)cap.Get(VideoCaptureProperties.FrameCount);
-            VideoWidth = (int)cap.Get(VideoCaptureProperties.FrameWidth);
-            VideoHeight = (int)cap.Get(VideoCaptureProperties.FrameHeight);
             StatusText = $"已加载视频：{Path.GetFileName(path)}（共 {TotalFrames} 帧）";
             return true;
         }
@@ -144,7 +140,11 @@ namespace Sai2Capture.Services
             }
         }
 
-        public void CancelRepair() => _cts?.Cancel();
+        public void CancelRepair()
+        {
+            var cts = _cts;
+            cts?.Cancel();
+        }
 
         private void ProcessVideo(string outputPath, CancellationToken ct)
         {

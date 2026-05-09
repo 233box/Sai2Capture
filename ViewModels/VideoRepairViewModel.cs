@@ -29,8 +29,6 @@ namespace Sai2Capture.ViewModels
 
         [ObservableProperty] private int _framePosition;
         [ObservableProperty] private BitmapSource? _previewImage;
-        [ObservableProperty] private int _previewWidth = 640;
-        [ObservableProperty] private int _previewHeight = 360;
         [ObservableProperty] private bool _isVideoLoaded;
         [ObservableProperty] private int _maxFramePosition;
 
@@ -211,28 +209,12 @@ namespace Sai2Capture.ViewModels
             {
                 using var frame = _repairService.GetFrame(frameIndex);
                 if (frame == null || frame.Empty()) return;
-                PreviewImage = MatToBitmapSource(frame);
+                PreviewImage = UtilityService.MatToBitmapSource(frame);
             }
             catch (Exception ex)
             {
                 _logService.AddLog($"加载预览帧 {frameIndex} 失败：{ex.Message}", WinLogLevel.Warning);
             }
-        }
-
-        private static BitmapSource MatToBitmapSource(Mat image)
-        {
-            using var memoryStream = new MemoryStream();
-            Cv2.ImEncode(".bmp", image, out var imageData);
-            memoryStream.Write(imageData, 0, imageData.Length);
-            memoryStream.Seek(0, SeekOrigin.Begin);
-
-            var bitmap = new BitmapImage();
-            bitmap.BeginInit();
-            bitmap.CacheOption = BitmapCacheOption.OnLoad;
-            bitmap.StreamSource = memoryStream;
-            bitmap.EndInit();
-            bitmap.Freeze();
-            return bitmap;
         }
     }
 }

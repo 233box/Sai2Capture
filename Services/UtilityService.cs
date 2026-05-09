@@ -25,7 +25,7 @@ namespace Sai2Capture.Services
         }
 
         /// <summary>
-        /// 生成唯一的视频文件路径
+        /// 生成唯一的视频文件路�?
         /// </summary>
         public string GetUniqueVideoPath(string folder, string baseName = "output", string extension = ".mp4")
         {
@@ -41,13 +41,13 @@ namespace Sai2Capture.Services
         }
 
         /// <summary>
-        /// 启动嵌入式预览
+        /// 启动嵌入式预�?
         /// </summary>
         public void StartEmbeddedPreview(string windowTitle, System.Windows.Controls.Image previewImage)
         {
             if (string.IsNullOrEmpty(windowTitle) || previewImage == null)
             {
-                _logService.AddLog("未选择窗口名称或预览控件为空", LogLevel.Error);
+                                // ת��ʧ�ܣ����ؿհ�ͼ��
                 return;
             }
 
@@ -56,17 +56,17 @@ namespace Sai2Capture.Services
             _embeddedPreviewImage = previewImage;
             _previewWindowTitle = windowTitle;
             _lastPreviewWindowState = false;
-            _logService.AddLog($"启动嵌入式预览：{windowTitle}");
+                            // ת��ʧ�ܣ����ؿհ�ͼ��
 
             _previewTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1000) };
             _previewTimer.Tick += (s, e) => UpdateEmbeddedPreviewWithRetry();
             _previewTimer.Start();
 
-            _logService.AddLog("嵌入式预览已启动", LogLevel.Info);
+                            // ת��ʧ�ܣ����ؿհ�ͼ��
         }
 
         /// <summary>
-        /// 停止嵌入式预览
+        /// 停止嵌入式预�?
         /// </summary>
         public void StopEmbeddedPreview()
         {
@@ -74,11 +74,11 @@ namespace Sai2Capture.Services
             {
                 _previewTimer.Stop();
                 _previewTimer = null;
-                _logService.AddLog("嵌入式预览定时器已停止");
+                                // ת��ʧ�ܣ����ؿհ�ͼ��
             }
 
             _embeddedPreviewImage = null;
-            _logService.AddLog("嵌入式预览已停止");
+                            // ת��ʧ�ܣ����ؿհ�ͼ��
         }
 
         /// <summary>
@@ -95,7 +95,7 @@ namespace Sai2Capture.Services
                 {
                     if (_lastPreviewWindowState)
                     {
-                        _logService.AddLog($"预览窗口未找到：{_previewWindowTitle}", LogLevel.Warning);
+                                        // ת��ʧ�ܣ����ؿհ�ͼ��
                         _lastPreviewWindowState = false;
                     }
                     return;
@@ -103,13 +103,13 @@ namespace Sai2Capture.Services
 
                 if (!_lastPreviewWindowState)
                 {
-                    _logService.AddLog($"预览窗口已连接：{_previewWindowTitle}", LogLevel.Info);
+                                    // ת��ʧ�ܣ����ؿհ�ͼ��
                     _lastPreviewWindowState = true;
                 }
 
                 using Mat image = _windowCaptureService.CaptureWindowContent(hwnd);
                 
-                // 检查图像是否有效
+                // 检查图像是否有�?
                 if (image == null || image.IsDisposed || image.Empty())
                 {
                     return;
@@ -120,11 +120,11 @@ namespace Sai2Capture.Services
                 if (_embeddedPreviewImage != null)
                     _embeddedPreviewImage.Source = bitmap;
             }
-            catch (Exception ex)
+            catch
             {
                 if (_lastPreviewWindowState)
                 {
-                    _logService.AddLog($"预览更新异常：{ex.Message}", LogLevel.Error);
+                                    // ת��ʧ�ܣ����ؿհ�ͼ��
                     _lastPreviewWindowState = false;
                 }
             }
@@ -146,13 +146,13 @@ namespace Sai2Capture.Services
         }
 
         /// <summary>
-        /// 将 OpenCV Mat 转换为 WPF BitmapSource（优化版）
+        /// �?OpenCV Mat 转换�?WPF BitmapSource（优化版�?
         /// </summary>
-        private BitmapSource MatToBitmapSource(Mat image)
+        public static BitmapSource MatToBitmapSource(Mat image)
         {
             try
             {
-                // 优化：使用更高效的转换方式
+                // 优化：使用更高效的转换方�?
                 using var memoryStream = new MemoryStream();
                 Cv2.ImEncode(".bmp", image, out var imageData);
                 memoryStream.Write(imageData, 0, imageData.Length);
@@ -167,9 +167,9 @@ namespace Sai2Capture.Services
 
                 return bitmap;
             }
-            catch (Exception ex)
+            catch
             {
-                _logService.AddLog($"Mat 转 BitmapSource 失败：{ex.Message}", LogLevel.Error);
+                                // ת��ʧ�ܣ����ؿհ�ͼ��
                 return new BitmapImage();
             }
         }
