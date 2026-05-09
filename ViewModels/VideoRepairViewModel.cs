@@ -11,10 +11,6 @@ using WinLogLevel = Sai2Capture.Services.LogLevel;
 
 namespace Sai2Capture.ViewModels
 {
-    /// <summary>
-    /// 视频修复视图模型
-    /// 对应 Python fix.py + select.py 的功能
-    /// </summary>
     public partial class VideoRepairViewModel : ObservableObject
     {
         private readonly VideoRepairService _repairService;
@@ -29,28 +25,13 @@ namespace Sai2Capture.ViewModels
         [ObservableProperty] private int _totalFrames;
         [ObservableProperty] private int _currentFrame;
         [ObservableProperty] private int _removedFrames;
-
-        /// <summary>是否有正在进行的任务</summary>
         [ObservableProperty] private bool _isProcessing;
 
-        // === 帧浏览相关 ===
-
-        /// <summary>当前预览帧号</summary>
         [ObservableProperty] private int _framePosition;
-
-        /// <summary>预览图像</summary>
         [ObservableProperty] private BitmapSource? _previewImage;
-
-        /// <summary>预览区宽度</summary>
         [ObservableProperty] private int _previewWidth = 640;
-
-        /// <summary>预览区高度</summary>
         [ObservableProperty] private int _previewHeight = 360;
-
-        /// <summary>视频已加载（显示帧浏览 UI）</summary>
         [ObservableProperty] private bool _isVideoLoaded;
-
-        /// <summary>最大帧号</summary>
         [ObservableProperty] private int _maxFramePosition;
 
         partial void OnFramePositionChanged(int value)
@@ -83,6 +64,7 @@ namespace Sai2Capture.ViewModels
         {
             WpfApplication.Current.Dispatcher.Invoke(() =>
             {
+                IsProcessing = false;
                 RefreshFromService();
                 CustomDialogService.ShowInfoDialog(
                     $"视频修复完成！\n\n输出文件：{outputPath}\n总帧数：{TotalFrames}\n已修复：{RemovedFrames} 帧",
@@ -90,9 +72,6 @@ namespace Sai2Capture.ViewModels
             });
         }
 
-        /// <summary>
-        /// 选择视频文件
-        /// </summary>
         [RelayCommand]
         private void SelectVideo()
         {
@@ -110,7 +89,6 @@ namespace Sai2Capture.ViewModels
                     OutputPath = _repairService.GetDefaultOutputPath();
                     ReferenceImagePath = string.Empty;
                     _logService.AddLog($"视频修复：已加载视频 {dialog.FileName}");
-
                     StartFrameBrowsing();
                 }
                 else
@@ -121,9 +99,6 @@ namespace Sai2Capture.ViewModels
             }
         }
 
-        /// <summary>
-        /// 选择参考帧图片（从文件）
-        /// </summary>
         [RelayCommand]
         private void SelectReferenceImage()
         {
@@ -148,15 +123,11 @@ namespace Sai2Capture.ViewModels
             }
         }
 
-        /// <summary>
-        /// 将当前预览帧设为错误帧参考图
-        /// </summary>
         [RelayCommand]
         private void SetCurrentFrameAsReference()
         {
             try
             {
-                // 导出到临时目录
                 var tempDir = Path.Combine(Path.GetTempPath(), "Sai2Capture");
                 Directory.CreateDirectory(tempDir);
                 var tempFile = Path.Combine(tempDir, $"ref_frame_{DateTime.Now:yyyyMMdd_HHmmss}.png");
@@ -178,9 +149,6 @@ namespace Sai2Capture.ViewModels
             }
         }
 
-        /// <summary>
-        /// 选择输出路径
-        /// </summary>
         [RelayCommand]
         private void SelectOutputPath()
         {
@@ -192,14 +160,9 @@ namespace Sai2Capture.ViewModels
             };
 
             if (dialog.ShowDialog() == true)
-            {
                 OutputPath = dialog.FileName;
-            }
         }
 
-        /// <summary>
-        /// 开始修复
-        /// </summary>
         [RelayCommand]
         private async Task StartRepair()
         {
@@ -210,7 +173,7 @@ namespace Sai2Capture.ViewModels
             }
             if (string.IsNullOrEmpty(ReferenceImagePath))
             {
-                MessageBox.Show("请先设置错误帧参考图（可从视频预览中选取或从文件加载）。", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("请先设置错误帧参考图。", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
             if (string.IsNullOrEmpty(OutputPath))
@@ -219,25 +182,18 @@ namespace Sai2Capture.ViewModels
                 return;
             }
 
-            // 修复前关闭帧浏览，释放视频句柄
             _repairService.CloseVideoBrowsing();
-
             _repairService.SimilarityThreshold = SimilarityThreshold;
             _logService.AddLog($"视频修复：开始处理 - 视频：{VideoPath}，阈值：{SimilarityThreshold}");
             await _repairService.StartRepairAsync(OutputPath);
         }
 
-        /// <summary>
-        /// 取消修复
-        /// </summary>
         [RelayCommand]
         private void CancelRepair()
         {
             _repairService.CancelRepair();
             _logService.AddLog("视频修复：已取消");
         }
-
-        // === 帧浏览私有方法 ===
 
         private void StartFrameBrowsing()
         {
@@ -246,7 +202,7 @@ namespace Sai2Capture.ViewModels
             MaxFramePosition = Math.Max(0, TotalFrames - 1);
             FramePosition = 0;
             IsVideoLoaded = true;
-            StatusText = $"已加载视频：{Path.GetFileName(VideoPath)}（共 {TotalFrames} 帧），拖动滑块选取错误帧";
+            StatusText = $"已加载视频：{Path.GetFileName(VideoPath)}（共 {TotalFrames} 帧）";
         }
 
         private void LoadPreviewFrame(int frameIndex)
@@ -254,12 +210,7 @@ namespace Sai2Capture.ViewModels
             try
             {
                 using var frame = _repairService.GetFrame(frameIndex);
-                if (frame == null || frame.Empty())
-                {
-                    PreviewImage = null;
-                    return;
-                }
-
+                if (frame == null || frame.Empty()) return;
                 PreviewImage = MatToBitmapSource(frame);
             }
             catch (Exception ex)
@@ -268,9 +219,6 @@ namespace Sai2Capture.ViewModels
             }
         }
 
-        /// <summary>
-        /// 将 OpenCV Mat 转换为 WPF BitmapSource
-        /// </summary>
         private static BitmapSource MatToBitmapSource(Mat image)
         {
             using var memoryStream = new MemoryStream();
@@ -284,7 +232,6 @@ namespace Sai2Capture.ViewModels
             bitmap.StreamSource = memoryStream;
             bitmap.EndInit();
             bitmap.Freeze();
-
             return bitmap;
         }
     }
