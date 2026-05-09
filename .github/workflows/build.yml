@@ -1,0 +1,46 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      # 普通 push：只构建验证
+      - name: 构建验证
+        if: github.ref_type != 'tag'
+        run: dotnet build -c Release
+
+      # 推送 tag：发布打包
+      - name: 发布单文件
+        if: github.ref_type == 'tag'
+        run: dotnet publish -c Release -r win-x64
+
+      - name: 打包 ZIP
+        if: github.ref_type == 'tag'
+        shell: pwsh
+        run: |
+          Compress-Archive `
+            -Path "bin\Release\net8.0-windows10.0.19041.0\win-x64\publish\Sai2Capture.exe" `
+            -DestinationPath "Sai2Capture_${{ github.ref_name }}_win-x64.zip" `
+            -Force
+
+      - name: 上传到 Release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: Sai2Capture_*.zip
+          generate_release_notes: true
