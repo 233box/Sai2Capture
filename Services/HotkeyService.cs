@@ -33,12 +33,12 @@ namespace Sai2Capture.Services
         [ObservableProperty]
         private bool _hotkeysEnabled = true;
 
-        public HotkeyService(LogService logService, SettingsService settingsService)
+        public HotkeyService(LogService logService, SettingsService settingsService, SoundService soundService)
         {
             _logService = logService;
             _settingsService = settingsService;
             _dispatcher = Dispatcher.CurrentDispatcher;
-            _soundService = new SoundService();
+            _soundService = soundService;
             _soundService.ListAvailableSounds();
             _logService.AddLog("热键服务已创建");
         }

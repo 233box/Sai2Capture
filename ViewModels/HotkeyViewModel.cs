@@ -14,7 +14,6 @@ namespace Sai2Capture.ViewModels
     {
         private readonly HotkeyService _hotkeyService;
         private readonly LogService _logService;
-        private readonly SettingsService _settingsService;
         private System.Windows.Window? _currentEditDialog;
 
         [ObservableProperty] private ObservableCollection<HotkeyModel> _hotkeys = new();
@@ -23,10 +22,9 @@ namespace Sai2Capture.ViewModels
         [ObservableProperty] private string _editDialogTitle = "编辑热键";
         [ObservableProperty] private bool _hotkeysEnabled = true;
 
-        public HotkeyViewModel(HotkeyService hotkeyService, SettingsService settingsService, LogService logService)
+        public HotkeyViewModel(HotkeyService hotkeyService, LogService logService)
         {
             _hotkeyService = hotkeyService;
-            _settingsService = settingsService;
             _logService = logService;
             hotkeyService.OnHotkeyTriggered += OnHotkeyTriggered;
             LoadHotkeys();

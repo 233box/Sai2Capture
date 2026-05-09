@@ -48,6 +48,8 @@ namespace Sai2Capture.Converters
                     return ConvertIntToCollapsed(value);
                 case "IntToVisible":
                     return ConvertIntToVisible(value);
+                case "NullToCollapsed":
+                    return value != null ? Visibility.Visible : Visibility.Collapsed;
                 default:
                     return value;
             }

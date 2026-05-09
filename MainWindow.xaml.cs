@@ -1,11 +1,11 @@
 using CommunityToolkit.Mvvm.DependencyInjection;
-using Sai2Capture.Helpers;
 using Sai2Capture.Services;
 using Sai2Capture.Styles;
 using Sai2Capture.ViewModels;
 using Sai2Capture.Views;
 using System.Windows;
 using System.Windows.Interop;
+using System.Windows.Media;
 
 namespace Sai2Capture
 {
@@ -224,7 +224,7 @@ namespace Sai2Capture
                 _toggleTopmostHandler = null;
             }
 
-            if (this.FindChild<MainPage>() is { } mainPage)
+            if (FindVisualChild<MainPage>(this) is { } mainPage)
             {
                 mainPage.SaveSettings();
             }
@@ -236,6 +236,25 @@ namespace Sai2Capture
             _mainViewModel = null;
 
             base.OnClosed(e);
+        }
+
+        /// <summary>
+        /// 在视觉树中递归查找指定类型的子元素
+        /// </summary>
+        private static T? FindVisualChild<T>(DependencyObject? parent) where T : DependencyObject
+        {
+            if (parent == null) return null;
+
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                if (child is T result) return result;
+
+                var grandChild = FindVisualChild<T>(child);
+                if (grandChild != null) return grandChild;
+            }
+
+            return null;
         }
     }
 }

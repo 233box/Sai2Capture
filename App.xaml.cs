@@ -28,6 +28,7 @@ namespace Sai2Capture
             services.AddSingleton<SharedStateService>();
             services.AddSingleton<WindowCaptureService>();
             services.AddSingleton<UtilityService>();
+            services.AddSingleton<SoundService>();
             services.AddSingleton<CaptureService>();
             services.AddSingleton<SettingsService>();
             services.AddSingleton<LogService>();
