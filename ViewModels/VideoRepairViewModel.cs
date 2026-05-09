@@ -64,8 +64,8 @@ namespace Sai2Capture.ViewModels
         {
             WpfApplication.Current.Dispatcher.Invoke(() =>
             {
-                IsProcessing = false;
                 RefreshFromService();
+                IsProcessing = false;
                 CustomDialogService.ShowInfoDialog(
                     $"视频修复完成！\n\n输出文件：{outputPath}\n总帧数：{TotalFrames}\n已修复：{RemovedFrames} 帧",
                     "修复完成");
