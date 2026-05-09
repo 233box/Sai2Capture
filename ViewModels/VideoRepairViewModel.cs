@@ -1,9 +1,13 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using OpenCvSharp;
 using Sai2Capture.Services;
+using System.IO;
 using System.Windows;
+using System.Windows.Media.Imaging;
 using MessageBox = System.Windows.MessageBox;
 using WpfApplication = System.Windows.Application;
+using WinLogLevel = Sai2Capture.Services.LogLevel;
 
 namespace Sai2Capture.ViewModels
 {
@@ -28,6 +32,32 @@ namespace Sai2Capture.ViewModels
 
         /// <summary>是否有正在进行的任务</summary>
         [ObservableProperty] private bool _isProcessing;
+
+        // === 帧浏览相关 ===
+
+        /// <summary>当前预览帧号</summary>
+        [ObservableProperty] private int _framePosition;
+
+        /// <summary>预览图像</summary>
+        [ObservableProperty] private BitmapSource? _previewImage;
+
+        /// <summary>预览区宽度</summary>
+        [ObservableProperty] private int _previewWidth = 640;
+
+        /// <summary>预览区高度</summary>
+        [ObservableProperty] private int _previewHeight = 360;
+
+        /// <summary>视频已加载（显示帧浏览 UI）</summary>
+        [ObservableProperty] private bool _isVideoLoaded;
+
+        /// <summary>最大帧号</summary>
+        [ObservableProperty] private int _maxFramePosition;
+
+        partial void OnFramePositionChanged(int value)
+        {
+            if (IsVideoLoaded && !IsProcessing)
+                LoadPreviewFrame(value);
+        }
 
         public VideoRepairViewModel(VideoRepairService repairService, LogService logService)
         {
@@ -78,7 +108,10 @@ namespace Sai2Capture.ViewModels
                 {
                     VideoPath = dialog.FileName;
                     OutputPath = _repairService.GetDefaultOutputPath();
+                    ReferenceImagePath = string.Empty;
                     _logService.AddLog($"视频修复：已加载视频 {dialog.FileName}");
+
+                    StartFrameBrowsing();
                 }
                 else
                 {
@@ -89,7 +122,7 @@ namespace Sai2Capture.ViewModels
         }
 
         /// <summary>
-        /// 选择参考帧图片
+        /// 选择参考帧图片（从文件）
         /// </summary>
         [RelayCommand]
         private void SelectReferenceImage()
@@ -112,6 +145,36 @@ namespace Sai2Capture.ViewModels
                     MessageBox.Show("无法加载参考图片，请确认文件格式正确。", "错误",
                         MessageBoxButton.OK, MessageBoxImage.Error);
                 }
+            }
+        }
+
+        /// <summary>
+        /// 将当前预览帧设为错误帧参考图
+        /// </summary>
+        [RelayCommand]
+        private void SetCurrentFrameAsReference()
+        {
+            try
+            {
+                // 导出到临时目录
+                var tempDir = Path.Combine(Path.GetTempPath(), "Sai2Capture");
+                Directory.CreateDirectory(tempDir);
+                var tempFile = Path.Combine(tempDir, $"ref_frame_{DateTime.Now:yyyyMMdd_HHmmss}.png");
+
+                _repairService.ExportFrame(FramePosition, tempFile);
+
+                if (File.Exists(tempFile))
+                {
+                    _repairService.SetReferenceImage(tempFile);
+                    ReferenceImagePath = tempFile;
+                    StatusText = $"已将第 {FramePosition} 帧设为错误帧参考图";
+                    _logService.AddLog($"视频修复：从视频中提取第 {FramePosition} 帧作为参考图 → {tempFile}");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logService.AddLog($"提取参考帧失败：{ex.Message}", WinLogLevel.Error);
+                MessageBox.Show($"提取参考帧失败：{ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -147,7 +210,7 @@ namespace Sai2Capture.ViewModels
             }
             if (string.IsNullOrEmpty(ReferenceImagePath))
             {
-                MessageBox.Show("请先选择错误帧参考图片。", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("请先设置错误帧参考图（可从视频预览中选取或从文件加载）。", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
             if (string.IsNullOrEmpty(OutputPath))
@@ -155,6 +218,9 @@ namespace Sai2Capture.ViewModels
                 MessageBox.Show("请先设置输出路径。", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
+
+            // 修复前关闭帧浏览，释放视频句柄
+            _repairService.CloseVideoBrowsing();
 
             _repairService.SimilarityThreshold = SimilarityThreshold;
             _logService.AddLog($"视频修复：开始处理 - 视频：{VideoPath}，阈值：{SimilarityThreshold}");
@@ -169,6 +235,57 @@ namespace Sai2Capture.ViewModels
         {
             _repairService.CancelRepair();
             _logService.AddLog("视频修复：已取消");
+        }
+
+        // === 帧浏览私有方法 ===
+
+        private void StartFrameBrowsing()
+        {
+            _repairService.OpenVideoForBrowsing();
+            TotalFrames = _repairService.TotalFrames;
+            MaxFramePosition = Math.Max(0, TotalFrames - 1);
+            FramePosition = 0;
+            IsVideoLoaded = true;
+            StatusText = $"已加载视频：{Path.GetFileName(VideoPath)}（共 {TotalFrames} 帧），拖动滑块选取错误帧";
+        }
+
+        private void LoadPreviewFrame(int frameIndex)
+        {
+            try
+            {
+                using var frame = _repairService.GetFrame(frameIndex);
+                if (frame == null || frame.Empty())
+                {
+                    PreviewImage = null;
+                    return;
+                }
+
+                PreviewImage = MatToBitmapSource(frame);
+            }
+            catch (Exception ex)
+            {
+                _logService.AddLog($"加载预览帧 {frameIndex} 失败：{ex.Message}", WinLogLevel.Warning);
+            }
+        }
+
+        /// <summary>
+        /// 将 OpenCV Mat 转换为 WPF BitmapSource
+        /// </summary>
+        private static BitmapSource MatToBitmapSource(Mat image)
+        {
+            using var memoryStream = new MemoryStream();
+            Cv2.ImEncode(".bmp", image, out var imageData);
+            memoryStream.Write(imageData, 0, imageData.Length);
+            memoryStream.Seek(0, SeekOrigin.Begin);
+
+            var bitmap = new BitmapImage();
+            bitmap.BeginInit();
+            bitmap.CacheOption = BitmapCacheOption.OnLoad;
+            bitmap.StreamSource = memoryStream;
+            bitmap.EndInit();
+            bitmap.Freeze();
+
+            return bitmap;
         }
     }
 }

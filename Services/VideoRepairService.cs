@@ -11,6 +11,7 @@ namespace Sai2Capture.Services
     public partial class VideoRepairService : ObservableObject, IDisposable
     {
         private CancellationTokenSource? _cts;
+        private VideoCapture? _browseCapture;
         private bool _disposed;
 
         /// <summary>视频文件路径</summary>
@@ -18,6 +19,12 @@ namespace Sai2Capture.Services
 
         /// <summary>参考帧（错误帧）路径</summary>
         [ObservableProperty] private string _referenceImagePath = string.Empty;
+
+        /// <summary>视频宽度</summary>
+        [ObservableProperty] private int _videoWidth;
+
+        /// <summary>视频高度</summary>
+        [ObservableProperty] private int _videoHeight;
 
         /// <summary>相似度阈值（0~1），超过此值视为错误帧</summary>
         [ObservableProperty] private double _similarityThreshold = 0.85;
@@ -59,6 +66,8 @@ namespace Sai2Capture.Services
 
             VideoPath = path;
             TotalFrames = (int)cap.Get(VideoCaptureProperties.FrameCount);
+            VideoWidth = (int)cap.Get(VideoCaptureProperties.FrameWidth);
+            VideoHeight = (int)cap.Get(VideoCaptureProperties.FrameHeight);
             StatusText = $"已加载视频：{Path.GetFileName(path)}（共 {TotalFrames} 帧）";
             return true;
         }
@@ -90,6 +99,60 @@ namespace Sai2Capture.Services
             var name = Path.GetFileNameWithoutExtension(VideoPath);
             var ext = Path.GetExtension(VideoPath);
             return Path.Combine(dir, $"{name}_fixed{ext}");
+        }
+
+        /// <summary>
+        /// 打开视频用于帧浏览（保持 VideoCapture 打开以支持快速 seek）
+        /// </summary>
+        public void OpenVideoForBrowsing()
+        {
+            CloseVideoBrowsing();
+            if (string.IsNullOrEmpty(VideoPath) || !File.Exists(VideoPath)) return;
+
+            _browseCapture = new VideoCapture(VideoPath);
+            if (!_browseCapture.IsOpened())
+            {
+                _browseCapture.Dispose();
+                _browseCapture = null;
+            }
+        }
+
+        /// <summary>
+        /// 获取指定帧号的帧图像
+        /// </summary>
+        public Mat? GetFrame(int frameIndex)
+        {
+            if (_browseCapture == null || !_browseCapture.IsOpened()) return null;
+            if (frameIndex < 0 || frameIndex >= TotalFrames) return null;
+
+            _browseCapture.Set(VideoCaptureProperties.PosFrames, frameIndex);
+            var frame = new Mat();
+            if (!_browseCapture.Read(frame) || frame.Empty())
+            {
+                frame.Dispose();
+                return null;
+            }
+            return frame;
+        }
+
+        /// <summary>
+        /// 将当前帧导出为 PNG 文件
+        /// </summary>
+        public void ExportFrame(int frameIndex, string outputPath)
+        {
+            using var frame = GetFrame(frameIndex);
+            if (frame == null) return;
+            Cv2.ImWrite(outputPath, frame);
+        }
+
+        /// <summary>
+        /// 关闭帧浏览
+        /// </summary>
+        public void CloseVideoBrowsing()
+        {
+            _browseCapture?.Release();
+            _browseCapture?.Dispose();
+            _browseCapture = null;
         }
 
         /// <summary>
@@ -289,6 +352,7 @@ namespace Sai2Capture.Services
             if (_disposed) return;
             _cts?.Cancel();
             _cts?.Dispose();
+            CloseVideoBrowsing();
             _disposed = true;
             GC.SuppressFinalize(this);
         }
