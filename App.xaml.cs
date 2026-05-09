@@ -29,6 +29,7 @@ namespace Sai2Capture
             services.AddSingleton<WindowCaptureService>();
             services.AddSingleton<UtilityService>();
             services.AddSingleton<SoundService>();
+            services.AddSingleton<VideoRepairService>();
             services.AddSingleton<CaptureService>();
             services.AddSingleton<SettingsService>();
             services.AddSingleton<LogService>();
@@ -42,6 +43,7 @@ namespace Sai2Capture
             // 注册 ViewModel
             services.AddSingleton<MainViewModel>();
             services.AddSingleton<RecordingManagerViewModel>();
+            services.AddSingleton<VideoRepairViewModel>();
         }
 
         protected override void OnStartup(StartupEventArgs e)

@@ -28,6 +28,11 @@
             <views:RecordingManagerPage x:Name="RecordingManagerPageControl"/>
         </TabItem>
 
+        <!-- 视频修复标签页 -->
+        <TabItem Header="视频修复">
+            <views:VideoRepairPage x:Name="VideoRepairPageControl"/>
+        </TabItem>
+
         <!-- 设置标签页 -->
         <TabItem Header="设置">
             <views:SettingsPage DataContext="{Binding}"/>

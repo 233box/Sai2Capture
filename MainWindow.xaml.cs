@@ -29,6 +29,11 @@ namespace Sai2Capture
                 recordingManagerPage.DataContext = Ioc.Default.GetRequiredService<RecordingManagerViewModel>();
             }
 
+            if (FindName("VideoRepairPageControl") is VideoRepairPage videoRepairPage)
+            {
+                videoRepairPage.DataContext = Ioc.Default.GetRequiredService<VideoRepairViewModel>();
+            }
+
             SourceInitialized += MainWindow_SourceInitialized;
             Loaded += MainWindow_Loaded;
             Closing += MainWindow_Closing;
