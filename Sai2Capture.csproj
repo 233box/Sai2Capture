@@ -33,7 +33,7 @@
 
   <!-- 将 Sounds 文件夹嵌入到单文件中 -->
   <ItemGroup>
-    <None Update="Sounds\*.wav">
+    <None Update="src\Sounds\*.wav">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </None>
   </ItemGroup>
@@ -49,7 +49,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Sounds\*.wav" />
+    <EmbeddedResource Include="src\Sounds\*.wav" />
   </ItemGroup>
 
 </Project>

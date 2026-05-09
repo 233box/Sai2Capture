@@ -9,10 +9,10 @@
             <ResourceDictionary.MergedDictionaries>
                 <ui:ThemesDictionary Theme="Light" />
                 <ui:ControlsDictionary />
-                <ResourceDictionary Source="Styles/Colors.xaml" />
-                <ResourceDictionary Source="Styles/ControlStyles.xaml" />
-                <ResourceDictionary Source="Styles/WindowStyles.xaml" />
-                <ResourceDictionary Source="Styles/CustomWindowStyles.xaml" />
+                <ResourceDictionary Source="src/Styles/Colors.xaml" />
+                <ResourceDictionary Source="src/Styles/ControlStyles.xaml" />
+                <ResourceDictionary Source="src/Styles/WindowStyles.xaml" />
+                <ResourceDictionary Source="src/Styles/CustomWindowStyles.xaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Application.Resources>
