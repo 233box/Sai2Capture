@@ -110,7 +110,7 @@ namespace Sai2Capture.Models
                     Description = "切换当前窗口是否置顶显示",
                     DefaultKey = "Ctrl+F4",
                     CurrentKey = "Ctrl+F4",
-                    CommandName = "", // 需要单独处理
+                    CommandName = "ToggleWindowTopmost",
                     RequiresModifier = true
                 }
             };
