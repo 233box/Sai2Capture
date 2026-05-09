@@ -32,7 +32,6 @@ namespace Sai2Capture
             services.AddSingleton<SettingsService>();
             services.AddSingleton<LogService>();
             services.AddSingleton<HotkeyService>();
-            services.AddSingleton<VideoRepairService>();
             services.AddSingleton<HotkeyViewModel>();
 
             // 注册 Dispatcher - 使用延迟初始化
@@ -42,7 +41,6 @@ namespace Sai2Capture
             // 注册 ViewModel
             services.AddSingleton<MainViewModel>();
             services.AddSingleton<RecordingManagerViewModel>();
-            services.AddSingleton<VideoRepairViewModel>();
         }
 
         protected override void OnStartup(StartupEventArgs e)

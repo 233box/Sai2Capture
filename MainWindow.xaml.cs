@@ -29,11 +29,6 @@ namespace Sai2Capture
                 recordingManagerPage.DataContext = Ioc.Default.GetRequiredService<RecordingManagerViewModel>();
             }
 
-            if (FindName("VideoRepairPageControl") is VideoRepairPage videoRepairPage)
-            {
-                videoRepairPage.DataContext = Ioc.Default.GetRequiredService<VideoRepairViewModel>();
-            }
-
             SourceInitialized += MainWindow_SourceInitialized;
             Loaded += MainWindow_Loaded;
             Closing += MainWindow_Closing;
@@ -232,11 +227,6 @@ namespace Sai2Capture
             if (this.FindChild<MainPage>() is { } mainPage)
             {
                 mainPage.SaveSettings();
-            }
-
-            if (this.FindChild<VideoRepairPage>() is { } videoRepairPage)
-            {
-                videoRepairPage.Cleanup();
             }
 
             _hotkeyService?.Dispose();

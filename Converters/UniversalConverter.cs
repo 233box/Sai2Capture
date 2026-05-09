@@ -48,14 +48,6 @@ namespace Sai2Capture.Converters
                     return ConvertIntToCollapsed(value);
                 case "IntToVisible":
                     return ConvertIntToVisible(value);
-                case "InverseBoolToVisible":
-                    return ConvertInverseToVisibility(value, true);
-                case "InverseBool":
-                    return ConvertInverse(value);
-                case "NullToVisible":
-                    return ConvertNullToVisibility(value, true);
-                case "NullToCollapsed":
-                    return ConvertNullToVisibility(value, false);
                 default:
                     return value;
             }
@@ -224,35 +216,6 @@ namespace Sai2Capture.Converters
                 return count > 0 ? Visibility.Visible : Visibility.Collapsed;
             }
             return Visibility.Collapsed;
-        }
-
-        /// <summary>
-        /// 反转布尔值后转 Visibility
-        /// </summary>
-        private static object ConvertInverseToVisibility(object value, bool visibleWhenTrue)
-        {
-            if (value is bool boolValue)
-            {
-                bool result = !boolValue;
-                return visibleWhenTrue ?
-                    (result ? Visibility.Visible : Visibility.Collapsed) :
-                    (result ? Visibility.Collapsed : Visibility.Visible);
-            }
-            return Visibility.Collapsed;
-        }
-
-        /// <summary>
-        /// null/空值转 Visibility
-        /// </summary>
-        private static object ConvertNullToVisibility(object value, bool visibleWhenNull)
-        {
-            bool isNull = value == null;
-            if (value is string str)
-                isNull = string.IsNullOrEmpty(str);
-            
-            return visibleWhenNull ?
-                (isNull ? Visibility.Visible : Visibility.Collapsed) :
-                (isNull ? Visibility.Collapsed : Visibility.Visible);
         }
 
         #endregion
